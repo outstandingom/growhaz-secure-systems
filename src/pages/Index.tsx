@@ -4,16 +4,20 @@ import { ServicesOverview } from "@/components/home/ServicesOverview";
 import { SecurityHighlight } from "@/components/home/SecurityHighlight";
 import { ProjectsPreview } from "@/components/home/ProjectsPreview";
 import { CTASection } from "@/components/home/CTASection";
+import { NeuralBackground } from "@/components/background/NeuralBackground";
 
 const Index = () => {
   return (
-    <Layout>
-      <HeroSection />
-      <ServicesOverview />
-      <SecurityHighlight />
-      <ProjectsPreview />
-      <CTASection />
-    </Layout>
+    <>
+      <NeuralBackground />
+      <Layout>
+        <HeroSection />
+        <ServicesOverview />
+        <SecurityHighlight />
+        <ProjectsPreview />
+        <CTASection />
+      </Layout>
+    </>
   );
 };
 
