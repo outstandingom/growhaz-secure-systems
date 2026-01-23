@@ -270,7 +270,7 @@ export function NeuralBackground() {
       </Canvas>
       <div className="absolute inset-0 pointer-events-none">
         <p className="absolute bottom-4 left-1/2 -translate-x-1/2 text-xs text-muted-foreground/50 uppercase tracking-widest">
-          Tap to shed the network
+          
         </p>
       </div>
     </div>
