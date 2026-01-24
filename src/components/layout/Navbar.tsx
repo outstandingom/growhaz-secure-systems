@@ -1,8 +1,10 @@
-import { useState } from "react";
-import { Link, useLocation } from "react-router-dom";
-import { Menu, X, Shield, ChevronDown } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Menu, X, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { User as SupabaseUser } from "@supabase/supabase-js";
 
 const navItems = [
   { label: "Security Tools", href: "/security-tools" },
@@ -17,7 +19,25 @@ const navItems = [
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-xl border-b border-border">
@@ -25,17 +45,17 @@ export function Navbar() {
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 group">
-  <div className="w-10 h-10 rounded-lg overflow-hidden">
-    <img
-      src="/favicon.png"
-      alt="GROWHAZ Logo"
-      className="w-full h-full object-cover"
-    />
-  </div>
-  <span className="text-xl font-bold tracking-tight">
-    GROW<span className="gradient-text">HAZ</span>
-  </span>
-</Link>
+            <div className="w-10 h-10 rounded-lg overflow-hidden">
+              <img
+                src="/favicon.png"
+                alt="GROWHAZ Logo"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <span className="text-xl font-bold tracking-tight">
+              GROW<span className="gradient-text">HAZ</span>
+            </span>
+          </Link>
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-1">
@@ -57,11 +77,20 @@ export function Navbar() {
 
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-3">
-            <Link to="/auth">
-              <Button variant="outline" size="default">
-                Sign In
-              </Button>
-            </Link>
+            {user ? (
+              <Link to="/profile">
+                <Button variant="outline" size="default" className="gap-2">
+                  <User className="w-4 h-4" />
+                  Profile
+                </Button>
+              </Link>
+            ) : (
+              <Link to="/auth">
+                <Button variant="outline" size="default">
+                  Sign In
+                </Button>
+              </Link>
+            )}
             <Link to="/contact">
               <Button variant="hero" size="default">
                 Contact Us
@@ -99,11 +128,20 @@ export function Navbar() {
               </Link>
             ))}
             <div className="pt-4 border-t border-border space-y-2">
-              <Link to="/auth" onClick={() => setIsOpen(false)}>
-                <Button variant="outline" size="lg" className="w-full">
-                  Sign In
-                </Button>
-              </Link>
+              {user ? (
+                <Link to="/profile" onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" size="lg" className="w-full gap-2">
+                    <User className="w-4 h-4" />
+                    My Profile
+                  </Button>
+                </Link>
+              ) : (
+                <Link to="/auth" onClick={() => setIsOpen(false)}>
+                  <Button variant="outline" size="lg" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+              )}
               <Link to="/contact" onClick={() => setIsOpen(false)}>
                 <Button variant="hero" size="lg" className="w-full">
                   Contact Us

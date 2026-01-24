@@ -1,0 +1,373 @@
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Layout } from "@/components/layout/Layout";
+import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { 
+  User, 
+  Shield, 
+  Package, 
+  LogOut, 
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  FileText,
+  Trash2
+} from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { format } from "date-fns";
+
+interface Profile {
+  id: string;
+  full_name: string;
+  phone: string | null;
+}
+
+interface Purchase {
+  id: string;
+  service_name: string;
+  service_type: string;
+  price: number;
+  status: string;
+  purchased_at: string;
+  expires_at: string | null;
+}
+
+interface SecurityReport {
+  id: string;
+  website_url: string;
+  scan_type: string;
+  risk_level: string;
+  vulnerabilities_found: number;
+  scanned_at: string;
+  report_data: any;
+}
+
+export default function Profile() {
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [purchases, setPurchases] = useState<Purchase[]>([]);
+  const [reports, setReports] = useState<SecurityReport[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<"services" | "reports">("services");
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (!session?.user) {
+          navigate("/auth");
+        }
+      }
+    );
+
+    checkAuthAndFetchData();
+
+    return () => subscription.unsubscribe();
+  }, [navigate]);
+
+  const checkAuthAndFetchData = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (!session?.user) {
+      navigate("/auth");
+      return;
+    }
+
+    await Promise.all([
+      fetchProfile(session.user.id),
+      fetchPurchases(),
+      fetchReports()
+    ]);
+    
+    setLoading(false);
+  };
+
+  const fetchProfile = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+
+    if (!error && data) {
+      setProfile(data);
+    }
+  };
+
+  const fetchPurchases = async () => {
+    const { data, error } = await supabase
+      .from("purchases")
+      .select("*")
+      .order("purchased_at", { ascending: false });
+
+    if (!error && data) {
+      setPurchases(data);
+    }
+  };
+
+  const fetchReports = async () => {
+    const { data, error } = await supabase
+      .from("security_reports")
+      .select("*")
+      .order("scanned_at", { ascending: false });
+
+    if (!error && data) {
+      setReports(data);
+    }
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({
+      title: "Logged out",
+      description: "You have been successfully logged out.",
+    });
+    navigate("/");
+  };
+
+  const deleteReport = async (id: string) => {
+    const { error } = await supabase
+      .from("security_reports")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete report.",
+        variant: "destructive",
+      });
+    } else {
+      setReports(reports.filter(r => r.id !== id));
+      toast({
+        title: "Deleted",
+        description: "Security report has been deleted.",
+      });
+    }
+  };
+
+  const getRiskColor = (level: string) => {
+    switch (level.toLowerCase()) {
+      case "low": return "text-emerald-400";
+      case "medium": return "text-amber-400";
+      case "high": return "text-red-400";
+      case "critical": return "text-red-500";
+      default: return "text-muted-foreground";
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case "active": return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+      case "expired": return "bg-red-500/20 text-red-400 border-red-500/30";
+      case "pending": return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+      default: return "bg-muted text-muted-foreground border-border";
+    }
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="section-container flex items-center justify-center min-h-[60vh]">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      </Layout>
+    );
+  }
+
+  return (
+    <Layout>
+      <section className="section-container">
+        <div className="max-w-5xl mx-auto">
+          {/* Profile Header */}
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                <User className="w-8 h-8 text-primary-foreground" />
+              </div>
+              <div>
+                <h1 className="text-2xl md:text-3xl font-bold">
+                  {profile?.full_name || "User"}
+                </h1>
+                {profile?.phone && (
+                  <p className="text-muted-foreground">{profile.phone}</p>
+                )}
+              </div>
+            </div>
+            <Button variant="outline" onClick={handleLogout} className="w-fit">
+              <LogOut className="w-4 h-4 mr-2" />
+              Logout
+            </Button>
+          </div>
+
+          {/* Tabs */}
+          <div className="flex gap-2 mb-8 border-b border-border pb-4">
+            <button
+              onClick={() => setActiveTab("services")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === "services"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              My Services
+            </button>
+            <button
+              onClick={() => setActiveTab("reports")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === "reports"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Shield className="w-4 h-4" />
+              Security Reports
+            </button>
+          </div>
+
+          {/* Services Tab */}
+          {activeTab === "services" && (
+            <div className="space-y-4">
+              {purchases.length === 0 ? (
+                <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
+                  <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No services yet</h3>
+                  <p className="text-muted-foreground mb-6">
+                    You haven't purchased any services yet.
+                  </p>
+                  <Button variant="hero" onClick={() => navigate("/pricing")}>
+                    Browse Services
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {purchases.map((purchase) => (
+                    <div
+                      key={purchase.id}
+                      className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border card-hover"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <Package className="w-6 h-6 text-primary" />
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">{purchase.service_name}</h3>
+                            <p className="text-sm text-muted-foreground">{purchase.service_type}</p>
+                            <div className="flex items-center gap-2 mt-2 text-sm text-muted-foreground">
+                              <Clock className="w-4 h-4" />
+                              Purchased {format(new Date(purchase.purchased_at), "MMM d, yyyy")}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-col items-end gap-2">
+                          <span className="text-xl font-bold">₹{purchase.price.toLocaleString()}</span>
+                          <span className={`px-3 py-1 text-xs font-medium rounded-full border ${getStatusColor(purchase.status)}`}>
+                            {purchase.status.toUpperCase()}
+                          </span>
+                          {purchase.expires_at && (
+                            <span className="text-xs text-muted-foreground">
+                              Expires: {format(new Date(purchase.expires_at), "MMM d, yyyy")}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Security Reports Tab */}
+          {activeTab === "reports" && (
+            <div className="space-y-4">
+              {reports.length === 0 ? (
+                <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
+                  <Shield className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No security reports</h3>
+                  <p className="text-muted-foreground mb-6">
+                    Run a security scan to see your reports here.
+                  </p>
+                  <Button variant="hero" onClick={() => navigate("/security-tools")}>
+                    Run Security Scan
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {reports.map((report) => (
+                    <div
+                      key={report.id}
+                      className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            report.risk_level === "low" ? "bg-emerald-500/10" :
+                            report.risk_level === "medium" ? "bg-amber-500/10" :
+                            "bg-red-500/10"
+                          }`}>
+                            {report.risk_level === "low" ? (
+                              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                            ) : (
+                              <AlertTriangle className={`w-6 h-6 ${getRiskColor(report.risk_level)}`} />
+                            )}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2 mb-1">
+                              <h3 className="font-semibold">{report.website_url}</h3>
+                              <a 
+                                href={report.website_url.startsWith('http') ? report.website_url : `https://${report.website_url}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-muted-foreground hover:text-primary"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            </div>
+                            <p className="text-sm text-muted-foreground capitalize">
+                              {report.scan_type} Scan
+                            </p>
+                            <div className="flex items-center gap-4 mt-2 text-sm">
+                              <span className={`font-medium ${getRiskColor(report.risk_level)}`}>
+                                Risk: {report.risk_level.toUpperCase()}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {report.vulnerabilities_found} vulnerabilities found
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              Scanned {format(new Date(report.scanned_at), "MMM d, yyyy 'at' h:mm a")}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm">
+                            <FileText className="w-4 h-4 mr-2" />
+                            View Report
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => deleteReport(report.id)}
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
+    </Layout>
+  );
+}
