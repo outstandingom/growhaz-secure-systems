@@ -55,8 +55,13 @@ export function Navbar() {
             ))}
           </div>
 
-          {/* CTA Button */}
-          <div className="hidden lg:flex items-center gap-4">
+          {/* CTA Buttons */}
+          <div className="hidden lg:flex items-center gap-3">
+            <Link to="/auth">
+              <Button variant="outline" size="default">
+                Sign In
+              </Button>
+            </Link>
             <Link to="/contact">
               <Button variant="hero" size="default">
                 Contact Us
@@ -93,7 +98,12 @@ export function Navbar() {
                 {item.label}
               </Link>
             ))}
-            <div className="pt-4 border-t border-border">
+            <div className="pt-4 border-t border-border space-y-2">
+              <Link to="/auth" onClick={() => setIsOpen(false)}>
+                <Button variant="outline" size="lg" className="w-full">
+                  Sign In
+                </Button>
+              </Link>
               <Link to="/contact" onClick={() => setIsOpen(false)}>
                 <Button variant="hero" size="lg" className="w-full">
                   Contact Us
