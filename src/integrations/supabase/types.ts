@@ -41,6 +41,78 @@ export type Database = {
         }
         Relationships: []
       }
+      purchases: {
+        Row: {
+          created_at: string
+          expires_at: string | null
+          id: string
+          price: number
+          purchased_at: string
+          service_name: string
+          service_type: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          price: number
+          purchased_at?: string
+          service_name: string
+          service_type: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string | null
+          id?: string
+          price?: number
+          purchased_at?: string
+          service_name?: string
+          service_type?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      security_reports: {
+        Row: {
+          created_at: string
+          id: string
+          report_data: Json | null
+          risk_level: string
+          scan_type: string
+          scanned_at: string
+          user_id: string
+          vulnerabilities_found: number
+          website_url: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          report_data?: Json | null
+          risk_level?: string
+          scan_type?: string
+          scanned_at?: string
+          user_id: string
+          vulnerabilities_found?: number
+          website_url: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          report_data?: Json | null
+          risk_level?: string
+          scan_type?: string
+          scanned_at?: string
+          user_id?: string
+          vulnerabilities_found?: number
+          website_url?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
