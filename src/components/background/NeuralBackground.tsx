@@ -4,6 +4,19 @@ import * as THREE from 'three';
 
 const STAR_COUNT = 300;
 
+// Check if WebGL is available
+function isWebGLAvailable(): boolean {
+  try {
+    const canvas = document.createElement('canvas');
+    return !!(
+      window.WebGLRenderingContext &&
+      (canvas.getContext('webgl') || canvas.getContext('experimental-webgl'))
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
 function createGlowTexture(): THREE.CanvasTexture {
   const canvas = document.createElement('canvas');
   canvas.width = 64;
@@ -258,12 +271,60 @@ function NeuralCore() {
   );
 }
 
+// Fallback background for non-WebGL environments
+function FallbackBackground() {
+  return (
+    <div 
+      className="fixed inset-0 -z-10"
+      style={{
+        background: 'radial-gradient(ellipse at center, #0a1628 0%, #010103 70%)',
+      }}
+    >
+      {/* Animated gradient overlay */}
+      <div 
+        className="absolute inset-0 opacity-30"
+        style={{
+          background: 'radial-gradient(circle at 30% 40%, rgba(0, 210, 255, 0.15) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(147, 51, 234, 0.1) 0%, transparent 50%)',
+        }}
+      />
+      {/* Subtle grid pattern */}
+      <div 
+        className="absolute inset-0 opacity-5"
+        style={{
+          backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+          backgroundSize: '50px 50px',
+        }}
+      />
+    </div>
+  );
+}
+
 export function NeuralBackground() {
+  const [webGLSupported, setWebGLSupported] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setWebGLSupported(isWebGLAvailable());
+  }, []);
+
+  // Show nothing during detection
+  if (webGLSupported === null) {
+    return <div className="fixed inset-0 -z-10" style={{ background: '#010103' }} />;
+  }
+
+  // Use fallback if WebGL is not supported
+  if (!webGLSupported) {
+    return <FallbackBackground />;
+  }
+
   return (
     <div className="fixed inset-0 -z-10" style={{ background: '#010103' }}>
       <Canvas
         camera={{ position: [0, 0, 500], fov: 60, near: 1, far: 3000 }}
         gl={{ antialias: true, alpha: true }}
+        onCreated={({ gl }) => {
+          gl.setClearColor(0x010103, 1);
+        }}
+        fallback={<FallbackBackground />}
       >
         <fog attach="fog" args={[0x010103, 0, 1000]} />
         <NeuralCore />
