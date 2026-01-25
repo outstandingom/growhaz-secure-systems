@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { 
   User, 
@@ -13,7 +15,12 @@ import {
   Clock,
   ExternalLink,
   FileText,
-  Trash2
+  Trash2,
+  Phone,
+  Mail,
+  Edit3,
+  Save,
+  X
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -48,8 +55,13 @@ export default function Profile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [reports, setReports] = useState<SecurityReport[]>([]);
+  const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"services" | "reports">("services");
+  const [activeTab, setActiveTab] = useState<"profile" | "services" | "reports">("profile");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editPhone, setEditPhone] = useState("");
+  const [saving, setSaving] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -75,6 +87,8 @@ export default function Profile() {
       return;
     }
 
+    setUserEmail(session.user.email || "");
+
     await Promise.all([
       fetchProfile(session.user.id),
       fetchPurchases(),
@@ -93,7 +107,46 @@ export default function Profile() {
 
     if (!error && data) {
       setProfile(data);
+      setEditName(data.full_name);
+      setEditPhone(data.phone || "");
     }
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setEditName(profile?.full_name || "");
+      setEditPhone(profile?.phone || "");
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+    
+    setSaving(true);
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: editName,
+        phone: editPhone || null
+      })
+      .eq("id", profile.id);
+
+    if (error) {
+      toast({
+        title: "Error",
+        description: "Failed to update profile.",
+        variant: "destructive",
+      });
+    } else {
+      setProfile({ ...profile, full_name: editName, phone: editPhone || null });
+      setIsEditing(false);
+      toast({
+        title: "Success",
+        description: "Profile updated successfully.",
+      });
+    }
+    setSaving(false);
   };
 
   const fetchPurchases = async () => {
@@ -203,10 +256,21 @@ export default function Profile() {
           </div>
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-8 border-b border-border pb-4">
+          <div className="flex gap-2 mb-8 border-b border-border pb-4 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab("profile")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "profile"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <User className="w-4 h-4" />
+              My Profile
+            </button>
             <button
               onClick={() => setActiveTab("services")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "services"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-secondary"
@@ -217,7 +281,7 @@ export default function Profile() {
             </button>
             <button
               onClick={() => setActiveTab("reports")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "reports"
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-secondary"
@@ -227,6 +291,121 @@ export default function Profile() {
               Security Reports
             </button>
           </div>
+
+          {/* Profile Tab */}
+          {activeTab === "profile" && (
+            <div className="space-y-6">
+              <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-xl font-semibold">Personal Information</h2>
+                  {!isEditing ? (
+                    <Button variant="outline" size="sm" onClick={handleEditToggle}>
+                      <Edit3 className="w-4 h-4 mr-2" />
+                      Edit
+                    </Button>
+                  ) : (
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleEditToggle}
+                        disabled={saving}
+                      >
+                        <X className="w-4 h-4 mr-2" />
+                        Cancel
+                      </Button>
+                      <Button 
+                        variant="hero" 
+                        size="sm" 
+                        onClick={handleSaveProfile}
+                        disabled={saving}
+                      >
+                        <Save className="w-4 h-4 mr-2" />
+                        {saving ? "Saving..." : "Save"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="grid gap-6 md:grid-cols-2">
+                  {/* Full Name */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <User className="w-4 h-4" />
+                      Full Name
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        placeholder="Enter your full name"
+                        className="bg-background/50"
+                      />
+                    ) : (
+                      <p className="text-lg font-medium py-2">
+                        {profile?.full_name || "Not set"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Phone */}
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <Phone className="w-4 h-4" />
+                      Phone Number
+                    </Label>
+                    {isEditing ? (
+                      <Input
+                        value={editPhone}
+                        onChange={(e) => setEditPhone(e.target.value)}
+                        placeholder="Enter your phone number"
+                        className="bg-background/50"
+                      />
+                    ) : (
+                      <p className="text-lg font-medium py-2">
+                        {profile?.phone || "Not set"}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Email (Read-only) */}
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="flex items-center gap-2 text-muted-foreground">
+                      <Mail className="w-4 h-4" />
+                      Email Address
+                    </Label>
+                    <p className="text-lg font-medium py-2 text-muted-foreground">
+                      {userEmail}
+                      <span className="text-xs ml-2 px-2 py-1 bg-secondary rounded-full">
+                        Cannot be changed
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Account Stats */}
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-center">
+                  <Package className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <p className="text-3xl font-bold">{purchases.length}</p>
+                  <p className="text-sm text-muted-foreground">Services Purchased</p>
+                </div>
+                <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-center">
+                  <Shield className="w-8 h-8 text-primary mx-auto mb-2" />
+                  <p className="text-3xl font-bold">{reports.length}</p>
+                  <p className="text-sm text-muted-foreground">Security Reports</p>
+                </div>
+                <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-center">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
+                  <p className="text-3xl font-bold">
+                    {purchases.filter(p => p.status === "active").length}
+                  </p>
+                  <p className="text-sm text-muted-foreground">Active Services</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Services Tab */}
           {activeTab === "services" && (
