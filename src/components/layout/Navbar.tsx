@@ -11,8 +11,8 @@ const navItems = [
   { label: "Development", href: "/development" },
   { label: "SEO", href: "/seo" },
   { label: "Automation", href: "/automation" },
+  { label: "Mentorship", href: "/mentorship" },
   { label: "Blog", href: "/blog" },
-  { label: "Projects", href: "/projects" },
   { label: "Pricing", href: "/pricing" },
   { label: "About", href: "/about" },
 ];
