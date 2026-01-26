@@ -14,7 +14,6 @@ const navItems = [
   { label: "Mentorship", href: "/mentorship" },
   { label: "Blog", href: "/blog" },
   { label: "Pricing", href: "/pricing" },
-  { label: "About", href: "/about" },
 ];
 
 export function Navbar() {

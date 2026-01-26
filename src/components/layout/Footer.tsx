@@ -104,10 +104,10 @@ export function Footer() {
             © {new Date().getFullYear()} GROWHAZ. All rights reserved.
           </p>
           <div className="flex items-center gap-6 text-sm text-muted-foreground">
-            <Link to="#" className="hover:text-primary transition-colors">
+            <Link to="/terms" className="hover:text-primary transition-colors">
               Privacy Policy
             </Link>
-            <Link to="#" className="hover:text-primary transition-colors">
+            <Link to="/terms" className="hover:text-primary transition-colors">
               Terms of Service
             </Link>
           </div>
