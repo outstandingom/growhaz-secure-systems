@@ -17,6 +17,7 @@ export type Database = {
       blog_posts: {
         Row: {
           author_name: string
+          category: string
           content: string
           created_at: string
           excerpt: string
@@ -32,6 +33,7 @@ export type Database = {
         }
         Insert: {
           author_name?: string
+          category?: string
           content: string
           created_at?: string
           excerpt: string
@@ -47,6 +49,7 @@ export type Database = {
         }
         Update: {
           author_name?: string
+          category?: string
           content?: string
           created_at?: string
           excerpt?: string
@@ -59,6 +62,150 @@ export type Database = {
           tags?: string[] | null
           title?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      mentors: {
+        Row: {
+          avatar_url: string | null
+          bio: string
+          calendly_url: string | null
+          created_at: string
+          experience_years: number
+          expertise: string[]
+          hourly_rate: number
+          id: string
+          is_active: boolean
+          is_verified: boolean
+          linkedin_url: string | null
+          name: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          bio: string
+          calendly_url?: string | null
+          created_at?: string
+          experience_years?: number
+          expertise?: string[]
+          hourly_rate: number
+          id?: string
+          is_active?: boolean
+          is_verified?: boolean
+          linkedin_url?: string | null
+          name: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          bio?: string
+          calendly_url?: string | null
+          created_at?: string
+          experience_years?: number
+          expertise?: string[]
+          hourly_rate?: number
+          id?: string
+          is_active?: boolean
+          is_verified?: boolean
+          linkedin_url?: string | null
+          name?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      mentorship_bookings: {
+        Row: {
+          created_at: string
+          duration_minutes: number
+          id: string
+          meeting_link: string | null
+          meeting_type: string
+          mentor_id: string
+          notes: string | null
+          scheduled_at: string
+          status: string
+          topic_id: string
+          total_price: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          meeting_link?: string | null
+          meeting_type?: string
+          mentor_id: string
+          notes?: string | null
+          scheduled_at: string
+          status?: string
+          topic_id: string
+          total_price: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          duration_minutes?: number
+          id?: string
+          meeting_link?: string | null
+          meeting_type?: string
+          mentor_id?: string
+          notes?: string | null
+          scheduled_at?: string
+          status?: string
+          topic_id?: string
+          total_price?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "mentorship_bookings_mentor_id_fkey"
+            columns: ["mentor_id"]
+            isOneToOne: false
+            referencedRelation: "mentors"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "mentorship_bookings_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "mentorship_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      mentorship_topics: {
+        Row: {
+          created_at: string
+          description: string | null
+          icon: string | null
+          id: string
+          is_active: boolean
+          name: string
+          slug: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          slug: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          slug?: string
         }
         Relationships: []
       }
