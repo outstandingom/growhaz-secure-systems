@@ -109,6 +109,27 @@ export default function Profile() {
       setProfile(data);
       setEditName(data.full_name);
       setEditPhone(data.phone || "");
+    } else if (error && error.code === "PGRST116") {
+      // No profile exists, create one
+      const { data: session } = await supabase.auth.getSession();
+      const userEmail = session?.session?.user?.email || "";
+      const defaultName = userEmail.split("@")[0] || "User";
+      
+      const { data: newProfile, error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          user_id: userId,
+          full_name: defaultName,
+          phone: null
+        })
+        .select()
+        .single();
+
+      if (!insertError && newProfile) {
+        setProfile(newProfile);
+        setEditName(newProfile.full_name);
+        setEditPhone(newProfile.phone || "");
+      }
     }
   };
 
