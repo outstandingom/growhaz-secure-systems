@@ -65,6 +65,98 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_request_responses: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          proposed_rate: number | null
+          request_id: string
+          responder_id: string
+          responder_name: string
+          responder_skills: string[]
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          proposed_rate?: number | null
+          request_id: string
+          responder_id: string
+          responder_name: string
+          responder_skills?: string[]
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          proposed_rate?: number | null
+          request_id?: string
+          responder_id?: string
+          responder_name?: string
+          responder_skills?: string[]
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "learning_request_responses_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "learning_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      learning_requests: {
+        Row: {
+          budget_max: number | null
+          budget_min: number | null
+          created_at: string
+          description: string
+          id: string
+          preferred_duration: string | null
+          request_type: Database["public"]["Enums"]["learning_request_type"]
+          skills: string[]
+          status: Database["public"]["Enums"]["learning_request_status"]
+          title: string
+          updated_at: string
+          urgency: string | null
+          user_id: string
+        }
+        Insert: {
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string
+          description: string
+          id?: string
+          preferred_duration?: string | null
+          request_type?: Database["public"]["Enums"]["learning_request_type"]
+          skills?: string[]
+          status?: Database["public"]["Enums"]["learning_request_status"]
+          title: string
+          updated_at?: string
+          urgency?: string | null
+          user_id: string
+        }
+        Update: {
+          budget_max?: number | null
+          budget_min?: number | null
+          created_at?: string
+          description?: string
+          id?: string
+          preferred_duration?: string | null
+          request_type?: Database["public"]["Enums"]["learning_request_type"]
+          skills?: string[]
+          status?: Database["public"]["Enums"]["learning_request_status"]
+          title?: string
+          updated_at?: string
+          urgency?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       mentors: {
         Row: {
           avatar_url: string | null
@@ -316,7 +408,12 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      learning_request_status:
+        | "open"
+        | "in_progress"
+        | "completed"
+        | "cancelled"
+      learning_request_type: "learn" | "consulting" | "project_help"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -443,6 +540,14 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      learning_request_status: [
+        "open",
+        "in_progress",
+        "completed",
+        "cancelled",
+      ],
+      learning_request_type: ["learn", "consulting", "project_help"],
+    },
   },
 } as const
