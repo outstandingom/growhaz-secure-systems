@@ -104,46 +104,155 @@ export default function BlogPostPage() {
     }
   };
 
+  const renderInlineStyles = (text: string) => {
+    // Handle inline bold and other formatting
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("**") && part.endsWith("**")) {
+        return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+      }
+      return part;
+    });
+  };
+
   const renderContent = (content: string) => {
-    // Simple markdown-like rendering
-    return content.split("\n").map((line, index) => {
+    const lines = content.split("\n");
+    const elements: JSX.Element[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i];
+
+      // Horizontal rule
+      if (line.trim() === "---") {
+        elements.push(<hr key={i} className="my-8 border-border" />);
+        i++;
+        continue;
+      }
+
+      // H2 Headers
       if (line.startsWith("## ")) {
-        return (
-          <h2 key={index} className="text-2xl font-bold mt-8 mb-4 text-foreground">
+        elements.push(
+          <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-foreground">
             {line.replace("## ", "")}
           </h2>
         );
+        i++;
+        continue;
       }
+
+      // H3 Headers
       if (line.startsWith("### ")) {
-        return (
-          <h3 key={index} className="text-xl font-semibold mt-6 mb-3 text-foreground">
+        elements.push(
+          <h3 key={i} className="text-xl font-semibold mt-6 mb-3 text-foreground">
             {line.replace("### ", "")}
           </h3>
         );
+        i++;
+        continue;
       }
-      if (line.startsWith("**") && line.endsWith("**")) {
-        return (
-          <p key={index} className="font-semibold my-2">
-            {line.replace(/\*\*/g, "")}
-          </p>
+
+      // Blockquotes
+      if (line.startsWith("> ")) {
+        elements.push(
+          <blockquote key={i} className="border-l-4 border-primary pl-4 py-2 my-4 bg-primary/5 rounded-r-lg italic text-foreground">
+            {renderInlineStyles(line.replace("> ", ""))}
+          </blockquote>
         );
+        i++;
+        continue;
       }
-      if (line.startsWith("- ")) {
-        return (
-          <li key={index} className="ml-6 my-1 text-muted-foreground list-disc">
-            {line.replace("- ", "")}
+
+      // Table detection - look for lines with | characters
+      if (line.includes("|") && line.trim().startsWith("|")) {
+        const tableRows: string[] = [];
+        while (i < lines.length && lines[i].includes("|")) {
+          tableRows.push(lines[i]);
+          i++;
+        }
+
+        // Parse table
+        const parsedRows = tableRows
+          .filter(row => !row.match(/^\|[\s-:|]+\|$/)) // Filter out separator rows
+          .map(row => 
+            row.split("|")
+              .filter(cell => cell.trim() !== "")
+              .map(cell => cell.trim())
+          );
+
+        if (parsedRows.length > 0) {
+          const headerRow = parsedRows[0];
+          const bodyRows = parsedRows.slice(1);
+
+          elements.push(
+            <div key={`table-${i}`} className="my-6 overflow-x-auto">
+              <table className="w-full border-collapse border border-border rounded-lg">
+                <thead>
+                  <tr className="bg-muted/50">
+                    {headerRow.map((cell, cellIdx) => (
+                      <th key={cellIdx} className="border border-border px-4 py-2 text-left font-semibold text-foreground">
+                        {cell}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {bodyRows.map((row, rowIdx) => (
+                    <tr key={rowIdx} className="hover:bg-muted/30">
+                      {row.map((cell, cellIdx) => (
+                        <td key={cellIdx} className="border border-border px-4 py-2 text-muted-foreground">
+                          {cell}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          );
+        }
+        continue;
+      }
+
+      // Numbered lists (1. 2. 3.)
+      if (/^\d+\.\s/.test(line)) {
+        elements.push(
+          <li key={i} className="ml-6 my-1 text-muted-foreground list-decimal">
+            {renderInlineStyles(line.replace(/^\d+\.\s/, ""))}
           </li>
         );
+        i++;
+        continue;
       }
+
+      // Bullet points
+      if (line.startsWith("- ")) {
+        elements.push(
+          <li key={i} className="ml-6 my-1 text-muted-foreground list-disc">
+            {renderInlineStyles(line.replace("- ", ""))}
+          </li>
+        );
+        i++;
+        continue;
+      }
+
+      // Empty lines
       if (line.trim() === "") {
-        return <br key={index} />;
+        elements.push(<br key={i} />);
+        i++;
+        continue;
       }
-      return (
-        <p key={index} className="text-muted-foreground leading-relaxed my-2">
-          {line}
+
+      // Regular paragraph with inline styles
+      elements.push(
+        <p key={i} className="text-muted-foreground leading-relaxed my-2">
+          {renderInlineStyles(line)}
         </p>
       );
-    });
+      i++;
+    }
+
+    return elements;
   };
 
   if (loading) {
