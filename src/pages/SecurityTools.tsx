@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
+import { User } from "@supabase/supabase-js";
 import { 
   Shield, 
   CheckCircle2, 
@@ -10,7 +13,8 @@ import {
   Globe,
   ArrowRight,
   Loader2,
-  Info
+  Info,
+  LogIn
 } from "lucide-react";
 
 const capabilities = [
@@ -32,9 +36,27 @@ export default function SecurityTools() {
   const [url, setUrl] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+        setLoading(false);
+      }
+    );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleScan = () => {
-    if (!url) return;
+    if (!url || !user) return;
     setIsScanning(true);
     setTimeout(() => {
       setIsScanning(false);
@@ -62,51 +84,80 @@ export default function SecurityTools() {
             identify vulnerabilities before attackers do.
           </p>
 
-          {/* Scanner Input */}
-          <div className="max-w-2xl mx-auto">
-            <div className="flex flex-col sm:flex-row gap-4 p-2 rounded-2xl bg-card border border-border">
-              <div className="flex-1 flex items-center gap-3 px-4">
-                <Globe className="w-5 h-5 text-muted-foreground" />
-                <input
-                  type="url"
-                  placeholder="Enter website URL (e.g., https://example.com)"
-                  value={url}
-                  onChange={(e) => setUrl(e.target.value)}
-                  className="flex-1 bg-transparent py-3 text-foreground placeholder:text-muted-foreground focus:outline-none"
-                />
-              </div>
-              <Button
-                variant="hero"
-                size="lg"
-                onClick={handleScan}
-                disabled={isScanning || !url}
-                className="sm:w-auto"
-              >
-                {isScanning ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Scanning...
-                  </>
-                ) : (
-                  <>
-                    Run Security Test
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </Button>
+          {/* Auth Check */}
+          {loading ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
             </div>
-
-            {/* Transparency Note */}
-            <div className="mt-4 p-4 rounded-lg bg-secondary/50 border border-border text-left">
-              <div className="flex items-start gap-3">
-                <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                <p className="text-sm text-muted-foreground">
-                  <strong className="text-foreground">Note:</strong> The security engine is already developed and is being 
-                  deployed on AWS / Azure. It will be connected securely with the website frontend for real-time testing.
+          ) : !user ? (
+            /* Login Required Message */
+            <div className="max-w-xl mx-auto">
+              <div className="rounded-2xl bg-card border border-border p-8 text-center">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                  <Lock className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="text-xl font-semibold mb-3">Login Required</h3>
+                <p className="text-muted-foreground mb-6">
+                  To use our security testing tools, please sign in or create an account first. 
+                  This helps us save your scan results and provide personalized reports.
                 </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Link to="/auth">
+                    <Button variant="hero" size="lg" className="w-full sm:w-auto">
+                      <LogIn className="w-4 h-4 mr-2" />
+                      Sign In / Register
+                    </Button>
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            /* Scanner Input - Only shown when logged in */
+            <div className="max-w-2xl mx-auto">
+              <div className="flex flex-col sm:flex-row gap-4 p-2 rounded-2xl bg-card border border-border">
+                <div className="flex-1 flex items-center gap-3 px-4">
+                  <Globe className="w-5 h-5 text-muted-foreground" />
+                  <input
+                    type="url"
+                    placeholder="Enter website URL (e.g., https://example.com)"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    className="flex-1 bg-transparent py-3 text-foreground placeholder:text-muted-foreground focus:outline-none"
+                  />
+                </div>
+                <Button
+                  variant="hero"
+                  size="lg"
+                  onClick={handleScan}
+                  disabled={isScanning || !url}
+                  className="sm:w-auto"
+                >
+                  {isScanning ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Scanning...
+                    </>
+                  ) : (
+                    <>
+                      Run Security Test
+                      <ArrowRight className="w-4 h-4" />
+                    </>
+                  )}
+                </Button>
+              </div>
+
+              {/* Transparency Note */}
+              <div className="mt-4 p-4 rounded-lg bg-secondary/50 border border-border text-left">
+                <div className="flex items-start gap-3">
+                  <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <p className="text-sm text-muted-foreground">
+                    <strong className="text-foreground">Note:</strong> The security engine is already developed and is being 
+                    deployed on AWS / Azure. It will be connected securely with the website frontend for real-time testing.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </section>
 
