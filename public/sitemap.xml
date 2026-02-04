@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset
+      xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+      xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+            http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+<url>
+  <loc>https://www.growhaz.in/</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>1.0</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/security-tools</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/development</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/seo</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/automation</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/marketing</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/projects</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/pricing</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/about</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.7</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/contact</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.7</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/blog</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/mentorship</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.8</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/terms</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.3</priority>
+</url>
+
+<url>
+  <loc>https://www.growhaz.in/privacy-policy</loc>
+  <lastmod>2026-02-03T15:03:56+00:00</lastmod>
+  <priority>0.3</priority>
+</url>
+
+</urlset>
