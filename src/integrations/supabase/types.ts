@@ -372,6 +372,8 @@ export type Database = {
           risk_level: string
           scan_type: string
           scanned_at: string
+          scanner_name: string | null
+          scanner_phone: string | null
           user_id: string
           vulnerabilities_found: number
           website_url: string
@@ -383,6 +385,8 @@ export type Database = {
           risk_level?: string
           scan_type?: string
           scanned_at?: string
+          scanner_name?: string | null
+          scanner_phone?: string | null
           user_id: string
           vulnerabilities_found?: number
           website_url: string
@@ -394,6 +398,8 @@ export type Database = {
           risk_level?: string
           scan_type?: string
           scanned_at?: string
+          scanner_name?: string | null
+          scanner_phone?: string | null
           user_id?: string
           vulnerabilities_found?: number
           website_url?: string

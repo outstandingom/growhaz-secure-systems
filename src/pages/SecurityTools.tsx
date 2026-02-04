@@ -2,8 +2,11 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Shield, 
   CheckCircle2, 
@@ -14,7 +17,9 @@ import {
   ArrowRight,
   Loader2,
   Info,
-  LogIn
+  LogIn,
+  User as UserIcon,
+  Phone
 } from "lucide-react";
 
 const capabilities = [
@@ -34,33 +39,96 @@ const outputs = [
 
 export default function SecurityTools() {
   const [url, setUrl] = useState("");
+  const [scannerName, setScannerName] = useState("");
+  const [scannerPhone, setScannerPhone] = useState("");
   const [isScanning, setIsScanning] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user ?? null);
         setLoading(false);
+        if (session?.user) {
+          fetchProfile(session.user.id);
+        }
       }
     );
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
+      if (session?.user) {
+        fetchProfile(session.user.id);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const handleScan = () => {
-    if (!url || !user) return;
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name, phone")
+      .eq("user_id", userId)
+      .maybeSingle();
+    
+    if (data) {
+      setScannerName(data.full_name || "");
+      setScannerPhone(data.phone || "");
+    }
+  };
+
+  const handleScan = async () => {
+    if (!url || !user || !scannerName.trim()) {
+      toast({
+        title: "Required Fields",
+        description: "Please enter your name and the website URL.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsScanning(true);
-    setTimeout(() => {
+
+    // Simulate scan and save to database
+    setTimeout(async () => {
+      const { error } = await supabase.from("security_reports").insert({
+        user_id: user.id,
+        website_url: url,
+        scanner_name: scannerName.trim(),
+        scanner_phone: scannerPhone.trim() || null,
+        scan_type: "basic",
+        vulnerabilities_found: 2,
+        risk_level: "medium",
+        report_data: {
+          https: true,
+          sql_injection: "protected",
+          xss_protection: true,
+          x_frame_options: false,
+          csp: false,
+        },
+      });
+
       setIsScanning(false);
+
+      if (error) {
+        toast({
+          title: "Error",
+          description: "Failed to save scan results. Please try again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       setShowResult(true);
+      toast({
+        title: "Scan Complete",
+        description: "Security scan results have been saved to your profile.",
+      });
     }, 3000);
   };
 
@@ -113,7 +181,40 @@ export default function SecurityTools() {
             </div>
           ) : (
             /* Scanner Input - Only shown when logged in */
-            <div className="max-w-2xl mx-auto">
+            <div className="max-w-2xl mx-auto space-y-6">
+              {/* Name and Phone Fields */}
+              <div className="grid sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="scannerName" className="flex items-center gap-2 text-sm">
+                    <UserIcon className="w-4 h-4 text-muted-foreground" />
+                    Your Name <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="scannerName"
+                    type="text"
+                    placeholder="John Doe"
+                    value={scannerName}
+                    onChange={(e) => setScannerName(e.target.value)}
+                    className="bg-card border-border"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="scannerPhone" className="flex items-center gap-2 text-sm">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="scannerPhone"
+                    type="tel"
+                    placeholder="+91 9876543210"
+                    value={scannerPhone}
+                    onChange={(e) => setScannerPhone(e.target.value)}
+                    className="bg-card border-border"
+                  />
+                </div>
+              </div>
+
+              {/* URL Input */}
               <div className="flex flex-col sm:flex-row gap-4 p-2 rounded-2xl bg-card border border-border">
                 <div className="flex-1 flex items-center gap-3 px-4">
                   <Globe className="w-5 h-5 text-muted-foreground" />
@@ -129,7 +230,7 @@ export default function SecurityTools() {
                   variant="hero"
                   size="lg"
                   onClick={handleScan}
-                  disabled={isScanning || !url}
+                  disabled={isScanning || !url || !scannerName.trim()}
                   className="sm:w-auto"
                 >
                   {isScanning ? (
@@ -147,7 +248,7 @@ export default function SecurityTools() {
               </div>
 
               {/* Transparency Note */}
-              <div className="mt-4 p-4 rounded-lg bg-secondary/50 border border-border text-left">
+              <div className="p-4 rounded-lg bg-secondary/50 border border-border text-left">
                 <div className="flex items-start gap-3">
                   <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">
