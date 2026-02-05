@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import emailjs from "@emailjs/browser";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Mail, 
   Send,
@@ -8,8 +10,13 @@ import {
   Shield,
   Code2,
   Search,
-  Zap
+  Zap,
+  Loader2
 } from "lucide-react";
+
+const EMAILJS_SERVICE_ID = "service_j7j2dkv";
+const EMAILJS_TEMPLATE_ID = "template_8k1ymym";
+const EMAILJS_PUBLIC_KEY = "6SXFvxC9yntvDF-Ra";
 
 const services = [
   { id: "security", label: "Security Testing", icon: Shield },
@@ -21,10 +28,48 @@ const services = [
 export default function Contact() {
   const [selectedService, setSelectedService] = useState<string>("");
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitted(true);
+    if (!formRef.current) return;
+
+    setLoading(true);
+
+    const formData = new FormData(formRef.current);
+    const templateParams = {
+      name: formData.get("name") as string,
+      email: formData.get("email") as string,
+      website: formData.get("website") as string || "",
+      message: formData.get("message") as string,
+      service: services.find(s => s.id === selectedService)?.label || "Not specified",
+      time: new Date().toLocaleString(),
+    };
+
+    try {
+      await emailjs.send(
+        EMAILJS_SERVICE_ID,
+        EMAILJS_TEMPLATE_ID,
+        templateParams,
+        EMAILJS_PUBLIC_KEY
+      );
+      setSubmitted(true);
+      toast({
+        title: "Message Sent!",
+        description: "We'll get back to you within 24 hours.",
+      });
+    } catch (error) {
+      console.error("EmailJS error:", error);
+      toast({
+        title: "Failed to send",
+        description: "Please try again or email us directly.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -65,7 +110,7 @@ export default function Contact() {
               </Button>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="p-8 rounded-2xl bg-card border border-border">
+            <form ref={formRef} onSubmit={handleSubmit} className="p-8 rounded-2xl bg-card border border-border">
               {/* Service Selection */}
               <div className="mb-6">
                 <label className="block text-sm font-medium mb-3">
@@ -100,6 +145,7 @@ export default function Contact() {
                 <input
                   type="text"
                   id="name"
+                  name="name"
                   required
                   className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="John Doe"
@@ -114,6 +160,7 @@ export default function Contact() {
                 <input
                   type="email"
                   id="email"
+                  name="email"
                   required
                   className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="john@example.com"
@@ -128,6 +175,7 @@ export default function Contact() {
                 <input
                   type="url"
                   id="website"
+                  name="website"
                   className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="https://yourwebsite.com"
                 />
@@ -140,6 +188,7 @@ export default function Contact() {
                 </label>
                 <textarea
                   id="message"
+                  name="message"
                   required
                   rows={5}
                   className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
@@ -147,9 +196,18 @@ export default function Contact() {
                 />
               </div>
 
-              <Button variant="hero" size="xl" className="w-full">
-                Send Message
-                <Send className="w-5 h-5" />
+              <Button variant="hero" size="xl" className="w-full" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    Sending...
+                  </>
+                ) : (
+                  <>
+                    Send Message
+                    <Send className="w-5 h-5" />
+                  </>
+                )}
               </Button>
             </form>
           )}
