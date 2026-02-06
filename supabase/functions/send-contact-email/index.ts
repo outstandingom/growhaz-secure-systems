@@ -16,7 +16,7 @@ interface ContactFormData {
 }
 
 const EMAILJS_SERVICE_ID = "service_j7j2dkv";
-const EMAILJS_TEMPLATE_ID = "template_yzlkk7b";
+const EMAILJS_TEMPLATE_ID = "template_tjizwyb";
 const EMAILJS_PUBLIC_KEY = "6SXFvxC9yntvDF-Ra";
 
 serve(async (req: Request) => {
