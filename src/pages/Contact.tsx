@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
-import emailjs from "@emailjs/browser";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   Mail, 
   Send,
@@ -11,12 +11,9 @@ import {
   Code2,
   Search,
   Zap,
-  Loader2
+  Loader2,
+  Phone
 } from "lucide-react";
-
-const EMAILJS_SERVICE_ID = "service_j7j2dkv";
-const EMAILJS_TEMPLATE_ID = "template_yzlkk7b";
-const EMAILJS_PUBLIC_KEY = "6SXFvxC9yntvDF-Ra";
 
 const services = [
   { id: "security", label: "Security Testing", icon: Shield },
@@ -39,9 +36,10 @@ export default function Contact() {
     setLoading(true);
 
     const formData = new FormData(formRef.current);
-    const templateParams = {
+    const contactData = {
       name: formData.get("name") as string,
       email: formData.get("email") as string,
+      phone: formData.get("phone") as string || "",
       website: formData.get("website") as string || "",
       message: formData.get("message") as string,
       service: services.find(s => s.id === selectedService)?.label || "Not specified",
@@ -49,22 +47,22 @@ export default function Contact() {
     };
 
     try {
-      await emailjs.send(
-        EMAILJS_SERVICE_ID,
-        EMAILJS_TEMPLATE_ID,
-        templateParams,
-        EMAILJS_PUBLIC_KEY
-      );
+      const { data, error } = await supabase.functions.invoke('send-contact-email', {
+        body: contactData,
+      });
+
+      if (error) throw error;
+
       setSubmitted(true);
       toast({
         title: "Message Sent!",
         description: "We'll get back to you within 24 hours.",
       });
-    } catch (error) {
-      console.error("EmailJS error:", error);
+    } catch (error: any) {
+      console.error("Contact form error:", error);
       toast({
         title: "Failed to send",
-        description: "Please try again or email us directly.",
+        description: error.message || "Please try again or email us directly.",
         variant: "destructive",
       });
     } finally {
@@ -164,6 +162,20 @@ export default function Contact() {
                   required
                   className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                   placeholder="john@example.com"
+                />
+              </div>
+
+              {/* Phone Number */}
+              <div className="mb-6">
+                <label htmlFor="phone" className="block text-sm font-medium mb-2">
+                  Phone Number (optional)
+                </label>
+                <input
+                  type="tel"
+                  id="phone"
+                  name="phone"
+                  className="w-full px-4 py-3 rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+                  placeholder="+91 98765 43210"
                 />
               </div>
 
