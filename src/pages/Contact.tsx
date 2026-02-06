@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 
 const EMAILJS_SERVICE_ID = "service_j7j2dkv";
-const EMAILJS_TEMPLATE_ID = "template_8k1ymym";
+const EMAILJS_TEMPLATE_ID = "template_yzlkk7b";
 const EMAILJS_PUBLIC_KEY = "6SXFvxC9yntvDF-Ra";
 
 const services = [
