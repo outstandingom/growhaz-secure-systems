@@ -303,26 +303,53 @@ export type Database = {
       }
       profiles: {
         Row: {
+          bio: string | null
+          certificates: Json | null
           created_at: string
+          experience_years: number | null
           full_name: string
+          github_url: string | null
+          hourly_rate: number | null
           id: string
+          is_available_as_mentor: boolean | null
+          leetcode_url: string | null
+          linkedin_url: string | null
           phone: string | null
+          skills: string[] | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          bio?: string | null
+          certificates?: Json | null
           created_at?: string
+          experience_years?: number | null
           full_name: string
+          github_url?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_available_as_mentor?: boolean | null
+          leetcode_url?: string | null
+          linkedin_url?: string | null
           phone?: string | null
+          skills?: string[] | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          bio?: string | null
+          certificates?: Json | null
           created_at?: string
+          experience_years?: number | null
           full_name?: string
+          github_url?: string | null
+          hourly_rate?: number | null
           id?: string
+          is_available_as_mentor?: boolean | null
+          leetcode_url?: string | null
+          linkedin_url?: string | null
           phone?: string | null
+          skills?: string[] | null
           updated_at?: string
           user_id?: string
         }

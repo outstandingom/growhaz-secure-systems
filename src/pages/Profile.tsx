@@ -20,15 +20,33 @@ import {
   Mail,
   Edit3,
   Save,
-  X
+  X,
+  GraduationCap
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
+import { MentorProfileSection } from "@/components/profile/MentorProfileSection";
+
+interface Certificate {
+  name: string;
+  issuer: string;
+  url?: string;
+  date?: string;
+}
 
 interface Profile {
   id: string;
   full_name: string;
   phone: string | null;
+  github_url: string | null;
+  linkedin_url: string | null;
+  leetcode_url: string | null;
+  certificates: Certificate[];
+  skills: string[];
+  hourly_rate: number | null;
+  bio: string | null;
+  is_available_as_mentor: boolean;
+  experience_years: number;
 }
 
 interface Purchase {
@@ -57,7 +75,7 @@ export default function Profile() {
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "services" | "reports">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports">("profile");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -106,7 +124,18 @@ export default function Profile() {
       .single();
 
     if (!error && data) {
-      setProfile(data);
+      // Parse certificates from JSON
+      const certificates = Array.isArray(data.certificates) 
+        ? (data.certificates as unknown as Certificate[])
+        : [];
+      
+      setProfile({
+        ...data,
+        certificates,
+        skills: data.skills || [],
+        is_available_as_mentor: data.is_available_as_mentor || false,
+        experience_years: data.experience_years || 0,
+      });
       setEditName(data.full_name);
       setEditPhone(data.phone || "");
     } else if (error && error.code === "PGRST116") {
@@ -126,7 +155,13 @@ export default function Profile() {
         .single();
 
       if (!insertError && newProfile) {
-        setProfile(newProfile);
+        setProfile({
+          ...newProfile,
+          certificates: [],
+          skills: newProfile.skills || [],
+          is_available_as_mentor: newProfile.is_available_as_mentor || false,
+          experience_years: newProfile.experience_years || 0,
+        });
         setEditName(newProfile.full_name);
         setEditPhone(newProfile.phone || "");
       }
@@ -290,6 +325,17 @@ export default function Profile() {
               My Profile
             </button>
             <button
+              onClick={() => setActiveTab("mentor")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "mentor"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <GraduationCap className="w-4 h-4" />
+              Mentor & Learner
+            </button>
+            <button
               onClick={() => setActiveTab("services")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "services"
@@ -426,6 +472,25 @@ export default function Profile() {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* Mentor & Learner Tab */}
+          {activeTab === "mentor" && profile && (
+            <MentorProfileSection
+              profileId={profile.id}
+              mentorData={{
+                github_url: profile.github_url,
+                linkedin_url: profile.linkedin_url,
+                leetcode_url: profile.leetcode_url,
+                certificates: profile.certificates,
+                skills: profile.skills,
+                hourly_rate: profile.hourly_rate,
+                bio: profile.bio,
+                is_available_as_mentor: profile.is_available_as_mentor,
+                experience_years: profile.experience_years,
+              }}
+              onUpdate={(data) => setProfile({ ...profile, ...data })}
+            />
           )}
 
           {/* Services Tab */}
