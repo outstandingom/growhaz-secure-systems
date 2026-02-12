@@ -28,13 +28,14 @@ const coinPackages = [
 ];
 
 export default function Wallet() {
-  const { balance, transactions, loading, fetchBalance, requestWithdrawal } = useWallet();
+  const { balance, transactions, loading, fetchBalance, fetchTransactions, requestWithdrawal } = useWallet();
   const [selectedAmount, setSelectedAmount] = useState<number>(1000);
   const [customAmount, setCustomAmount] = useState<string>("");
   const [withdrawAmount, setWithdrawAmount] = useState<string>("");
   const [upiId, setUpiId] = useState<string>("");
   const [processingPayment, setProcessingPayment] = useState(false);
   const [processingWithdrawal, setProcessingWithdrawal] = useState(false);
+  const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -42,6 +43,15 @@ export default function Wallet() {
     const script = document.createElement("script");
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
+    script.onload = () => setRazorpayLoaded(true);
+    script.onerror = () => {
+      setRazorpayLoaded(false);
+      toast({
+        title: "Error",
+        description: "Failed to load payment gateway. Please refresh the page.",
+        variant: "destructive"
+      });
+    };
     document.body.appendChild(script);
 
     return () => {
@@ -61,6 +71,15 @@ export default function Wallet() {
       return;
     }
 
+    if (!razorpayLoaded || !window.Razorpay) {
+      toast({
+        title: "Error",
+        description: "Payment gateway not loaded. Please refresh the page.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setProcessingPayment(true);
 
     try {
@@ -69,7 +88,7 @@ export default function Wallet() {
         body: { amount }
       });
 
-      if (error || !data.orderId) {
+      if (error || !data?.orderId) {
         throw new Error(data?.error || 'Failed to create order');
       }
 
@@ -86,6 +105,11 @@ export default function Wallet() {
         order_id: data.orderId,
         handler: async (response: any) => {
           try {
+            toast({
+              title: "Processing",
+              description: "Verifying your payment...",
+            });
+
             // Verify payment
             const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
               body: {
@@ -96,8 +120,8 @@ export default function Wallet() {
               }
             });
 
-            if (verifyError) {
-              throw new Error('Payment verification failed');
+            if (verifyError || !verifyData?.success) {
+              throw new Error(verifyData?.error || 'Payment verification failed');
             }
 
             toast({
@@ -105,12 +129,26 @@ export default function Wallet() {
               description: `${amount} coins have been added to your wallet`
             });
 
-            fetchBalance();
-          } catch (err) {
+            // Refresh balance and transactions
+            await fetchBalance();
+            await fetchTransactions();
+
+          } catch (err: any) {
+            console.error('Verification error:', err);
             toast({
               title: "Verification Failed",
-              description: "Please contact support if amount was deducted",
+              description: err.message || "Please contact support if amount was deducted",
               variant: "destructive"
+            });
+          }
+        },
+        modal: {
+          ondismiss: () => {
+            setProcessingPayment(false);
+            toast({
+              title: "Payment Cancelled",
+              description: "You cancelled the payment",
+              variant: "default"
             });
           }
         },
@@ -124,8 +162,18 @@ export default function Wallet() {
 
       const razorpay = new window.Razorpay(options);
       razorpay.open();
+      
+      razorpay.on('payment.failed', (response: any) => {
+        toast({
+          title: "Payment Failed",
+          description: response.error?.description || "Your payment was not successful",
+          variant: "destructive"
+        });
+        setProcessingPayment(false);
+      });
 
     } catch (error: any) {
+      console.error('Payment initiation error:', error);
       toast({
         title: "Error",
         description: error.message || "Failed to initiate payment",
@@ -152,6 +200,15 @@ export default function Wallet() {
       toast({
         title: "UPI Required",
         description: "Please enter your UPI ID for withdrawal",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (balance && amount > balance.balance) {
+      toast({
+        title: "Insufficient Balance",
+        description: "You don't have enough coins for this withdrawal",
         variant: "destructive"
       });
       return;
@@ -321,7 +378,7 @@ export default function Wallet() {
 
                   <Button 
                     onClick={handleBuyCoins} 
-                    disabled={processingPayment}
+                    disabled={processingPayment || !razorpayLoaded}
                     className="w-full"
                     size="lg"
                   >
@@ -332,6 +389,12 @@ export default function Wallet() {
                     )}
                     Pay ₹{customAmount || selectedAmount} with Razorpay
                   </Button>
+                  
+                  {!razorpayLoaded && (
+                    <p className="text-xs text-center text-muted-foreground">
+                      Loading payment gateway...
+                    </p>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
@@ -417,6 +480,11 @@ export default function Wallet() {
                               <p className="text-sm text-muted-foreground">
                                 {tx.description || format(new Date(tx.created_at), 'PPp')}
                               </p>
+                              {tx.razorpay_payment_id && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Payment ID: {tx.razorpay_payment_id.slice(-8)}
+                                </p>
+                              )}
                             </div>
                           </div>
                           <div className="text-right">
@@ -442,4 +510,4 @@ export default function Wallet() {
       </div>
     </Layout>
   );
-}
+        }
