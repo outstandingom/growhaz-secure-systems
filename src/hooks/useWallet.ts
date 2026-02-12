@@ -15,6 +15,9 @@ interface Transaction {
   description: string | null;
   status: string;
   created_at: string;
+  razorpay_payment_id?: string;
+  razorpay_order_id?: string;
+  reference_id?: string;
 }
 
 export function useWallet() {
@@ -79,9 +82,10 @@ export function useWallet() {
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'coin_transactions' },
+        { event: 'INSERT', schema: 'public', table: 'coin_transactions' },
         () => {
           fetchTransactions();
+          fetchBalance();
         }
       )
       .subscribe();
@@ -111,49 +115,62 @@ export function useWallet() {
       return false;
     }
 
-    // First deduct the coins from balance
-    const { error: deductError } = await supabase.rpc('update_coin_balance', {
-      p_user_id: user.id,
-      p_amount: amount,
-      p_type: 'withdrawal',
-      p_description: `Withdrawal request: ${amount} coins`
-    });
+    try {
+      // Create transaction record first
+      const { data: transaction, error: transactionError } = await supabase
+        .from('coin_transactions')
+        .insert({
+          user_id: user.id,
+          type: 'withdrawal',
+          amount: amount,
+          description: `Withdrawal request of ${amount} coins to UPI: ${upiId}`,
+          status: 'pending'
+        })
+        .select()
+        .single();
 
-    if (deductError) {
+      if (transactionError) throw transactionError;
+
+      // Deduct coins from balance
+      const { error: deductError } = await supabase.rpc('update_coin_balance', {
+        p_user_id: user.id,
+        p_amount: amount,
+        p_type: 'withdrawal',
+        p_description: `Withdrawal request: ${amount} coins`
+      });
+
+      if (deductError) throw deductError;
+
+      // Create withdrawal request
+      const { error: withdrawalError } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          user_id: user.id,
+          amount,
+          upi_id: upiId,
+          status: 'pending'
+        });
+
+      if (withdrawalError) throw withdrawalError;
+
+      toast({
+        title: "Request Submitted",
+        description: `Withdrawal of ${amount} coins submitted for review`
+      });
+
+      await fetchBalance();
+      await fetchTransactions();
+      return true;
+
+    } catch (error: any) {
+      console.error('Withdrawal error:', error);
       toast({
         title: "Error",
-        description: "Failed to process withdrawal",
+        description: error.message || "Failed to process withdrawal",
         variant: "destructive"
       });
       return false;
     }
-
-    // Create withdrawal request
-    const { error } = await supabase
-      .from('withdrawal_requests')
-      .insert({
-        user_id: user.id,
-        amount,
-        upi_id: upiId,
-        status: 'pending'
-      });
-
-    if (error) {
-      toast({
-        title: "Error",
-        description: "Failed to submit withdrawal request",
-        variant: "destructive"
-      });
-      return false;
-    }
-
-    toast({
-      title: "Request Submitted",
-      description: `Withdrawal of ${amount} coins submitted for review`
-    });
-
-    await fetchBalance();
-    return true;
   };
 
   return {
@@ -164,4 +181,4 @@ export function useWallet() {
     fetchTransactions,
     requestWithdrawal
   };
-}
+    }
