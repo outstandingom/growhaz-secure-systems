@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -13,13 +13,19 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
       {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
+        global: { headers: { Authorization: authHeader } },
       }
     );
 
@@ -27,19 +33,29 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
       console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    const { amount } = await req.json();
+    // Parse amount from body safely
+    let amount;
+    try {
+      const body = await req.json();
+      amount = body.amount;
+    } catch (e) {
+      return new Response(JSON.stringify({ error: 'Invalid request body' }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
     
     if (!amount || amount < 100) {
-      return new Response(
-        JSON.stringify({ error: 'Minimum amount is 100 coins (₹100)' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Minimum amount is 100 coins (₹100)' }), { 
+        status: 400, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const razorpayKeyId = Deno.env.get('RAZORPAY_KEY_ID');
@@ -47,10 +63,10 @@ serve(async (req) => {
 
     if (!razorpayKeyId || !razorpayKeySecret) {
       console.error('Razorpay credentials not configured');
-      return new Response(
-        JSON.stringify({ error: 'Payment gateway not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Payment gateway not configured' }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     // Create Razorpay order
@@ -63,10 +79,10 @@ serve(async (req) => {
       body: JSON.stringify({
         amount: amount * 100, // Razorpay expects amount in paise
         currency: 'INR',
-        receipt: `coins_${user.id}_${Date.now()}`,
+        receipt: `coins_${user.id.substring(0, 8)}_${Date.now()}`,
         notes: {
           user_id: user.id,
-          coins: amount,
+          coins: amount.toString(),
           type: 'coin_purchase'
         }
       }),
@@ -75,10 +91,10 @@ serve(async (req) => {
     if (!orderResponse.ok) {
       const errorData = await orderResponse.text();
       console.error('Razorpay order creation failed:', errorData);
-      return new Response(
-        JSON.stringify({ error: 'Failed to create payment order' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Failed to create payment order' }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const order = await orderResponse.json();
@@ -96,9 +112,9 @@ serve(async (req) => {
 
   } catch (error) {
     console.error('Error creating order:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { 
+      status: 500, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 });
