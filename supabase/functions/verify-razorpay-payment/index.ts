@@ -1,11 +1,29 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { createHmac } from "https://deno.land/std@0.168.0/node/crypto.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
+
+// Helper function to securely verify Razorpay signature using native Web Crypto
+async function verifySignature(orderId: string, paymentId: string, signature: string, secret: string) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`${orderId}|${paymentId}`);
+  const keyData = encoder.encode(secret);
+  
+  const key = await crypto.subtle.importKey(
+    'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  );
+  
+  const signatureArrayBuffer = await crypto.subtle.sign('HMAC', key, data);
+  const signatureArray = new Uint8Array(signatureArrayBuffer);
+  const computedSignature = Array.from(signatureArray)
+    .map(byte => byte.toString(16).padStart(2, '0'))
+    .join('');
+    
+  return computedSignature === signature;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -13,17 +31,20 @@ serve(async (req) => {
   }
 
   try {
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: 'Authorization required' }), {
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      {
-        global: {
-          headers: { Authorization: req.headers.get('Authorization')! },
-        },
-      }
+      { global: { headers: { Authorization: authHeader } } }
     );
 
-    // Use service role for updating balances
+    // Use service role for updating balances safely bypassing RLS
     const supabaseAdmin = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
@@ -32,42 +53,36 @@ serve(async (req) => {
     // Verify user is authenticated
     const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
     if (authError || !user) {
-      console.error('Auth error:', authError);
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
+        status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = await req.json();
+    // Parse payload
+    const body = await req.json();
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, amount } = body;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !amount) {
-      return new Response(
-        JSON.stringify({ error: 'Missing payment details' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Missing payment details' }), { 
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     const razorpayKeySecret = Deno.env.get('RAZORPAY_KEY_SECRET');
     if (!razorpayKeySecret) {
-      return new Response(
-        JSON.stringify({ error: 'Payment gateway not configured' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Payment gateway not configured' }), { 
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     // Verify signature
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-    const expectedSignature = createHmac("sha256", razorpayKeySecret)
-      .update(body)
-      .digest("hex");
+    const isValid = await verifySignature(razorpay_order_id, razorpay_payment_id, razorpay_signature, razorpayKeySecret);
 
-    if (expectedSignature !== razorpay_signature) {
+    if (!isValid) {
       console.error('Invalid payment signature');
-      return new Response(
-        JSON.stringify({ error: 'Invalid payment signature' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Invalid payment signature' }), { 
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     console.log('Payment verified for user:', user.id, 'Amount:', amount);
@@ -80,18 +95,15 @@ serve(async (req) => {
       .maybeSingle();
 
     if (existingTransaction) {
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: 'Payment already processed',
-          alreadyProcessed: true,
-          transactionId: existingTransaction.id
-        }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ 
+        success: true, 
+        message: 'Payment already processed',
+        alreadyProcessed: true,
+        transactionId: existingTransaction.id
+      }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Create transaction record with Razorpay details
+    // Create transaction record
     const { data: transaction, error: transactionError } = await supabaseAdmin
       .from('coin_transactions')
       .insert({
@@ -109,13 +121,12 @@ serve(async (req) => {
 
     if (transactionError) {
       console.error('Error creating transaction:', transactionError);
-      return new Response(
-        JSON.stringify({ error: 'Failed to record transaction' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Failed to record transaction' }), { 
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
-    // Update coin balance using the database function - REMOVED the extra parameters
+    // Update coin balance
     const { error: updateError } = await supabaseAdmin.rpc('update_coin_balance', {
       p_user_id: user.id,
       p_amount: amount,
@@ -125,17 +136,12 @@ serve(async (req) => {
 
     if (updateError) {
       console.error('Error updating balance:', updateError);
+      // Rollback transaction status
+      await supabaseAdmin.from('coin_transactions').update({ status: 'failed' }).eq('id', transaction.id);
       
-      // Update transaction status to failed if balance update fails
-      await supabaseAdmin
-        .from('coin_transactions')
-        .update({ status: 'failed' })
-        .eq('id', transaction.id);
-      
-      return new Response(
-        JSON.stringify({ error: 'Failed to credit coins' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+      return new Response(JSON.stringify({ error: 'Failed to credit coins' }), { 
+        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+      });
     }
 
     // Get updated balance
@@ -145,23 +151,18 @@ serve(async (req) => {
       .eq('user_id', user.id)
       .single();
 
-    console.log('Coins credited successfully. New balance:', balanceData?.balance);
-
-    return new Response(
-      JSON.stringify({
-        success: true,
-        message: `${amount} coins credited successfully`,
-        newBalance: balanceData?.balance || amount,
-        transactionId: transaction.id
-      }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({
+      success: true,
+      message: `${amount} coins credited successfully`,
+      newBalance: balanceData?.balance || amount,
+      transactionId: transaction.id
+    }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
     console.error('Error verifying payment:', error);
-    return new Response(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: 'Internal server error' }), { 
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
   }
 });
+        
