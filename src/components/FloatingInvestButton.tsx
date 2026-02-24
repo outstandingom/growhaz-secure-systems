@@ -5,10 +5,10 @@ export const FloatingInvestButton = () => {
         href="https://rzp.io/rzp/Growhaz-funding"
         target="_blank"
         rel="noopener noreferrer"
-        className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:bg-emerald-600 hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-emerald-300"
+        className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-r from-teal-400 to-cyan-500 text-slate-950 shadow-[0_0_15px_rgba(6,182,212,0.4)] transition-all duration-300 hover:-translate-y-1 hover:scale-110 hover:shadow-[0_0_25px_rgba(6,182,212,0.6)] focus:outline-none"
         aria-label="Invest in Growhaz"
       >
-        {/* A simple standard currency/investment icon (SVG) */}
+        {/* Indian Rupee (₹) SVG Icon */}
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"
@@ -16,15 +16,20 @@ export const FloatingInvestButton = () => {
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <line x1="12" y1="1" x2="12" y2="23"></line>
-          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+          <path d="M6 3h12" />
+          <path d="M6 8h12" />
+          <path d="m6 13 8.5 8" />
+          <path d="M6 13h3" />
+          <path d="M9 13c6.667 0 6.667-10 0-10" />
         </svg>
       </a>
-      <span className="text-xs font-bold text-gray-800 dark:text-gray-200 bg-white/80 dark:bg-black/80 px-2 py-1 rounded-md shadow-sm backdrop-blur-sm">
+      
+      {/* Dark theme label with cyan border */}
+      <span className="text-xs font-semibold tracking-wide text-cyan-50 bg-[#0B1120]/90 border border-cyan-500/30 px-3 py-1.5 rounded-full shadow-lg backdrop-blur-md">
         Invest in Growhaz
       </span>
     </div>
