@@ -3,6 +3,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+
+// Page Imports
 import Index from "./pages/Index";
 import SecurityTools from "./pages/SecurityTools";
 import Development from "./pages/Development";
@@ -25,6 +27,9 @@ import Wallet from "./pages/Wallet";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 
+// New Component Import
+import { FloatingInvestButton } from "@/components/FloatingInvestButton";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -33,6 +38,10 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
+        
+        {/* The floating button is placed here so it shows on every page */}
+        <FloatingInvestButton />
+
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/security-tools" element={<SecurityTools />} />
