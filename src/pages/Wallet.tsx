@@ -83,16 +83,26 @@ export default function Wallet() {
     setProcessingPayment(true);
 
     try {
-      // Create Razorpay order
+      // ✅ FIX 1: Explicitly grab the current user's secure session token
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError || !session) {
+        throw new Error("You must be logged in to purchase coins. Please refresh the page or log in again.");
+      }
+
+      // ✅ FIX 2: Force the token into the headers of the Edge Function request
       const { data, error } = await supabase.functions.invoke('create-razorpay-order', {
-        body: { amount }
+        body: { amount },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        }
       });
 
       if (error || !data?.orderId) {
-        throw new Error(data?.error || 'Failed to create order');
+        throw new Error(data?.error || 'Failed to create order. Please try again.');
       }
 
-      // Get user details
+      // Get user details for Razorpay prefill
       const { data: { user } } = await supabase.auth.getUser();
 
       // Open Razorpay checkout
@@ -110,13 +120,16 @@ export default function Wallet() {
               description: "Verifying your payment...",
             });
 
-            // Verify payment
+            // ✅ FIX 3: Also pass the token explicitly to the verification function
             const { data: verifyData, error: verifyError } = await supabase.functions.invoke('verify-razorpay-payment', {
               body: {
                 razorpay_order_id: response.razorpay_order_id,
                 razorpay_payment_id: response.razorpay_payment_id,
                 razorpay_signature: response.razorpay_signature,
                 amount
+              },
+              headers: {
+                Authorization: `Bearer ${session.access_token}`
               }
             });
 
