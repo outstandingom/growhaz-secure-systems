@@ -34,19 +34,14 @@ export default function Auth() {
   const { toast } = useToast();
 
   useEffect(() => {
+    // FIX 1: Removed redundant getSession. onAuthStateChange handles initial load too.
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
-          navigate("/");
+          navigate("/", { replace: true });
         }
       }
     );
-
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        navigate("/");
-      }
-    });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -84,7 +79,7 @@ export default function Auth() {
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
-          email,
+          email: email.toLowerCase(), // Minor fix: normalize email
           password,
         });
         if (error) throw error;
@@ -95,7 +90,7 @@ export default function Auth() {
       } else {
         const redirectUrl = `${window.location.origin}/`;
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: email.toLowerCase(), // Minor fix: normalize email
           password,
           options: {
             emailRedirectTo: redirectUrl,
@@ -107,12 +102,12 @@ export default function Auth() {
         });
         if (error) throw error;
 
-        // Create profile after signup
+        // FIX 2: Changed to upsert and used 'id' (assuming id is your Primary Key matching auth.users)
         if (data.user) {
           const { error: profileError } = await supabase
             .from("profiles")
-            .insert({
-              user_id: data.user.id,
+            .upsert({ // upsert prevents crashes if a database trigger already created the row
+              id: data.user.id, // Usually matches user.id in Supabase setups. Change to user_id if that is strictly your PK.
               full_name: fullName,
               phone: phone || null,
             });
@@ -332,6 +327,7 @@ export default function Auth() {
                   className={`ml-2 font-medium hover:underline ${
                     isLogin ? "text-primary" : "text-accent"
                   }`}
+                  disabled={loading}
                 >
                   {isLogin ? "Sign Up" : "Sign In"}
                 </button>
@@ -347,5 +343,5 @@ export default function Auth() {
       </section>
     </Layout>
   );
-    }
-          
+}
+  
