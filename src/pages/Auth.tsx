@@ -34,7 +34,7 @@ export default function Auth() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // FIX 1: Removed redundant getSession. onAuthStateChange handles initial load too.
+    // onAuthStateChange handles both initial session check and future changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
@@ -71,49 +71,44 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
-    
     setLoading(true);
 
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
-          email: email.toLowerCase(), // Minor fix: normalize email
+          email: email.trim().toLowerCase(),
           password,
         });
         if (error) throw error;
-        toast({
-          title: "Welcome back!",
-          description: "You have successfully logged in.",
-        });
       } else {
-        const redirectUrl = `${window.location.origin}/`;
-        const { data, error } = await supabase.auth.signUp({
-          email: email.toLowerCase(), // Minor fix: normalize email
+        const { data, error: signUpError } = await supabase.auth.signUp({
+          email: email.trim().toLowerCase(),
           password,
           options: {
-            emailRedirectTo: redirectUrl,
+            emailRedirectTo: `${window.location.origin}/`,
             data: {
               full_name: fullName,
               phone: phone,
             },
           },
         });
-        if (error) throw error;
 
-        // FIX 2: Changed to upsert and used 'id' (assuming id is your Primary Key matching auth.users)
+        if (signUpError) throw signUpError;
+
+        // CRITICAL CHECK: Ensure your 'profiles' table primary key name matches here
         if (data.user) {
           const { error: profileError } = await supabase
             .from("profiles")
-            .upsert({ // upsert prevents crashes if a database trigger already created the row
-              id: data.user.id, // Usually matches user.id in Supabase setups. Change to user_id if that is strictly your PK.
+            .upsert({ 
+              user_id: data.user.id, // Change this to 'id' if your table uses 'id' instead of 'user_id'
               full_name: fullName,
               phone: phone || null,
             });
 
           if (profileError) {
-            console.error("Profile creation error:", profileError);
+            console.error("Profile sync error:", profileError);
+            // We don't throw here so the user still sees the "Check Email" toast
           }
         }
 
@@ -124,13 +119,10 @@ export default function Auth() {
       }
     } catch (error: any) {
       let errorMessage = error.message;
-      
       if (error.message.includes("User already registered")) {
         errorMessage = "This email is already registered. Please log in instead.";
       } else if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "Invalid email or password. Please try again.";
-      } else if (error.message.includes("Password should be")) {
-        errorMessage = "Password must be at least 6 characters long.";
+        errorMessage = "Invalid email or password.";
       }
       
       toast({
@@ -154,166 +146,100 @@ export default function Auth() {
     <Layout>
       <section className="section-container min-h-[80vh] flex items-center justify-center">
         <div className="w-full max-w-md">
-          {/* Header - Different for Login vs Register */}
           <div className="text-center mb-8">
             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-6 backdrop-blur-sm ${
-              isLogin 
-                ? "bg-primary/10 border-primary/20" 
-                : "bg-accent/10 border-accent/20"
+              isLogin ? "bg-primary/10 border-primary/20" : "bg-accent/10 border-accent/20"
             }`}>
               {isLogin ? (
-                <>
-                  <LogIn className="w-4 h-4 text-primary" />
-                  <span className="text-sm font-medium text-primary">Welcome Back</span>
-                </>
+                <><LogIn className="w-4 h-4 text-primary" /><span className="text-sm font-medium text-primary">Welcome Back</span></>
               ) : (
-                <>
-                  <UserPlus className="w-4 h-4 text-accent" />
-                  <span className="text-sm font-medium text-accent">Join GROWHAZ</span>
-                </>
+                <><UserPlus className="w-4 h-4 text-accent" /><span className="text-sm font-medium text-accent">Join GROWHAZ</span></>
               )}
             </div>
             
             <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              {isLogin ? (
-                <>Sign <span className="gradient-text">In</span></>
-              ) : (
-                <>Create <span className="gradient-text">Account</span></>
-              )}
+              {isLogin ? <>Sign <span className="gradient-text">In</span></> : <>Create <span className="gradient-text">Account</span></>}
             </h1>
-            
             <p className="text-muted-foreground">
-              {isLogin
-                ? "Enter your credentials to access your account"
-                : "Fill in your details to get started with GROWHAZ"}
+              {isLogin ? "Enter your credentials to access your account" : "Fill in your details to get started with GROWHAZ"}
             </p>
           </div>
 
-          {/* Form Card - Different styling for Login vs Register */}
           <div className={`p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
-            isLogin 
-              ? "bg-card/80 border-border" 
-              : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
+            isLogin ? "bg-card/80 border-border" : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
           }`}>
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Name & Phone - Only for Register */}
               {!isLogin && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="fullName" className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      Full Name <span className="text-destructive">*</span>
+                      <User className="w-4 h-4 text-muted-foreground" /> Full Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="fullName"
-                      type="text"
-                      placeholder="John Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      required
-                      className={`bg-background/50 border-border/50 backdrop-blur-sm ${
-                        errors.fullName ? "border-destructive" : ""
-                      }`}
+                      className={errors.fullName ? "border-destructive" : "bg-background/50"}
+                      placeholder="John Doe"
                     />
-                    {errors.fullName && (
-                      <p className="text-xs text-destructive">{errors.fullName}</p>
-                    )}
+                    {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      Phone Number
+                      <Phone className="w-4 h-4 text-muted-foreground" /> Phone Number
                     </Label>
                     <Input
                       id="phone"
                       type="tel"
-                      placeholder="+91 9876543210"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className={`bg-background/50 border-border/50 backdrop-blur-sm ${
-                        errors.phone ? "border-destructive" : ""
-                      }`}
+                      className={errors.phone ? "border-destructive" : "bg-background/50"}
+                      placeholder="+91 9876543210"
                     />
-                    {errors.phone && (
-                      <p className="text-xs text-destructive">{errors.phone}</p>
-                    )}
+                    {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                   </div>
-
-                  <div className="border-t border-border/30 my-4" />
                 </>
               )}
 
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  Email {!isLogin && <span className="text-destructive">*</span>}
+                  <Mail className="w-4 h-4 text-muted-foreground" /> Email
                 </Label>
                 <Input
                   id="email"
                   type="email"
-                  placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className={`bg-background/50 border-border/50 backdrop-blur-sm ${
-                    errors.email ? "border-destructive" : ""
-                  }`}
+                  className={errors.email ? "border-destructive" : "bg-background/50"}
+                  placeholder="you@example.com"
                 />
-                {errors.email && (
-                  <p className="text-xs text-destructive">{errors.email}</p>
-                )}
+                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-muted-foreground" />
-                  Password {!isLogin && <span className="text-destructive">*</span>}
+                  <Lock className="w-4 h-4 text-muted-foreground" /> Password
                 </Label>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  required
-                  minLength={6}
-                  className={`bg-background/50 border-border/50 backdrop-blur-sm ${
-                    errors.password ? "border-destructive" : ""
-                  }`}
+                  className={errors.password ? "border-destructive" : "bg-background/50"}
+                  placeholder="••••••••"
                 />
-                {errors.password && (
-                  <p className="text-xs text-destructive">{errors.password}</p>
-                )}
-                {!isLogin && (
-                  <p className="text-xs text-muted-foreground">
-                    Must be at least 6 characters
-                  </p>
-                )}
+                {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
               </div>
 
-              <Button
-                type="submit"
-                variant="hero"
-                size="lg"
-                className="w-full mt-6"
-                disabled={loading}
-              >
+              <Button type="submit" variant="hero" size="lg" className="w-full mt-6" disabled={loading}>
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     {isLogin ? "Signing in..." : "Creating account..."}
                   </span>
-                ) : isLogin ? (
-                  <>
-                    Sign In
-                    <ArrowRight className="w-4 h-4" />
-                  </>
                 ) : (
-                  <>
-                    Create Account
-                    <ArrowRight className="w-4 h-4" />
-                  </>
+                  <>{isLogin ? "Sign In" : "Create Account"}<ArrowRight className="w-4 h-4 ml-2" /></>
                 )}
               </Button>
             </form>
@@ -321,27 +247,15 @@ export default function Auth() {
             <div className="mt-6 pt-6 border-t border-border/50 text-center">
               <p className="text-sm text-muted-foreground">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
-                <button
-                  type="button"
-                  onClick={switchMode}
-                  className={`ml-2 font-medium hover:underline ${
-                    isLogin ? "text-primary" : "text-accent"
-                  }`}
-                  disabled={loading}
-                >
+                <button type="button" onClick={switchMode} className={`ml-2 font-medium hover:underline ${isLogin ? "text-primary" : "text-accent"}`}>
                   {isLogin ? "Sign Up" : "Sign In"}
                 </button>
               </p>
             </div>
           </div>
-
-          {/* Info */}
-          <p className="text-center text-xs text-muted-foreground/60 mt-6">
-            By continuing, you agree to our Terms of Service and Privacy Policy.
-          </p>
         </div>
       </section>
     </Layout>
   );
-}
-  
+                           }
+    
