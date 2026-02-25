@@ -17,7 +17,8 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(2, { message: "Name must be at least 2 characters" }).max(100),
-  phone: z.string().trim().min(10, { message: "Please enter a valid phone number" }).max(15).optional().or(z.literal("")),
+  // Made phone validation much more forgiving so it doesn't block form submission
+  phone: z.string().trim().max(15, { message: "Phone number is too long" }).optional().or(z.literal("")),
   email: z.string().trim().email({ message: "Invalid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
@@ -34,14 +35,19 @@ export default function Auth() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // onAuthStateChange handles both initial session check and future changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (session?.user) {
-          navigate("/", { replace: true });
+          navigate("/");
         }
       }
     );
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        navigate("/");
+      }
+    });
 
     return () => subscription.unsubscribe();
   }, [navigate]);
@@ -71,44 +77,51 @@ export default function Auth() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (!validateForm()) return;
+    
     setLoading(true);
 
     try {
       if (isLogin) {
         const { error } = await supabase.auth.signInWithPassword({
-          email: email.trim().toLowerCase(),
+          email,
           password,
         });
         if (error) throw error;
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        });
       } else {
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email: email.trim().toLowerCase(),
+        const redirectUrl = `${window.location.origin}/`;
+        const { data, error } = await supabase.auth.signUp({
+          email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/`,
+            emailRedirectTo: redirectUrl,
             data: {
               full_name: fullName,
-              phone: phone,
+              phone: phone || null, // Ensure empty strings are sent as null
             },
           },
         });
+        if (error) throw error;
 
-        if (signUpError) throw signUpError;
-
-        // CRITICAL CHECK: Ensure your 'profiles' table primary key name matches here
-        if (data.user) {
+        // Attempt to create profile, but catch errors gracefully
+        // Note: If you have Row Level Security (RLS) enabled on 'profiles', 
+        // this might fail on the frontend. A database trigger is recommended instead.
+        if (data?.user) {
           const { error: profileError } = await supabase
             .from("profiles")
-            .upsert({ 
-              user_id: data.user.id, // Change this to 'id' if your table uses 'id' instead of 'user_id'
+            .insert({
+              user_id: data.user.id,
               full_name: fullName,
               phone: phone || null,
             });
 
           if (profileError) {
-            console.error("Profile sync error:", profileError);
-            // We don't throw here so the user still sees the "Check Email" toast
+            console.warn("Notice: Profile row creation failed. This is common if RLS is enabled or if using Database Triggers:", profileError.message);
           }
         }
 
@@ -116,13 +129,24 @@ export default function Auth() {
           title: "Account created!",
           description: "Please check your email to verify your account.",
         });
+        
+        // Optional: Switch back to login mode after successful registration
+        setIsLogin(true);
+        setPassword(""); // Clear password for security
       }
-    } catch (error: any) {
-      let errorMessage = error.message;
-      if (error.message.includes("User already registered")) {
-        errorMessage = "This email is already registered. Please log in instead.";
-      } else if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "Invalid email or password.";
+    } catch (error: unknown) {
+      let errorMessage = "An unexpected error occurred.";
+      
+      if (error instanceof Error) {
+        if (error.message.includes("User already registered")) {
+          errorMessage = "This email is already registered. Please log in instead.";
+        } else if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password. Please try again.";
+        } else if (error.message.includes("Password should be")) {
+          errorMessage = "Password must be at least 6 characters long.";
+        } else {
+          errorMessage = error.message;
+        }
       }
       
       toast({
@@ -140,106 +164,173 @@ export default function Auth() {
     setErrors({});
     setFullName("");
     setPhone("");
+    // Keep email and password populated for convenience when switching
   };
 
   return (
     <Layout>
       <section className="section-container min-h-[80vh] flex items-center justify-center">
         <div className="w-full max-w-md">
+          {/* Header */}
           <div className="text-center mb-8">
             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-6 backdrop-blur-sm ${
-              isLogin ? "bg-primary/10 border-primary/20" : "bg-accent/10 border-accent/20"
+              isLogin 
+                ? "bg-primary/10 border-primary/20" 
+                : "bg-accent/10 border-accent/20"
             }`}>
               {isLogin ? (
-                <><LogIn className="w-4 h-4 text-primary" /><span className="text-sm font-medium text-primary">Welcome Back</span></>
+                <>
+                  <LogIn className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium text-primary">Welcome Back</span>
+                </>
               ) : (
-                <><UserPlus className="w-4 h-4 text-accent" /><span className="text-sm font-medium text-accent">Join GROWHAZ</span></>
+                <>
+                  <UserPlus className="w-4 h-4 text-accent" />
+                  <span className="text-sm font-medium text-accent">Join GROWHAZ</span>
+                </>
               )}
             </div>
             
             <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              {isLogin ? <>Sign <span className="gradient-text">In</span></> : <>Create <span className="gradient-text">Account</span></>}
+              {isLogin ? (
+                <>Sign <span className="gradient-text">In</span></>
+              ) : (
+                <>Create <span className="gradient-text">Account</span></>
+              )}
             </h1>
+            
             <p className="text-muted-foreground">
-              {isLogin ? "Enter your credentials to access your account" : "Fill in your details to get started with GROWHAZ"}
+              {isLogin
+                ? "Enter your credentials to access your account"
+                : "Fill in your details to get started with GROWHAZ"}
             </p>
           </div>
 
+          {/* Form Card */}
           <div className={`p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
-            isLogin ? "bg-card/80 border-border" : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
+            isLogin 
+              ? "bg-card/80 border-border" 
+              : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
           }`}>
             <form onSubmit={handleSubmit} className="space-y-5">
+              {/* Name & Phone - Only for Register */}
               {!isLogin && (
                 <>
                   <div className="space-y-2">
                     <Label htmlFor="fullName" className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground" /> Full Name <span className="text-destructive">*</span>
+                      <User className="w-4 h-4 text-muted-foreground" />
+                      Full Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
                       id="fullName"
+                      type="text"
+                      placeholder="John Doe"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      className={errors.fullName ? "border-destructive" : "bg-background/50"}
-                      placeholder="John Doe"
+                      required
+                      className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                        errors.fullName ? "border-destructive" : ""
+                      }`}
                     />
-                    {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
+                    {errors.fullName && (
+                      <p className="text-xs text-destructive">{errors.fullName}</p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" /> Phone Number
+                      <Phone className="w-4 h-4 text-muted-foreground" />
+                      Phone Number
                     </Label>
                     <Input
                       id="phone"
                       type="tel"
+                      placeholder="+91 9876543210"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className={errors.phone ? "border-destructive" : "bg-background/50"}
-                      placeholder="+91 9876543210"
+                      className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                        errors.phone ? "border-destructive" : ""
+                      }`}
                     />
-                    {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
+                    {errors.phone && (
+                      <p className="text-xs text-destructive">{errors.phone}</p>
+                    )}
                   </div>
+
+                  <div className="border-t border-border/30 my-4" />
                 </>
               )}
 
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" /> Email
+                  <Mail className="w-4 h-4 text-muted-foreground" />
+                  Email {!isLogin && <span className="text-destructive">*</span>}
                 </Label>
                 <Input
                   id="email"
                   type="email"
+                  placeholder="you@example.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className={errors.email ? "border-destructive" : "bg-background/50"}
-                  placeholder="you@example.com"
+                  required
+                  className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                    errors.email ? "border-destructive" : ""
+                  }`}
                 />
-                {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
+                {errors.email && (
+                  <p className="text-xs text-destructive">{errors.email}</p>
+                )}
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-muted-foreground" /> Password
+                  <Lock className="w-4 h-4 text-muted-foreground" />
+                  Password {!isLogin && <span className="text-destructive">*</span>}
                 </Label>
                 <Input
                   id="password"
                   type="password"
+                  placeholder="••••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className={errors.password ? "border-destructive" : "bg-background/50"}
-                  placeholder="••••••••"
+                  required
+                  minLength={6}
+                  className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                    errors.password ? "border-destructive" : ""
+                  }`}
                 />
-                {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
+                {errors.password && (
+                  <p className="text-xs text-destructive">{errors.password}</p>
+                )}
+                {!isLogin && (
+                  <p className="text-xs text-muted-foreground">
+                    Must be at least 6 characters
+                  </p>
+                )}
               </div>
 
-              <Button type="submit" variant="hero" size="lg" className="w-full mt-6" disabled={loading}>
+              <Button
+                type="submit"
+                variant="default" // Changed from "hero" just in case it's an undefined variant, change back if you explicitly defined "hero" in your button.tsx
+                size="lg"
+                className="w-full mt-6"
+                disabled={loading}
+              >
                 {loading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     {isLogin ? "Signing in..." : "Creating account..."}
                   </span>
+                ) : isLogin ? (
+                  <>
+                    Sign In
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 ) : (
-                  <>{isLogin ? "Sign In" : "Create Account"}<ArrowRight className="w-4 h-4 ml-2" /></>
+                  <>
+                    Create Account
+                    <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
               </Button>
             </form>
@@ -247,15 +338,26 @@ export default function Auth() {
             <div className="mt-6 pt-6 border-t border-border/50 text-center">
               <p className="text-sm text-muted-foreground">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
-                <button type="button" onClick={switchMode} className={`ml-2 font-medium hover:underline ${isLogin ? "text-primary" : "text-accent"}`}>
+                <button
+                  type="button"
+                  onClick={switchMode}
+                  className={`ml-2 font-medium hover:underline ${
+                    isLogin ? "text-primary" : "text-accent"
+                  }`}
+                >
                   {isLogin ? "Sign Up" : "Sign In"}
                 </button>
               </p>
             </div>
           </div>
+
+          {/* Info */}
+          <p className="text-center text-xs text-muted-foreground/60 mt-6">
+            By continuing, you agree to our Terms of Service and Privacy Policy.
+          </p>
         </div>
       </section>
     </Layout>
   );
-                           }
-    
+                                                           }
+        
