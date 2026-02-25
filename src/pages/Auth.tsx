@@ -17,7 +17,6 @@ const loginSchema = z.object({
 
 const registerSchema = z.object({
   fullName: z.string().trim().min(2, { message: "Name must be at least 2 characters" }).max(100),
-  // Made phone validation much more forgiving so it doesn't block form submission
   phone: z.string().trim().max(15, { message: "Phone number is too long" }).optional().or(z.literal("")),
   email: z.string().trim().email({ message: "Invalid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
@@ -95,42 +94,29 @@ export default function Auth() {
         });
       } else {
         const redirectUrl = `${window.location.origin}/`;
-        const { data, error } = await supabase.auth.signUp({
+        
+        // 1. We just call signUp and pass the user metadata.
+        // The Database Trigger you created handles the profile and wallet creation!
+        const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             emailRedirectTo: redirectUrl,
             data: {
               full_name: fullName,
-              phone: phone || null, // Ensure empty strings are sent as null
+              phone: phone || null,
             },
           },
         });
+        
         if (error) throw error;
-
-        // Attempt to create profile, but catch errors gracefully
-        // Note: If you have Row Level Security (RLS) enabled on 'profiles', 
-        // this might fail on the frontend. A database trigger is recommended instead.
-        if (data?.user) {
-          const { error: profileError } = await supabase
-            .from("profiles")
-            .insert({
-              user_id: data.user.id,
-              full_name: fullName,
-              phone: phone || null,
-            });
-
-          if (profileError) {
-            console.warn("Notice: Profile row creation failed. This is common if RLS is enabled or if using Database Triggers:", profileError.message);
-          }
-        }
 
         toast({
           title: "Account created!",
           description: "Please check your email to verify your account.",
         });
         
-        // Optional: Switch back to login mode after successful registration
+        // Switch back to login mode after successful registration
         setIsLogin(true);
         setPassword(""); // Clear password for security
       }
@@ -164,7 +150,6 @@ export default function Auth() {
     setErrors({});
     setFullName("");
     setPhone("");
-    // Keep email and password populated for convenience when switching
   };
 
   return (
@@ -311,7 +296,7 @@ export default function Auth() {
 
               <Button
                 type="submit"
-                variant="default" // Changed from "hero" just in case it's an undefined variant, change back if you explicitly defined "hero" in your button.tsx
+                variant="default" // Replaced 'hero' with 'default' assuming standard shadcn/ui. Adjust if you have a custom 'hero' variant.
                 size="lg"
                 className="w-full mt-6"
                 disabled={loading}
@@ -359,5 +344,4 @@ export default function Auth() {
       </section>
     </Layout>
   );
-                                                           }
-        
+}
