@@ -95,8 +95,6 @@ export default function Auth() {
       } else {
         const redirectUrl = `${window.location.origin}/`;
         
-        // 1. We just call signUp and pass the user metadata.
-        // The Database Trigger you created handles the profile and wallet creation!
         const { error } = await supabase.auth.signUp({
           email,
           password,
@@ -116,9 +114,8 @@ export default function Auth() {
           description: "Please check your email to verify your account.",
         });
         
-        // Switch back to login mode after successful registration
         setIsLogin(true);
-        setPassword(""); // Clear password for security
+        setPassword("");
       }
     } catch (error: unknown) {
       let errorMessage = "An unexpected error occurred.";
@@ -154,10 +151,11 @@ export default function Auth() {
 
   return (
     <Layout>
-      <section className="section-container min-h-[80vh] flex items-center justify-center">
+      {/* FIX 1: Added py-10 and px-4. Changed min-h-[80vh] to min-h-[100dvh] so it handles mobile keyboards correctly */}
+      <section className="section-container min-h-[100dvh] sm:min-h-[80vh] flex items-center justify-center py-10 px-4">
         <div className="w-full max-w-md">
           {/* Header */}
-          <div className="text-center mb-8">
+          <div className="text-center mb-6 sm:mb-8">
             <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-6 backdrop-blur-sm ${
               isLogin 
                 ? "bg-primary/10 border-primary/20" 
@@ -184,21 +182,20 @@ export default function Auth() {
               )}
             </h1>
             
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm sm:text-base">
               {isLogin
                 ? "Enter your credentials to access your account"
                 : "Fill in your details to get started with GROWHAZ"}
             </p>
           </div>
 
-          {/* Form Card */}
-          <div className={`p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
+          {/* FIX 2: Changed p-8 to p-5 sm:p-8 to prevent the card from squeezing inputs off-screen on narrow phones */}
+          <div className={`p-5 sm:p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
             isLogin 
               ? "bg-card/80 border-border" 
               : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
           }`}>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Name & Phone - Only for Register */}
+            <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-5">
               {!isLogin && (
                 <>
                   <div className="space-y-2">
@@ -213,7 +210,8 @@ export default function Auth() {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                      /* FIX 3: Added text-base to inputs to prevent iOS Safari auto-zoom bug */
+                      className={`text-base sm:text-sm bg-background/50 border-border/50 backdrop-blur-sm ${
                         errors.fullName ? "border-destructive" : ""
                       }`}
                     />
@@ -233,7 +231,7 @@ export default function Auth() {
                       placeholder="+91 9876543210"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                      className={`text-base sm:text-sm bg-background/50 border-border/50 backdrop-blur-sm ${
                         errors.phone ? "border-destructive" : ""
                       }`}
                     />
@@ -258,7 +256,7 @@ export default function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                  className={`text-base sm:text-sm bg-background/50 border-border/50 backdrop-blur-sm ${
                     errors.email ? "border-destructive" : ""
                   }`}
                 />
@@ -280,7 +278,7 @@ export default function Auth() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
-                  className={`bg-background/50 border-border/50 backdrop-blur-sm ${
+                  className={`text-base sm:text-sm bg-background/50 border-border/50 backdrop-blur-sm ${
                     errors.password ? "border-destructive" : ""
                   }`}
                 />
@@ -296,7 +294,7 @@ export default function Auth() {
 
               <Button
                 type="submit"
-                variant="default" // Replaced 'hero' with 'default' assuming standard shadcn/ui. Adjust if you have a custom 'hero' variant.
+                variant="default"
                 size="lg"
                 className="w-full mt-6"
                 disabled={loading}
