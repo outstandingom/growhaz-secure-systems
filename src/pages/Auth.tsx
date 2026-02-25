@@ -151,7 +151,6 @@ export default function Auth() {
 
   return (
     <Layout>
-      {/* FIX 1: Added py-10 and px-4. Changed min-h-[80vh] to min-h-[100dvh] so it handles mobile keyboards correctly */}
       <section className="section-container min-h-[100dvh] sm:min-h-[80vh] flex items-center justify-center py-10 px-4">
         <div className="w-full max-w-md">
           {/* Header */}
@@ -189,7 +188,7 @@ export default function Auth() {
             </p>
           </div>
 
-          {/* FIX 2: Changed p-8 to p-5 sm:p-8 to prevent the card from squeezing inputs off-screen on narrow phones */}
+          {/* Form Card */}
           <div className={`p-5 sm:p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
             isLogin 
               ? "bg-card/80 border-border" 
@@ -210,7 +209,6 @@ export default function Auth() {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      /* FIX 3: Added text-base to inputs to prevent iOS Safari auto-zoom bug */
                       className={`text-base sm:text-sm bg-background/50 border-border/50 backdrop-blur-sm ${
                         errors.fullName ? "border-destructive" : ""
                       }`}
