@@ -23,7 +23,8 @@ import {
   Linkedin,
   BookOpen,
   MessageSquare,
-  HelpCircle
+  HelpCircle,
+  Coins
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,6 +32,8 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { Link } from "react-router-dom";
+import { useSpendCoins } from "@/hooks/useSpendCoins";
+import { useToast } from "@/hooks/use-toast";
 
 interface MentorshipTopic {
   id: string;
@@ -83,6 +86,36 @@ export default function Mentorship() {
   const [myResponses, setMyResponses] = useState<MyResponse[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [bookingMentorId, setBookingMentorId] = useState<string | null>(null);
+  const { spendCoins, balance } = useSpendCoins();
+  const { toast } = useToast();
+
+  const handleBookWithCoins = async (mentor: Mentor) => {
+    setBookingMentorId(mentor.id);
+    const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
+    if (success) {
+      // Create a booking record
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { error } = await supabase.from("mentorship_bookings").insert({
+          user_id: user.id,
+          mentor_id: mentor.id,
+          topic_id: topics[0]?.id || mentor.id, // fallback
+          scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          total_price: mentor.hourly_rate,
+          status: "pending",
+          notes: `Booked via coin payment (${mentor.hourly_rate} coins)`,
+        });
+
+        if (error) {
+          toast({ title: "Booking Error", description: error.message, variant: "destructive" });
+        } else {
+          toast({ title: "Session Booked!", description: `Your session with ${mentor.name} has been booked. They will contact you soon.` });
+        }
+      }
+    }
+    setBookingMentorId(null);
+  };
 
   useEffect(() => {
     fetchData();
@@ -307,22 +340,37 @@ export default function Mentorship() {
                         </div>
                         <div className="flex items-center justify-between pt-4 border-t border-border">
                           <div>
-                            <span className="text-2xl font-bold text-primary">₹{mentor.hourly_rate}</span>
-                            <span className="text-sm text-muted-foreground">/hour</span>
+                            <div className="flex items-center gap-1">
+                              <Coins className="w-4 h-4 text-primary" />
+                              <span className="text-2xl font-bold text-primary">{mentor.hourly_rate}</span>
+                            </div>
+                            <span className="text-xs text-muted-foreground">coins/hour</span>
                           </div>
-                          {mentor.calendly_url ? (
-                            <a href={mentor.calendly_url} target="_blank" rel="noopener noreferrer">
-                              <Button className="gap-2">
-                                <Calendar className="w-4 h-4" />
-                                Book Session
-                              </Button>
-                            </a>
-                          ) : (
-                            <Button className="gap-2" disabled>
-                              Coming Soon
+                          <div className="flex gap-2">
+                            <Button 
+                              size="sm" 
+                              className="gap-1"
+                              onClick={() => handleBookWithCoins(mentor)}
+                              disabled={bookingMentorId === mentor.id || (balance ? balance.balance < mentor.hourly_rate : true)}
+                            >
+                              <Coins className="w-3 h-3" />
+                              {bookingMentorId === mentor.id ? "Booking..." : "Book"}
                             </Button>
-                          )}
+                            {mentor.calendly_url && (
+                              <a href={mentor.calendly_url} target="_blank" rel="noopener noreferrer">
+                                <Button variant="outline" size="sm" className="gap-1">
+                                  <Calendar className="w-3 h-3" />
+                                  Calendly
+                                </Button>
+                              </a>
+                            )}
+                          </div>
                         </div>
+                        {balance && balance.balance < mentor.hourly_rate && (
+                          <p className="text-xs text-destructive mt-2">
+                            Insufficient balance — <Link to="/wallet" className="underline">Buy Coins</Link>
+                          </p>
+                        )}
                       </CardContent>
                     </Card>
                   ))}

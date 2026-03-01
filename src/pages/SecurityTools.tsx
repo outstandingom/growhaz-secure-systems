@@ -4,9 +4,11 @@ import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { useToast } from "@/hooks/use-toast";
+import { useSpendCoins } from "@/hooks/useSpendCoins";
 import { 
   Shield, 
   CheckCircle2, 
@@ -19,8 +21,15 @@ import {
   Info,
   LogIn,
   User as UserIcon,
-  Phone
+  Phone,
+  Coins
 } from "lucide-react";
+
+const scanTiers = [
+  { id: "alphag1", name: "AlphaG1", price: 1999, description: "Basic security scan", features: ["SQL Injection testing", "XSS detection", "Security Headers check"], requiresApproval: false },
+  { id: "alphag2", name: "AlphaG2", price: 4999, description: "Advanced vulnerability scan", features: ["All AlphaG1 features", "Deep XSS analysis", "Auth flow analysis", "API endpoint testing"], requiresApproval: true },
+  { id: "alphag3", name: "AlphaG3", price: 9999, description: "Full penetration testing", features: ["All AlphaG2 features", "Full pen-test simulation", "Custom exploit detection", "Detailed remediation report"], requiresApproval: true },
+];
 
 const capabilities = [
   "Basic SQL Injection testing",
@@ -41,11 +50,13 @@ export default function SecurityTools() {
   const [url, setUrl] = useState("");
   const [scannerName, setScannerName] = useState("");
   const [scannerPhone, setScannerPhone] = useState("");
+  const [selectedTier, setSelectedTier] = useState(scanTiers[0]);
   const [isScanning, setIsScanning] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { spendCoins, balance } = useSpendCoins();
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -92,6 +103,19 @@ export default function SecurityTools() {
       return;
     }
 
+    if (selectedTier.requiresApproval) {
+      toast({
+        title: "Approval Required",
+        description: `${selectedTier.name} tier requires a formal approval letter from a Manager or CEO. Please contact us.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Spend coins first
+    const success = await spendCoins(selectedTier.price, `Security Scan (${selectedTier.name}) - ${url}`);
+    if (!success) return;
+
     setIsScanning(true);
 
     // Simulate scan and save to database
@@ -101,7 +125,7 @@ export default function SecurityTools() {
         website_url: url,
         scanner_name: scannerName.trim(),
         scanner_phone: scannerPhone.trim() || null,
-        scan_type: "basic",
+        scan_type: selectedTier.id,
         vulnerabilities_found: 2,
         risk_level: "medium",
         report_data: {
@@ -214,6 +238,53 @@ export default function SecurityTools() {
                 </div>
               </div>
 
+              {/* Scan Tier Selection */}
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Select Scan Tier</Label>
+                <div className="grid sm:grid-cols-3 gap-3">
+                  {scanTiers.map((tier) => (
+                    <button
+                      key={tier.id}
+                      onClick={() => setSelectedTier(tier)}
+                      className={`relative p-4 rounded-xl border-2 text-left transition-all ${
+                        selectedTier.id === tier.id
+                          ? 'border-primary bg-primary/10'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      {tier.requiresApproval && (
+                        <Badge variant="secondary" className="absolute -top-2 right-2 text-xs">
+                          Approval Required
+                        </Badge>
+                      )}
+                      <div className="font-bold text-lg">{tier.name}</div>
+                      <div className="flex items-center gap-1 text-primary font-semibold mt-1">
+                        <Coins className="w-4 h-4" />
+                        {tier.price.toLocaleString()} coins
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-1">{tier.description}</p>
+                      <ul className="mt-2 space-y-1">
+                        {tier.features.slice(0, 2).map(f => (
+                          <li key={f} className="text-xs text-muted-foreground flex items-center gap-1">
+                            <CheckCircle2 className="w-3 h-3 text-primary" /> {f}
+                          </li>
+                        ))}
+                      </ul>
+                    </button>
+                  ))}
+                </div>
+                {balance && (
+                  <p className="text-sm text-muted-foreground">
+                    Your balance: <span className="font-semibold text-foreground">{balance.balance} coins</span>
+                    {balance.balance < selectedTier.price && (
+                      <span className="text-destructive ml-2">
+                        (Need {selectedTier.price - balance.balance} more — <Link to="/wallet" className="underline">Buy Coins</Link>)
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
+
               {/* URL Input */}
               <div className="flex flex-col sm:flex-row gap-4 p-2 rounded-2xl bg-card border border-border">
                 <div className="flex-1 flex items-center gap-3 px-4">
@@ -230,7 +301,7 @@ export default function SecurityTools() {
                   variant="hero"
                   size="lg"
                   onClick={handleScan}
-                  disabled={isScanning || !url || !scannerName.trim()}
+                  disabled={isScanning || !url || !scannerName.trim() || (balance ? balance.balance < selectedTier.price : true)}
                   className="sm:w-auto"
                 >
                   {isScanning ? (
@@ -240,7 +311,8 @@ export default function SecurityTools() {
                     </>
                   ) : (
                     <>
-                      Run Security Test
+                      <Coins className="w-4 h-4" />
+                      Run {selectedTier.name} — {selectedTier.price.toLocaleString()} Coins
                       <ArrowRight className="w-4 h-4" />
                     </>
                   )}
