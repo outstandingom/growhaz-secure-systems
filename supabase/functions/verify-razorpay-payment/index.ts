@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
 // Helper function to securely verify Razorpay signature using native Web Crypto
@@ -103,43 +103,20 @@ serve(async (req) => {
       }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Create transaction record
-    const { data: transaction, error: transactionError } = await supabaseAdmin
-      .from('coin_transactions')
-      .insert({
-        user_id: user.id,
-        type: 'purchase',
-        amount: amount,
-        description: `Purchased ${amount} coins via Razorpay`,
-        status: 'completed',
-        razorpay_payment_id: razorpay_payment_id,
-        razorpay_order_id: razorpay_order_id,
-        reference_id: razorpay_payment_id
-      })
-      .select()
-      .single();
-
-    if (transactionError) {
-      console.error('Error creating transaction:', transactionError);
-      return new Response(JSON.stringify({ error: 'Failed to record transaction' }), { 
-        status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
-      });
-    }
-
-    // Update coin balance
+    // Use the RPC to update balance AND create the transaction in one call
     const { error: updateError } = await supabaseAdmin.rpc('update_coin_balance', {
       p_user_id: user.id,
       p_amount: amount,
       p_type: 'purchase',
-      p_description: `Purchased ${amount} coins (Payment ID: ${razorpay_payment_id})`
+      p_description: `Purchased ${amount} coins via Razorpay`,
+      p_razorpay_payment_id: razorpay_payment_id,
+      p_razorpay_order_id: razorpay_order_id,
+      p_reference_id: razorpay_payment_id
     });
 
     if (updateError) {
       console.error('Error updating balance:', updateError);
-      // Rollback transaction status
-      await supabaseAdmin.from('coin_transactions').update({ status: 'failed' }).eq('id', transaction.id);
-      
-      return new Response(JSON.stringify({ error: 'Failed to credit coins' }), { 
+      return new Response(JSON.stringify({ error: 'Failed to credit coins: ' + updateError.message }), { 
         status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
     }
@@ -155,7 +132,6 @@ serve(async (req) => {
       success: true,
       message: `${amount} coins credited successfully`,
       newBalance: balanceData?.balance || amount,
-      transactionId: transaction.id
     }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 
   } catch (error) {
