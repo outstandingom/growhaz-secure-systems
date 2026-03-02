@@ -32,7 +32,9 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
+    const token = authHeader?.replace('Bearer ', '').trim();
+
+    if (!token) {
       return new Response(JSON.stringify({ error: 'Authorization required' }), {
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -40,8 +42,7 @@ serve(async (req) => {
 
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
-      { global: { headers: { Authorization: authHeader } } }
+      Deno.env.get('SUPABASE_ANON_KEY') ?? ''
     );
 
     // Use service role for updating balances safely bypassing RLS
@@ -51,7 +52,7 @@ serve(async (req) => {
     );
 
     // Verify user is authenticated
-    const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
+    const { data: { user }, error: authError } = await supabaseClient.auth.getUser(token);
     if (authError || !user) {
       return new Response(JSON.stringify({ error: 'Unauthorized' }), { 
         status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
