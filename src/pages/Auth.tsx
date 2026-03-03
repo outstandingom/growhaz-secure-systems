@@ -64,23 +64,37 @@ export default function Auth() {
   const [showNewPass, setShowNewPass] = useState(false);
   const [showConfirmPass, setShowConfirmPass] = useState(false);
 
+  // Track if user just completed auth (login/signup/otp verify)
+  const [authCompleted, setAuthCompleted] = useState(false);
+
   useEffect(() => {
+    // Sign out any existing session when Auth page loads
+    // so users can login/signup with a different account
+    let cancelled = false;
+
+    const initAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && !cancelled) {
+        await supabase.auth.signOut();
+      }
+    };
+
+    initAuth();
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (session?.user && !showNewPasswordForm && !showPasswordOtp) {
+        // Only redirect if the user just completed an auth action on this page
+        if (authCompleted && session?.user && !showNewPasswordForm && !showPasswordOtp) {
           navigate("/");
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user && !showNewPasswordForm && !showPasswordOtp) {
-        navigate("/");
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate, showNewPasswordForm, showPasswordOtp]);
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, [navigate, showNewPasswordForm, showPasswordOtp, authCompleted]);
 
   // OTP resend countdown
   useEffect(() => {
@@ -141,8 +155,12 @@ export default function Auth() {
     if (!validateForm()) return;
     setLoading(true);
     try {
+      setAuthCompleted(true);
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (error) {
+        setAuthCompleted(false);
+        throw error;
+      }
       toast({ title: "Welcome back!", description: "You have successfully logged in." });
     } catch (error: any) {
       let msg = error.message;
@@ -251,6 +269,7 @@ export default function Auth() {
         }, 100);
       }
 
+      setAuthCompleted(true);
       toast({
         title: "Account Verified!",
         description: "Your account has been created successfully. Welcome to GROWHAZ!",
