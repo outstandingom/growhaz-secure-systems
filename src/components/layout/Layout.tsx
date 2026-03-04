@@ -14,12 +14,6 @@ export function Layout({ children }: LayoutProps) {
       <div className="min-h-screen flex flex-col relative z-10">
         <Navbar />
         <main className="flex-1 pt-16 md:pt-20 relative">
-          {/* Glassmorphism layer */}
-          <div 
-            className="pointer-events-none absolute inset-x-3 md:inset-x-6 top-3 bottom-3 rounded-3xl site-glass" 
-            aria-hidden 
-          />
-          {/* Content layer */}
           <div className="relative z-10">{children}</div>
         </main>
         <Footer />
