@@ -307,14 +307,6 @@ function FallbackBackground() {
             "radial-gradient(circle at 30% 40%, rgba(0, 210, 255, 0.15) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(147, 51, 234, 0.1) 0%, transparent 50%)",
         }}
       />
-      <div
-        className="absolute inset-0 opacity-5"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
-          backgroundSize: "50px 50px",
-        }}
-      />
     </div>
   );
 }
@@ -355,5 +347,4 @@ export function NeuralBackground() {
       <div className="absolute inset-0 pointer-events-none" />
     </div>
   );
-    }
-      
+        }
