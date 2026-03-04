@@ -166,13 +166,13 @@
     box-shadow: var(--shadow-card), var(--shadow-glow);
   }
 
-  .grid-pattern {
+ /* .grid-pattern {
     background-image: 
       linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
       linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
     background-size: 60px 60px;
   }
-
+*/
   .section-container {
     @apply container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24;
   }
