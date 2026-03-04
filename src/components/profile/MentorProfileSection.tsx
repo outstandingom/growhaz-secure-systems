@@ -105,12 +105,24 @@ export function MentorProfileSection({ profileId, mentorData, onUpdate }: Mentor
     setIsEditing(false);
   };
 
-  const addSkill = (skill: string) => {
-    const trimmed = skill.trim();
-    if (trimmed && !editData.skills.includes(trimmed) && editData.skills.length < 10) {
-      setEditData({ ...editData, skills: [...editData.skills, trimmed] });
-      setSkillInput("");
-    }
+  const addSkill = (value: string) => {
+    const entries = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (entries.length === 0) return;
+
+    setEditData((prev) => {
+      const nextSkills = [...prev.skills];
+      entries.forEach((entry) => {
+        const exists = nextSkills.some((skill) => skill.toLowerCase() === entry.toLowerCase());
+        if (!exists && nextSkills.length < 10) nextSkills.push(entry);
+      });
+      return { ...prev, skills: nextSkills };
+    });
+
+    setSkillInput("");
   };
 
   const removeSkill = (skill: string) => {
@@ -273,17 +285,30 @@ export function MentorProfileSection({ profileId, mentorData, onUpdate }: Mentor
               )}
             </div>
             {isEditing && (
-              <Input
-                placeholder="Type a skill and press Enter"
-                value={skillInput}
-                onChange={(e) => setSkillInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addSkill(skillInput);
-                  }
-                }}
-              />
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Type any skill, press Enter or Add"
+                    value={skillInput}
+                    onChange={(e) => setSkillInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addSkill(skillInput);
+                      }
+                    }}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => addSkill(skillInput)}
+                    disabled={!skillInput.trim() || editData.skills.length >= 10}
+                  >
+                    Add
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">Add custom skills; commas add multiple at once.</p>
+              </div>
             )}
           </div>
 

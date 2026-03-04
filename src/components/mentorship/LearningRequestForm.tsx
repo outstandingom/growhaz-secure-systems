@@ -71,12 +71,24 @@ export function LearningRequestForm({ onSuccess }: LearningRequestFormProps) {
     },
   });
 
-  const addSkill = (skill: string) => {
-    const trimmed = skill.trim();
-    if (trimmed && !skills.includes(trimmed) && skills.length < 5) {
-      setSkills([...skills, trimmed]);
-      setSkillInput("");
-    }
+  const addSkill = (value: string) => {
+    const entries = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (entries.length === 0) return;
+
+    setSkills((prev) => {
+      const next = [...prev];
+      entries.forEach((entry) => {
+        const exists = next.some((skill) => skill.toLowerCase() === entry.toLowerCase());
+        if (!exists && next.length < 5) next.push(entry);
+      });
+      return next;
+    });
+
+    setSkillInput("");
   };
 
   const removeSkill = (skill: string) => {
@@ -142,9 +154,9 @@ export function LearningRequestForm({ onSuccess }: LearningRequestFormProps) {
   };
 
   const filteredSuggestions = skillSuggestions.filter(
-    (s) => 
-      s.toLowerCase().includes(skillInput.toLowerCase()) && 
-      !skills.includes(s)
+    (s) =>
+      s.toLowerCase().includes(skillInput.toLowerCase()) &&
+      !skills.some((skill) => skill.toLowerCase() === s.toLowerCase()),
   );
 
   return (
@@ -225,17 +237,30 @@ export function LearningRequestForm({ onSuccess }: LearningRequestFormProps) {
               ))}
             </div>
             <div className="relative">
-              <Input
-                placeholder="Type a skill and press Enter"
-                value={skillInput}
-                onChange={(e) => setSkillInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addSkill(skillInput);
-                  }
-                }}
-              />
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Type any skill, press Enter or Add"
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addSkill(skillInput);
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addSkill(skillInput)}
+                  disabled={!skillInput.trim() || skills.length >= 5}
+                >
+                  Add
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Any custom skill is allowed. You can add multiple at once using commas.
+              </p>
               {skillInput && filteredSuggestions.length > 0 && (
                 <div className="absolute top-full left-0 right-0 bg-popover border border-border rounded-md shadow-lg mt-1 z-10 max-h-40 overflow-y-auto">
                   {filteredSuggestions.slice(0, 5).map((suggestion) => (
