@@ -1,3 +1,5 @@
+"use client";
+
 import { useRef, useMemo, useEffect, useState } from "react";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import * as THREE from "three";
@@ -19,14 +21,17 @@ function isWebGLAvailable(): boolean {
 function isLowPowerDevice(): boolean {
   if (typeof window === "undefined") return false;
 
-  const smallScreen = window.matchMedia("(max-width: 900px)").matches;
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const lowMemory = typeof navigator !== "undefined" && "deviceMemory" in navigator
-    ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory! <= 4
-    : false;
-  const lowCpu = typeof navigator !== "undefined" && navigator.hardwareConcurrency <= 4;
+  
+  // NOTE: Temporarily commented out for development so it renders reliably.
+  // Uncomment before pushing to production if you want strict performance limits.
+  // const smallScreen = window.matchMedia("(max-width: 900px)").matches;
+  // const lowMemory = typeof navigator !== "undefined" && "deviceMemory" in navigator
+  //   ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory! <= 4
+  //   : false;
+  // const lowCpu = typeof navigator !== "undefined" && navigator.hardwareConcurrency <= 4;
 
-  return reducedMotion || smallScreen || lowMemory || lowCpu;
+  return reducedMotion; // || smallScreen || lowMemory || lowCpu;
 }
 
 function createGlowTexture(): THREE.CanvasTexture {
@@ -290,7 +295,7 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
 function FallbackBackground() {
   return (
     <div
-      className="fixed inset-0 -z-10"
+      className="fixed inset-0 z-0"
       style={{
         background: "radial-gradient(ellipse at center, #0a1628 0%, #010103 70%)",
       }}
@@ -326,7 +331,7 @@ export function NeuralBackground() {
   }, []);
 
   if (webGLSupported === null) {
-    return <div className="fixed inset-0 -z-10" style={{ background: "#010103" }} />;
+    return <div className="fixed inset-0 z-0" style={{ background: "#010103" }} />;
   }
 
   if (!webGLSupported || useLiteMode) {
@@ -334,7 +339,7 @@ export function NeuralBackground() {
   }
 
   return (
-    <div className="fixed inset-0 -z-10" style={{ background: "#010103" }}>
+    <div className="fixed inset-0 z-0" style={{ background: "#010103" }}>
       <Canvas
         dpr={[1, 1.5]}
         camera={{ position: [0, 0, 500], fov: 60, near: 1, far: 3000 }}
@@ -350,4 +355,5 @@ export function NeuralBackground() {
       <div className="absolute inset-0 pointer-events-none" />
     </div>
   );
-}
+    }
+      
