@@ -16,6 +16,7 @@ import Pricing from "./pages/Pricing";
 import About from "./pages/About";
 import Contact from "./pages/Contact";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import Profile from "./pages/Profile";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
@@ -54,10 +55,13 @@ const App = () => (
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/auth" element={<Auth />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/mentorship" element={<Mentorship />} />
+          <Route path="/mentorshi" element={<Mentorship />} />
+          <Route path="/learning-requests" element={<LearningRequests />} />
           <Route path="/learn" element={<Mentorship />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />

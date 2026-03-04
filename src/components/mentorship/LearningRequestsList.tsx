@@ -112,12 +112,24 @@ export function LearningRequestsList() {
     return matchesSearch && matchesType && matchesSkill;
   });
 
-  const addSkill = (skill: string) => {
-    const trimmed = skill.trim();
-    if (trimmed && !mySkills.includes(trimmed) && mySkills.length < 5) {
-      setMySkills([...mySkills, trimmed]);
-      setSkillInput("");
-    }
+  const addSkill = (value: string) => {
+    const entries = value
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+
+    if (entries.length === 0) return;
+
+    setMySkills((prev) => {
+      const next = [...prev];
+      entries.forEach((entry) => {
+        const exists = next.some((skill) => skill.toLowerCase() === entry.toLowerCase());
+        if (!exists && next.length < 5) next.push(entry);
+      });
+      return next;
+    });
+
+    setSkillInput("");
   };
 
   const handleRespond = async () => {
@@ -374,17 +386,28 @@ export function LearningRequestsList() {
                   </Badge>
                 ))}
               </div>
-              <Input
-                placeholder="Add your skills (press Enter)"
-                value={skillInput}
-                onChange={(e) => setSkillInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                    addSkill(skillInput);
-                  }
-                }}
-              />
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Add any skill (use commas for multiple)"
+                  value={skillInput}
+                  onChange={(e) => setSkillInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addSkill(skillInput);
+                    }
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => addSkill(skillInput)}
+                  disabled={!skillInput.trim() || mySkills.length >= 5}
+                >
+                  Add
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Custom skills are fully supported.</p>
             </div>
 
             {/* Message */}

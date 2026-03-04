@@ -1,14 +1,30 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
-import { InputOTP, InputOTPGroup, InputOTPSlot, InputOTPSeparator } from "@/components/ui/input-otp";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
-import { UserPlus, LogIn, Mail, Lock, ArrowRight, User, Phone, Eye, EyeOff, KeyRound } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  KeyRound,
+  LogIn,
+  Mail,
+  Phone,
+  User,
+  UserPlus,
+} from "lucide-react";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -20,17 +36,25 @@ const registerSchema = z.object({
   fullName: z.string().trim().min(2, { message: "Name must be at least 2 characters" }).max(100),
   phone: z.string().trim().min(10, { message: "Please enter a valid phone number" }).max(15).optional().or(z.literal("")),
   email: z.string().trim().email({ message: "Invalid email address" }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
+  password: z
+    .string()
+    .optional()
+    .refine((value) => !value || value.length >= 6, { message: "Password must be at least 6 characters" }),
 });
 
 interface PendingUser {
   email: string;
-  password: string;
+  password?: string;
   fullName: string;
   phone: string;
 }
 
 export default function Auth() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const mounted = useRef(true);
+  const authCompleted = useRef(false);
+
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -38,87 +62,56 @@ export default function Auth() {
   const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const navigate = useNavigate();
-  const { toast } = useToast();
-  const mounted = useRef(true);
 
-  // Password visibility
   const [showPassword, setShowPassword] = useState(false);
 
-  // OTP Signup State
-  const [showOtpVerification, setShowOtpVerification] = useState(false);
-  const [otpCode, setOtpCode] = useState("");
+  const [showSignupOtp, setShowSignupOtp] = useState(false);
+  const [signupOtpCode, setSignupOtpCode] = useState("");
   const [pendingUser, setPendingUser] = useState<PendingUser | null>(null);
-  const [otpResendTimer, setOtpResendTimer] = useState(0);
+  const [signupOtpTimer, setSignupOtpTimer] = useState(0);
 
-  // Forgot Password State
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
   const [resetLoading, setResetLoading] = useState(false);
-  const [showPasswordOtp, setShowPasswordOtp] = useState(false);
-  const [passwordOtpCode, setPasswordOtpCode] = useState("");
-  const [passwordResetEmail, setPasswordResetEmail] = useState("");
-  const [passwordOtpResendTimer, setPasswordOtpResendTimer] = useState(0);
-  const [showNewPasswordForm, setShowNewPasswordForm] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [showNewPass, setShowNewPass] = useState(false);
-  const [showConfirmPass, setShowConfirmPass] = useState(false);
 
-  // Track if user just completed auth (login/signup/otp verify)
-  const authCompleted = useRef(false);
+  const [loginOtpOpen, setLoginOtpOpen] = useState(false);
+  const [loginOtpEmail, setLoginOtpEmail] = useState("");
+  const [loginOtpCode, setLoginOtpCode] = useState("");
+  const [loginOtpStep, setLoginOtpStep] = useState<"email" | "verify">("email");
+  const [loginOtpTimer, setLoginOtpTimer] = useState(0);
 
   useEffect(() => {
     mounted.current = true;
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (authCompleted.current && session?.user && mounted.current) {
+        navigate("/");
+      }
+    });
+
     return () => {
       mounted.current = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    // Sign out any existing session when Auth page loads
-    const initAuth = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session && mounted.current) {
-        await supabase.auth.signOut();
-      }
-    };
-    initAuth();
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        // Only redirect if the user just completed an auth action on this page
-        if (authCompleted.current && session?.user && !showNewPasswordForm && !showPasswordOtp && mounted.current) {
-          navigate("/");
-        }
-      }
-    );
-
-    return () => {
       subscription.unsubscribe();
     };
-  }, [navigate, showNewPasswordForm, showPasswordOtp]);
+  }, [navigate]);
 
-  // OTP resend countdown
   useEffect(() => {
-    if (otpResendTimer > 0) {
-      const timer = setTimeout(() => setOtpResendTimer(otpResendTimer - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [otpResendTimer]);
+    if (signupOtpTimer <= 0) return;
+    const timer = setTimeout(() => setSignupOtpTimer((t) => t - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [signupOtpTimer]);
 
-  // Password OTP resend countdown
   useEffect(() => {
-    if (passwordOtpResendTimer > 0) {
-      const timer = setTimeout(() => setPasswordOtpResendTimer(passwordOtpResendTimer - 1), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [passwordOtpResendTimer]);
+    if (loginOtpTimer <= 0) return;
+    const timer = setTimeout(() => setLoginOtpTimer((t) => t - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [loginOtpTimer]);
 
-  // Auto-submit is removed – now manual verification only
-  // (prevent race conditions and mobile keyboard issues)
+  const normalizeOtp = (value: string) => value.replace(/\D/g, "").slice(0, 6);
 
-  const validateForm = useCallback(() => {
+  const validateMainForm = useCallback(() => {
     setErrors({});
     try {
       if (isLogin) {
@@ -129,305 +122,289 @@ export default function Auth() {
       return true;
     } catch (error) {
       if (error instanceof z.ZodError) {
-        const newErrors: Record<string, string> = {};
-        error.errors.forEach((err) => {
-          if (err.path[0]) {
-            newErrors[err.path[0] as string] = err.message;
-          }
+        const nextErrors: Record<string, string> = {};
+        error.errors.forEach((issue) => {
+          if (issue.path[0]) nextErrors[issue.path[0] as string] = issue.message;
         });
-        setErrors(newErrors);
+        setErrors(nextErrors);
       }
       return false;
     }
   }, [isLogin, email, password, fullName, phone]);
 
-  // ========== SIGN IN ==========
-  const handleSignIn = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
-    setLoading(true);
-    authCompleted.current = true;
-    try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) {
-        authCompleted.current = false;
-        throw error;
-      }
-      toast({ title: "Welcome back!", description: "You have successfully logged in." });
-      navigate("/"); // Explicit navigation in case listener fails
-    } catch (error: any) {
-      if (!mounted.current) return;
-      let msg = error.message;
-      if (msg.includes("Invalid login credentials")) msg = "Invalid email or password.";
-      toast({ title: "Error", description: msg, variant: "destructive" });
-    } finally {
-      if (mounted.current) setLoading(false);
-    }
-  }, [email, password, validateForm, toast, navigate]);
+  const handleSignIn = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!validateMainForm()) return;
 
-  // ========== SIGN UP WITH EMAIL OTP ==========
-  const handleSignUp = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) return;
+      setLoading(true);
+      authCompleted.current = true;
+
+      try {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+
+        toast({ title: "Welcome back!", description: "You have successfully logged in." });
+        navigate("/");
+      } catch (error: any) {
+        authCompleted.current = false;
+        if (!mounted.current) return;
+        toast({
+          title: "Sign In Failed",
+          description: error?.message?.includes("Invalid login credentials")
+            ? "Invalid email or password."
+            : error?.message || "Unable to sign in.",
+          variant: "destructive",
+        });
+      } finally {
+        if (mounted.current) setLoading(false);
+      }
+    },
+    [email, password, navigate, toast, validateMainForm],
+  );
+
+  const handleSignUp = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!validateMainForm()) return;
+
+      setLoading(true);
+      try {
+        const { error } = await supabase.auth.signInWithOtp({
+          email,
+          options: {
+            shouldCreateUser: true,
+            data: {
+              full_name: fullName.trim(),
+              phone: phone.trim() || null,
+            },
+          },
+        });
+
+        if (error) throw error;
+
+        setPendingUser({
+          email: email.trim(),
+          password: password.trim() || undefined,
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+        });
+        setSignupOtpCode("");
+        setShowSignupOtp(true);
+        setSignupOtpTimer(45);
+        toast({
+          title: "Verification Code Sent",
+          description: "Enter the 6-digit code from your email to create your account.",
+        });
+      } catch (error: any) {
+        if (!mounted.current) return;
+        toast({
+          title: "Sign Up Failed",
+          description: error?.message || "Unable to send OTP.",
+          variant: "destructive",
+        });
+      } finally {
+        if (mounted.current) setLoading(false);
+      }
+    },
+    [email, fullName, password, phone, toast, validateMainForm],
+  );
+
+  const handleVerifySignupOtp = useCallback(
+    async (e?: React.FormEvent) => {
+      e?.preventDefault();
+      if (!pendingUser || signupOtpCode.length !== 6) return;
+
+      setLoading(true);
+      try {
+        const { error: otpError } = await supabase.auth.verifyOtp({
+          email: pendingUser.email,
+          token: signupOtpCode,
+          type: "email",
+        });
+
+        if (otpError) throw otpError;
+
+        if (pendingUser.password) {
+          const { error: updateError } = await supabase.auth.updateUser({
+            password: pendingUser.password,
+            data: {
+              full_name: pendingUser.fullName,
+              phone: pendingUser.phone || null,
+            },
+          });
+
+          if (updateError) {
+            toast({
+              title: "Account created",
+              description: "Account is verified. Password setup failed, but you can login with OTP.",
+              variant: "destructive",
+            });
+          }
+        }
+
+        authCompleted.current = true;
+        toast({
+          title: "Account Created",
+          description: "Your email is verified and account is ready.",
+        });
+        navigate("/");
+      } catch (error: any) {
+        if (!mounted.current) return;
+        toast({
+          title: "Verification Failed",
+          description: error?.message || "Invalid or expired code.",
+          variant: "destructive",
+        });
+        setSignupOtpCode("");
+      } finally {
+        if (mounted.current) setLoading(false);
+      }
+    },
+    [navigate, pendingUser, signupOtpCode, toast],
+  );
+
+  const handleResendSignupOtp = useCallback(async () => {
+    if (!pendingUser || signupOtpTimer > 0) return;
+
     setLoading(true);
     try {
-      // Send OTP to email for verification
       const { error } = await supabase.auth.signInWithOtp({
-        email,
+        email: pendingUser.email,
         options: {
           shouldCreateUser: true,
           data: {
-            full_name: fullName,
-            phone: phone,
+            full_name: pendingUser.fullName,
+            phone: pendingUser.phone || null,
           },
-          emailRedirectTo: `${window.location.origin}/`,
         },
       });
 
       if (error) throw error;
 
-      setPendingUser({ email, password, fullName, phone });
-      setShowOtpVerification(true);
-      setOtpResendTimer(60);
-      toast({
-        title: "Verification Code Sent",
-        description: "Please check your email and enter the 6-digit code.",
-      });
+      setSignupOtpTimer(45);
+      setSignupOtpCode("");
+      toast({ title: "Code Resent", description: "A new verification code has been sent." });
     } catch (error: any) {
       if (!mounted.current) return;
-      toast({ title: "Error", description: error.message || "An error occurred", variant: "destructive" });
+      toast({ title: "Resend Failed", description: error?.message || "Please try again.", variant: "destructive" });
     } finally {
       if (mounted.current) setLoading(false);
     }
-  }, [email, password, fullName, phone, validateForm, toast]);
+  }, [pendingUser, signupOtpTimer, toast]);
 
-  // ========== VERIFY SIGNUP OTP ==========
-  const handleVerifyOtp = useCallback(async (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (otpCode.length !== 6 || !pendingUser) return;
-
-    setLoading(true);
-    try {
-      const { data: otpData, error: otpError } = await supabase.auth.verifyOtp({
-        email: pendingUser.email,
-        token: otpCode,
-        type: "signup",
-      });
-
-      if (otpError) throw otpError;
-
-      // Set password after OTP verification
-      const { error: updateError } = await supabase.auth.updateUser({
-        password: pendingUser.password,
-        data: {
-          full_name: pendingUser.fullName,
-          phone: pendingUser.phone,
-        },
-      });
-
-      if (updateError) throw updateError;
-
-      // Create profile if not auto-created by trigger
-      const userId = otpData?.session?.user?.id || otpData?.user?.id;
-      if (userId && mounted.current) {
-        // Use a non-blocking async check with mounted guard
-        (async () => {
-          try {
-            const { data: existing } = await supabase
-              .from("profiles")
-              .select("id")
-              .eq("user_id", userId)
-              .single();
-
-            if (!existing) {
-              await supabase.from("profiles").insert({
-                user_id: userId,
-                full_name: pendingUser.fullName,
-                phone: pendingUser.phone || null,
-              });
-            }
-          } catch (err) {
-            console.error("Profile creation error:", err);
-          }
-        })();
+  const handleSendForgotLink = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      const resetEmail = (forgotEmail || email).trim();
+      if (!resetEmail) {
+        toast({ title: "Email required", description: "Please enter your email.", variant: "destructive" });
+        return;
       }
 
-      authCompleted.current = true;
-      toast({
-        title: "Account Verified!",
-        description: "Your account has been created successfully. Welcome to GROWHAZ!",
+      setResetLoading(true);
+      try {
+        const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Reset Link Sent",
+          description: "Check your email and open the password reset link.",
+        });
+        setForgotOpen(false);
+      } catch (error: any) {
+        if (!mounted.current) return;
+        toast({
+          title: "Reset Failed",
+          description: error?.message || "Unable to send reset link.",
+          variant: "destructive",
+        });
+      } finally {
+        if (mounted.current) setResetLoading(false);
+      }
+    },
+    [email, forgotEmail, toast],
+  );
+
+  const sendLoginOtp = useCallback(async () => {
+    const targetEmail = loginOtpEmail.trim();
+
+    try {
+      z.string().email().parse(targetEmail);
+    } catch {
+      toast({ title: "Invalid Email", description: "Please enter a valid email address.", variant: "destructive" });
+      return;
+    }
+
+    setResetLoading(true);
+    try {
+      const { error } = await supabase.auth.signInWithOtp({
+        email: targetEmail,
+        options: { shouldCreateUser: false },
       });
+
+      if (error) throw error;
+
+      setLoginOtpStep("verify");
+      setLoginOtpTimer(45);
+      setLoginOtpCode("");
+      toast({ title: "OTP Sent", description: "Enter the 6-digit code sent to your email." });
+    } catch (error: any) {
+      if (!mounted.current) return;
+      toast({ title: "OTP Failed", description: error?.message || "Unable to send OTP.", variant: "destructive" });
+    } finally {
+      if (mounted.current) setResetLoading(false);
+    }
+  }, [loginOtpEmail, toast]);
+
+  const verifyLoginOtp = useCallback(async () => {
+    if (loginOtpCode.length !== 6 || !loginOtpEmail.trim()) return;
+
+    setResetLoading(true);
+    authCompleted.current = true;
+
+    try {
+      const { error } = await supabase.auth.verifyOtp({
+        email: loginOtpEmail.trim(),
+        token: loginOtpCode,
+        type: "email",
+      });
+
+      if (error) throw error;
+
+      toast({ title: "Signed In", description: "OTP verification successful." });
+      setLoginOtpOpen(false);
       navigate("/");
     } catch (error: any) {
+      authCompleted.current = false;
       if (!mounted.current) return;
-      toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
-      setOtpCode("");
-    } finally {
-      if (mounted.current) {
-        setLoading(false);
-        setPendingUser(null);
-        setShowOtpVerification(false);
-      }
-    }
-  }, [otpCode, pendingUser, toast, navigate]);
-
-  // ========== RESEND SIGNUP OTP ==========
-  const handleResendOtp = useCallback(async () => {
-    if (otpResendTimer > 0 || !pendingUser) return;
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: pendingUser.email,
-        options: { shouldCreateUser: false },
-      });
-      if (error) throw error;
-      toast({ title: "Code Resent", description: "A new verification code has been sent." });
-      setOtpResendTimer(60);
-      setOtpCode("");
-    } catch (error: any) {
-      if (!mounted.current) return;
-      toast({ title: "Resend Failed", description: error.message, variant: "destructive" });
-    } finally {
-      if (mounted.current) setLoading(false);
-    }
-  }, [otpResendTimer, pendingUser, toast]);
-
-  // ========== FORGOT PASSWORD: SEND OTP ==========
-  const handleResetPassword = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    const resetEmail = (forgotEmail || email).trim();
-    if (!resetEmail) {
-      toast({ title: "Error", description: "Please enter your email", variant: "destructive" });
-      return;
-    }
-
-    setResetLoading(true);
-    try {
-      // Send OTP for password reset (using login OTP)
-      const { error } = await supabase.auth.signInWithOtp({
-        email: resetEmail,
-        options: { shouldCreateUser: false },
-      });
-
-      if (error) throw error;
-
-      toast({ title: "OTP Sent", description: "Check your email for the 6-digit verification code." });
-      setPasswordResetEmail(resetEmail);
-      setShowPasswordOtp(true);
-      setPasswordOtpResendTimer(60);
-      setPasswordOtpCode("");
-    } catch (error: any) {
-      if (!mounted.current) return;
-      toast({ title: "Reset Failed", description: error.message, variant: "destructive" });
+      toast({ title: "Verification Failed", description: error?.message || "Invalid OTP.", variant: "destructive" });
+      setLoginOtpCode("");
     } finally {
       if (mounted.current) setResetLoading(false);
     }
-  }, [forgotEmail, email, toast]);
-
-  // ========== VERIFY PASSWORD RESET OTP ==========
-  const handleVerifyPasswordOtp = useCallback(async () => {
-    if (passwordOtpCode.length !== 6) return;
-
-    setResetLoading(true);
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email: passwordResetEmail,
-        token: passwordOtpCode,
-        type: "email", // Use "email" because we sent a login OTP
-      });
-
-      if (error) throw error;
-
-      // Ensure session is set (verifyOtp should do this, but just in case)
-      if (!data.session) {
-        throw new Error("No session established – please request a new code.");
-      }
-
-      toast({ title: "Verified!", description: "Please set your new password." });
-      setShowPasswordOtp(false);
-      setShowNewPasswordForm(true);
-      setPasswordOtpCode("");
-    } catch (error: any) {
-      if (!mounted.current) return;
-      toast({ title: "Verification Failed", description: error.message, variant: "destructive" });
-      setPasswordOtpCode("");
-    } finally {
-      if (mounted.current) setResetLoading(false);
-    }
-  }, [passwordOtpCode, passwordResetEmail, toast]);
-
-  // ========== RESEND PASSWORD OTP ==========
-  const handleResendPasswordOtp = useCallback(async () => {
-    if (passwordOtpResendTimer > 0) return;
-    setResetLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOtp({
-        email: passwordResetEmail,
-        options: { shouldCreateUser: false },
-      });
-      if (error) throw error;
-      toast({ title: "Code Resent", description: "A new code has been sent to your email." });
-      setPasswordOtpResendTimer(60);
-      setPasswordOtpCode("");
-    } catch (error: any) {
-      if (!mounted.current) return;
-      toast({ title: "Resend Failed", description: error.message, variant: "destructive" });
-    } finally {
-      if (mounted.current) setResetLoading(false);
-    }
-  }, [passwordOtpResendTimer, passwordResetEmail, toast]);
-
-  // ========== SET NEW PASSWORD ==========
-  const handleSetNewPassword = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newPassword || newPassword.length < 6) {
-      toast({ title: "Error", description: "Password must be at least 6 characters.", variant: "destructive" });
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      toast({ title: "Error", description: "Passwords do not match.", variant: "destructive" });
-      return;
-    }
-
-    setResetLoading(true);
-    try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) throw error;
-
-      toast({ title: "Password Updated!", description: "Please login with your new password." });
-      await supabase.auth.signOut();
-      closeForgotDialog();
-    } catch (error: any) {
-      if (!mounted.current) return;
-      toast({ title: "Update Failed", description: error.message, variant: "destructive" });
-    } finally {
-      if (mounted.current) setResetLoading(false);
-    }
-  }, [newPassword, confirmPassword, toast]);
-
-  const closeForgotDialog = useCallback(() => {
-    setForgotOpen(false);
-    setForgotEmail("");
-    setPasswordResetEmail("");
-    setShowPasswordOtp(false);
-    setShowNewPasswordForm(false);
-    setPasswordOtpCode("");
-    setNewPassword("");
-    setConfirmPassword("");
-  }, []);
+  }, [loginOtpCode, loginOtpEmail, navigate, toast]);
 
   const switchMode = useCallback(() => {
-    setIsLogin(!isLogin);
+    setIsLogin((prev) => !prev);
     setErrors({});
-    setFullName("");
-    setPhone("");
-    setShowOtpVerification(false);
-    setOtpCode("");
+    setShowSignupOtp(false);
+    setSignupOtpCode("");
     setPendingUser(null);
-  }, [isLogin]);
+    setPassword("");
+  }, []);
 
-  // ========== OTP VERIFICATION SCREEN (SIGNUP) ==========
-  if (showOtpVerification && pendingUser) {
+  const openLoginOtpDialog = () => {
+    setLoginOtpOpen(true);
+    setLoginOtpStep("email");
+    setLoginOtpEmail(email.trim());
+    setLoginOtpCode("");
+  };
+
+  if (showSignupOtp && pendingUser) {
     return (
       <Layout>
         <section className="section-container min-h-[80vh] flex items-center justify-center">
@@ -437,32 +414,33 @@ export default function Auth() {
                 <Mail className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary">Verify Email</span>
               </div>
-              <h1 className="text-3xl font-bold mb-4">Enter <span className="gradient-text">OTP</span></h1>
+              <h1 className="text-3xl font-bold mb-4">
+                Enter <span className="gradient-text">OTP</span>
+              </h1>
               <p className="text-muted-foreground">
-                We've sent a 6-digit verification code to<br />
+                We sent a 6-digit code to<br />
                 <span className="font-medium text-foreground">{pendingUser.email}</span>
               </p>
             </div>
 
-            <div className="p-8 rounded-2xl backdrop-blur-xl border bg-card/80 border-border">
-              <form onSubmit={handleVerifyOtp} className="space-y-6">
-                <div className="flex justify-center">
-                  <InputOTP maxLength={6} value={otpCode} onChange={setOtpCode}>
-                    <InputOTPGroup>
-                      <InputOTPSlot index={0} />
-                      <InputOTPSlot index={1} />
-                      <InputOTPSlot index={2} />
-                    </InputOTPGroup>
-                    <InputOTPSeparator />
-                    <InputOTPGroup>
-                      <InputOTPSlot index={3} />
-                      <InputOTPSlot index={4} />
-                      <InputOTPSlot index={5} />
-                    </InputOTPGroup>
-                  </InputOTP>
+            <div className="p-8 rounded-2xl backdrop-blur-xl border bg-card/80 border-border space-y-6">
+              <form onSubmit={handleVerifySignupOtp} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-otp">Verification Code</Label>
+                  <Input
+                    id="signup-otp"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="one-time-code"
+                    placeholder="Enter 6-digit code"
+                    value={signupOtpCode}
+                    onChange={(e) => setSignupOtpCode(normalizeOtp(e.target.value))}
+                    className="text-center text-lg tracking-[0.35em]"
+                    maxLength={6}
+                  />
                 </div>
 
-                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading || otpCode.length !== 6}>
+                <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading || signupOtpCode.length !== 6}>
                   {loading ? (
                     <span className="flex items-center gap-2">
                       <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -472,31 +450,31 @@ export default function Auth() {
                     <>Verify & Create Account</>
                   )}
                 </Button>
+              </form>
 
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground">
-                    Didn't receive the code?{" "}
-                    <button
-                      type="button"
-                      onClick={handleResendOtp}
-                      disabled={otpResendTimer > 0}
-                      className="text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
-                    >
-                      {otpResendTimer > 0 ? `Resend in ${otpResendTimer}s` : "Resend Code"}
-                    </button>
-                  </p>
-                </div>
-
-                <div className="text-center">
+              <div className="text-center space-y-2">
+                <button
+                  type="button"
+                  onClick={handleResendSignupOtp}
+                  disabled={signupOtpTimer > 0}
+                  className="text-sm text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+                >
+                  {signupOtpTimer > 0 ? `Resend in ${signupOtpTimer}s` : "Resend Code"}
+                </button>
+                <div>
                   <button
                     type="button"
-                    onClick={() => { setShowOtpVerification(false); setPendingUser(null); setOtpCode(""); }}
+                    onClick={() => {
+                      setShowSignupOtp(false);
+                      setPendingUser(null);
+                      setSignupOtpCode("");
+                    }}
                     className="text-sm text-muted-foreground hover:text-foreground"
                   >
                     ← Back to Sign Up
                   </button>
                 </div>
-              </form>
+              </div>
             </div>
           </div>
         </section>
@@ -504,15 +482,16 @@ export default function Auth() {
     );
   }
 
-  // ========== MAIN AUTH FORM ==========
   return (
     <Layout>
       <section className="section-container min-h-[80vh] flex items-center justify-center">
         <div className="w-full max-w-md">
           <div className="text-center mb-8">
-            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-6 backdrop-blur-sm ${
-              isLogin ? "bg-primary/10 border-primary/20" : "bg-accent/10 border-accent/20"
-            }`}>
+            <div
+              className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-6 backdrop-blur-sm ${
+                isLogin ? "bg-primary/10 border-primary/20" : "bg-accent/10 border-accent/20"
+              }`}
+            >
               {isLogin ? (
                 <>
                   <LogIn className="w-4 h-4 text-primary" />
@@ -525,17 +504,30 @@ export default function Auth() {
                 </>
               )}
             </div>
+
             <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              {isLogin ? <>Sign <span className="gradient-text">In</span></> : <>Create <span className="gradient-text">Account</span></>}
+              {isLogin ? (
+                <>
+                  Sign <span className="gradient-text">In</span>
+                </>
+              ) : (
+                <>
+                  Create <span className="gradient-text">Account</span>
+                </>
+              )}
             </h1>
             <p className="text-muted-foreground">
-              {isLogin ? "Enter your credentials to access your account" : "Fill in your details to get started with GROWHAZ"}
+              {isLogin
+                ? "Enter your credentials to access your account"
+                : "Create account with email OTP verification"}
             </p>
           </div>
 
-          <div className={`p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
-            isLogin ? "bg-card/80 border-border" : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
-          }`}>
+          <div
+            className={`p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
+              isLogin ? "bg-card/80 border-border" : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
+            }`}
+          >
             <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-5">
               {!isLogin && (
                 <>
@@ -571,6 +563,7 @@ export default function Auth() {
                     />
                     {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                   </div>
+
                   <div className="border-t border-border/30 my-4" />
                 </>
               )}
@@ -578,7 +571,7 @@ export default function Auth() {
               <div className="space-y-2">
                 <Label htmlFor="email" className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-muted-foreground" />
-                  Email {!isLogin && <span className="text-destructive">*</span>}
+                  Email <span className="text-destructive">*</span>
                 </Label>
                 <Input
                   id="email"
@@ -594,8 +587,8 @@ export default function Auth() {
 
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-muted-foreground" />
-                  Password {!isLogin && <span className="text-destructive">*</span>}
+                  <KeyRound className="w-4 h-4 text-muted-foreground" />
+                  {isLogin ? "Password" : "Password (Optional)"}
                 </Label>
                 <div className="relative">
                   <Input
@@ -604,13 +597,13 @@ export default function Auth() {
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    required
-                    minLength={6}
+                    required={isLogin}
+                    minLength={isLogin ? 6 : undefined}
                     className={`bg-background/50 border-border/50 pr-10 ${errors.password ? "border-destructive" : ""}`}
                   />
                   <button
                     type="button"
-                    onClick={() => setShowPassword(!showPassword)}
+                    onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
@@ -618,18 +611,28 @@ export default function Auth() {
                   </button>
                 </div>
                 {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
-                {!isLogin && <p className="text-xs text-muted-foreground">Must be at least 6 characters</p>}
+                {!isLogin && (
+                  <p className="text-xs text-muted-foreground">
+                    Optional: set password now, or login with OTP anytime.
+                  </p>
+                )}
               </div>
 
-              {/* Forgot Password Link */}
               {isLogin && (
-                <div className="text-right">
+                <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => { setForgotEmail(email); setForgotOpen(true); }}
+                    onClick={() => {
+                      setForgotEmail(email.trim());
+                      setForgotOpen(true);
+                    }}
                     className="text-sm text-primary hover:underline font-medium"
                   >
                     Forgot Password?
+                  </button>
+
+                  <button type="button" onClick={openLoginOtpDialog} className="text-sm text-accent hover:underline font-medium">
+                    Login with OTP
                   </button>
                 </div>
               )}
@@ -641,9 +644,13 @@ export default function Auth() {
                     {isLogin ? "Signing in..." : "Sending OTP..."}
                   </span>
                 ) : isLogin ? (
-                  <>Sign In <ArrowRight className="w-4 h-4" /></>
+                  <>
+                    Sign In <ArrowRight className="w-4 h-4" />
+                  </>
                 ) : (
-                  <>Create Account <ArrowRight className="w-4 h-4" /></>
+                  <>
+                    Send Signup OTP <ArrowRight className="w-4 h-4" />
+                  </>
                 )}
               </Button>
             </form>
@@ -665,156 +672,121 @@ export default function Auth() {
           <p className="text-center text-xs text-muted-foreground/60 mt-6">
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </p>
+
+          <p className="text-center text-xs text-muted-foreground/70 mt-3">
+            Reset password link opens <Link to="/reset-password" className="underline">/reset-password</Link>
+          </p>
         </div>
       </section>
 
-      {/* ========== FORGOT PASSWORD DIALOG ========== */}
-      <Dialog open={forgotOpen} onOpenChange={(open) => { if (!open) closeForgotDialog(); }}>
+      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <KeyRound className="w-5 h-5 text-primary" />
-              {showNewPasswordForm ? "Set New Password" : showPasswordOtp ? "Verify OTP" : "Reset Password"}
+              Reset Password
             </DialogTitle>
-            <DialogDescription>
-              {showNewPasswordForm
-                ? "Enter your new password below."
-                : showPasswordOtp
-                ? `Enter the 6-digit code sent to ${passwordResetEmail}`
-                : "Enter your email to receive a verification code."}
-            </DialogDescription>
+            <DialogDescription>Enter your email and we'll send you a secure password reset link.</DialogDescription>
           </DialogHeader>
 
-          {/* Step 1: Enter email */}
-          {!showPasswordOtp && !showNewPasswordForm && (
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="forgotEmail">Email Address</Label>
-                <Input
-                  id="forgotEmail"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={forgotEmail}
-                  onChange={(e) => setForgotEmail(e.target.value)}
-                  required
-                />
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={resetLoading} className="w-full">
-                  {resetLoading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      Sending OTP...
-                    </span>
-                  ) : "Send OTP"}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-
-          {/* Step 2: Enter OTP */}
-          {showPasswordOtp && !showNewPasswordForm && (
-            <div className="space-y-6">
-              <div className="flex justify-center">
-                <InputOTP maxLength={6} value={passwordOtpCode} onChange={setPasswordOtpCode}>
-                  <InputOTPGroup>
-                    <InputOTPSlot index={0} />
-                    <InputOTPSlot index={1} />
-                    <InputOTPSlot index={2} />
-                  </InputOTPGroup>
-                  <InputOTPSeparator />
-                  <InputOTPGroup>
-                    <InputOTPSlot index={3} />
-                    <InputOTPSlot index={4} />
-                    <InputOTPSlot index={5} />
-                  </InputOTPGroup>
-                </InputOTP>
-              </div>
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={handleResendPasswordOtp}
-                  disabled={passwordOtpResendTimer > 0}
-                  className="text-sm text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
-                >
-                  {passwordOtpResendTimer > 0 ? `Resend in ${passwordOtpResendTimer}s` : "Resend Code"}
-                </button>
-              </div>
-              <Button
-                onClick={handleVerifyPasswordOtp}
-                disabled={resetLoading || passwordOtpCode.length !== 6}
-                className="w-full"
-              >
+          <form onSubmit={handleSendForgotLink} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="forgotEmail">Email Address</Label>
+              <Input
+                id="forgotEmail"
+                type="email"
+                placeholder="you@example.com"
+                value={forgotEmail}
+                onChange={(e) => setForgotEmail(e.target.value)}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="submit" className="w-full" disabled={resetLoading}>
                 {resetLoading ? (
                   <span className="flex items-center gap-2">
                     <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Verifying...
+                    Sending...
                   </span>
-                ) : "Verify OTP"}
+                ) : (
+                  "Send Reset Link"
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={loginOtpOpen}
+        onOpenChange={(open) => {
+          setLoginOtpOpen(open);
+          if (!open) {
+            setLoginOtpStep("email");
+            setLoginOtpCode("");
+            setLoginOtpTimer(0);
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LogIn className="w-5 h-5 text-primary" />
+              Login with OTP
+            </DialogTitle>
+            <DialogDescription>
+              {loginOtpStep === "email"
+                ? "Enter your registered email to receive a one-time code."
+                : `Enter the 6-digit code sent to ${loginOtpEmail}`}
+            </DialogDescription>
+          </DialogHeader>
+
+          {loginOtpStep === "email" ? (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="loginOtpEmail">Email</Label>
+                <Input
+                  id="loginOtpEmail"
+                  type="email"
+                  value={loginOtpEmail}
+                  onChange={(e) => setLoginOtpEmail(e.target.value)}
+                  placeholder="you@example.com"
+                />
+              </div>
+              <Button className="w-full" onClick={sendLoginOtp} disabled={resetLoading || !loginOtpEmail.trim()}>
+                {resetLoading ? "Sending..." : "Send OTP"}
               </Button>
             </div>
-          )}
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="loginOtpCode">Verification Code</Label>
+                <Input
+                  id="loginOtpCode"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
+                  placeholder="Enter 6-digit OTP"
+                  value={loginOtpCode}
+                  onChange={(e) => setLoginOtpCode(normalizeOtp(e.target.value))}
+                  className="text-center text-lg tracking-[0.35em]"
+                  maxLength={6}
+                />
+              </div>
 
-          {/* Step 3: Set new password */}
-          {showNewPasswordForm && (
-            <form onSubmit={handleSetNewPassword} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="newPassword">New Password</Label>
-                <div className="relative">
-                  <Input
-                    id="newPassword"
-                    type={showNewPass ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={newPassword}
-                    onChange={(e) => setNewPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowNewPass(!showNewPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showNewPass ? "Hide password" : "Show password"}
-                  >
-                    {showNewPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <div className="relative">
-                  <Input
-                    id="confirmPassword"
-                    type={showConfirmPass ? "text" : "password"}
-                    placeholder="••••••••"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    required
-                    minLength={6}
-                    className="pr-10"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPass(!showConfirmPass)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    aria-label={showConfirmPass ? "Hide password" : "Show password"}
-                  >
-                    {showConfirmPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="submit" disabled={resetLoading} className="w-full">
-                  {resetLoading ? (
-                    <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                      Updating...
-                    </span>
-                  ) : "Update Password"}
-                </Button>
-              </DialogFooter>
-            </form>
+              <button
+                type="button"
+                onClick={sendLoginOtp}
+                disabled={loginOtpTimer > 0 || resetLoading}
+                className="text-sm text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+              >
+                {loginOtpTimer > 0 ? `Resend in ${loginOtpTimer}s` : "Resend OTP"}
+              </button>
+
+              <Button className="w-full" onClick={verifyLoginOtp} disabled={resetLoading || loginOtpCode.length !== 6}>
+                {resetLoading ? "Verifying..." : "Verify OTP & Login"}
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>
