@@ -11,7 +11,7 @@ export function Layout({ children }: LayoutProps) {
   return (
     <>
       <NeuralBackground />
-      <div>
+      <div className="min-h-screen flex flex-col relative z-10">
         <Navbar />
         <main className="flex-1 pt-16 md:pt-20 relative">
           {/* Glassmorphism layer */}
