@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useAdmin } from "@/hooks/useAdmin";
+import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { 
   Users, 
@@ -19,7 +20,10 @@ import {
   Clock,
   Search,
   Shield,
-  UserCog
+  UserCog,
+  GraduationCap,
+  Eye,
+  ExternalLink
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -52,6 +56,16 @@ export default function AdminDashboard() {
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [mentorProfiles, setMentorProfiles] = useState<any[]>([]);
+
+  const fetchMentorProfiles = async () => {
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      body: { action: 'get_mentor_profiles' }
+    });
+    if (!error && data?.profiles) {
+      setMentorProfiles(data.profiles);
+    }
+  };
 
   useEffect(() => {
     if (!loading && !isAdmin) {
@@ -64,8 +78,20 @@ export default function AdminDashboard() {
       fetchUsers();
       fetchWithdrawalRequests();
       fetchTransactions();
+      fetchMentorProfiles();
     }
   }, [isAdmin]);
+
+  const handleApproveMentor = async (profileId: string) => {
+    setProcessingId(profileId);
+    const { error } = await supabase.functions.invoke('admin-operations', {
+      body: { action: 'approve_mentor', data: { profileId } }
+    });
+    if (!error) {
+      await fetchMentorProfiles();
+    }
+    setProcessingId(null);
+  };
 
   const handleProcessWithdrawal = async (status: 'approved' | 'rejected' | 'completed') => {
     if (!selectedRequest) return;
@@ -181,6 +207,7 @@ export default function AdminDashboard() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="mentors">Mentors</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
             </TabsList>
 
@@ -343,6 +370,98 @@ export default function AdminDashboard() {
                       ))}
                     </TableBody>
                   </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Mentors Tab */}
+            <TabsContent value="mentors">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Mentor Profiles</CardTitle>
+                  <CardDescription>Users who have enabled "Available as Mentor" on their profile</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {mentorProfiles.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No mentor profiles yet</p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Skills</TableHead>
+                            <TableHead>Rate</TableHead>
+                            <TableHead>Experience</TableHead>
+                            <TableHead>Links</TableHead>
+                            <TableHead>Verified</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {mentorProfiles.map((profile: any) => (
+                            <TableRow key={profile.id}>
+                              <TableCell className="font-medium">{profile.full_name}</TableCell>
+                              <TableCell>
+                                <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                  {(profile.skills || []).slice(0, 3).map((s: string) => (
+                                    <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+                                  ))}
+                                  {(profile.skills || []).length > 3 && (
+                                    <Badge variant="secondary" className="text-xs">+{profile.skills.length - 3}</Badge>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {profile.hourly_rate ? (
+                                  <span className="flex items-center gap-1"><Coins className="w-3 h-3" />{profile.hourly_rate}/hr</span>
+                                ) : 'N/A'}
+                              </TableCell>
+                              <TableCell>{profile.experience_years || 0} yrs</TableCell>
+                              <TableCell>
+                                <div className="flex gap-1">
+                                  {profile.linkedin_url && (
+                                    <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer">
+                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><ExternalLink className="w-3 h-3" /></Button>
+                                    </a>
+                                  )}
+                                  {profile.github_url && (
+                                    <a href={profile.github_url} target="_blank" rel="noopener noreferrer">
+                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><ExternalLink className="w-3 h-3" /></Button>
+                                    </a>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {profile.is_verified ? (
+                                  <Badge className="bg-green-500">Verified</Badge>
+                                ) : (
+                                  <Badge variant="secondary">Pending</Badge>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {!profile.is_verified ? (
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApproveMentor(profile.id)}
+                                    disabled={processingId === profile.id}
+                                  >
+                                    {processingId === profile.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                                    Approve
+                                  </Button>
+                                ) : (
+                                  <Badge variant="outline">Approved</Badge>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
