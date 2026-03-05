@@ -24,7 +24,8 @@ import {
   BookOpen,
   MessageSquare,
   HelpCircle,
-  Coins
+  Coins,
+  XCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,6 +118,8 @@ export default function Mentorship() {
     setBookingMentorId(null);
   };
 
+  const [communityMentors, setCommunityMentors] = useState<any[]>([]);
+
   useEffect(() => {
     fetchData();
   }, [refreshKey]);
@@ -125,13 +128,15 @@ export default function Mentorship() {
     const { data: { user } } = await supabase.auth.getUser();
     setIsLoggedIn(!!user);
 
-    const [topicsRes, mentorsRes] = await Promise.all([
+    const [topicsRes, mentorsRes, communityRes] = await Promise.all([
       supabase.from("mentorship_topics").select("*"),
-      supabase.from("mentors").select("*")
+      supabase.from("mentors").select("*"),
+      supabase.from("profiles").select("*").eq("is_available_as_mentor", true)
     ]);
 
     if (topicsRes.data) setTopics(topicsRes.data);
     if (mentorsRes.data) setMentors(mentorsRes.data);
+    if (communityRes.data) setCommunityMentors(communityRes.data);
 
     if (user) {
       const [requestsRes, responsesRes] = await Promise.all([
@@ -154,11 +159,47 @@ export default function Mentorship() {
     setLoading(false);
   };
 
+  const handleCloseRequest = async (requestId: string) => {
+    const { error } = await supabase
+      .from("learning_requests")
+      .update({ status: "cancelled" })
+      .eq("id", requestId);
+
+    if (!error) {
+      toast({ title: "Request closed", description: "Your learning request has been closed." });
+      setRefreshKey((k) => k + 1);
+    } else {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    }
+  };
+
+  // Combine official mentors + community mentors (avoid duplicates by name)
+  const officialMentorNames = new Set(mentors.map(m => m.name.toLowerCase()));
+  const allMentors = [
+    ...mentors,
+    ...communityMentors
+      .filter(p => !officialMentorNames.has(p.full_name?.toLowerCase()))
+      .map(p => ({
+        id: p.id,
+        name: p.full_name,
+        title: p.bio?.substring(0, 80) || 'Community Mentor',
+        bio: p.bio || 'Available for mentorship sessions',
+        avatar_url: null,
+        expertise: p.skills || [],
+        experience_years: p.experience_years || 0,
+        hourly_rate: p.hourly_rate || 0,
+        is_verified: false,
+        linkedin_url: p.linkedin_url,
+        calendly_url: null,
+        _isCommunity: true,
+      }))
+  ];
+
   const filteredMentors = selectedTopic
-    ? mentors.filter(m => m.expertise.some(e => 
+    ? allMentors.filter(m => m.expertise.some((e: string) => 
         e.toLowerCase().includes(selectedTopic.toLowerCase())
       ))
-    : mentors;
+    : allMentors;
 
   return (
     <Layout>
@@ -446,12 +487,24 @@ export default function Mentorship() {
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
-                        <div className="flex flex-wrap gap-1.5">
-                          {req.skills.map((skill) => (
-                            <Badge key={skill} variant="outline" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
+                        <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap gap-1.5">
+                            {req.skills.map((skill) => (
+                              <Badge key={skill} variant="outline" className="text-xs">
+                                {skill}
+                              </Badge>
+                            ))}
+                          </div>
+                          {req.status === "open" && (
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleCloseRequest(req.id)}
+                            >
+                              <XCircle className="w-3 h-3 mr-1" />
+                              Close
+                            </Button>
+                          )}
                         </div>
                       </CardContent>
                     </Card>

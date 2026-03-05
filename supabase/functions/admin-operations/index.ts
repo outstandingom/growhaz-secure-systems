@@ -208,6 +208,75 @@ serve(async (req) => {
         );
       }
 
+      case 'get_mentor_profiles': {
+        const { data: profiles, error } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('is_available_as_mentor', true)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Check which profiles have been added to mentors table (verified)
+        const { data: mentors } = await supabaseAdmin
+          .from('mentors')
+          .select('name');
+
+        const mentorNames = new Set(mentors?.map(m => m.name) || []);
+
+        const profilesWithStatus = profiles?.map(p => ({
+          ...p,
+          is_verified: mentorNames.has(p.full_name)
+        }));
+
+        return new Response(
+          JSON.stringify({ profiles: profilesWithStatus }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'approve_mentor': {
+        const { profileId } = data;
+
+        // Get the profile
+        const { data: profile, error: profileError } = await supabaseAdmin
+          .from('profiles')
+          .select('*')
+          .eq('id', profileId)
+          .single();
+
+        if (profileError || !profile) {
+          return new Response(
+            JSON.stringify({ error: 'Profile not found' }),
+            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // Add to mentors table
+        const { error: insertError } = await supabaseAdmin
+          .from('mentors')
+          .upsert({
+            name: profile.full_name,
+            title: profile.bio?.substring(0, 100) || 'Mentor',
+            bio: profile.bio || 'Available for mentorship',
+            expertise: profile.skills || [],
+            experience_years: profile.experience_years || 0,
+            hourly_rate: profile.hourly_rate || 500,
+            is_verified: true,
+            is_active: true,
+            linkedin_url: profile.linkedin_url,
+          }, { onConflict: 'name' });
+
+        if (insertError) throw insertError;
+
+        console.log('Mentor approved:', profile.full_name);
+
+        return new Response(
+          JSON.stringify({ success: true, message: `${profile.full_name} approved as mentor` }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Unknown action' }),
