@@ -277,6 +277,53 @@ serve(async (req) => {
         );
       }
 
+      case 'get_security_reports': {
+        const { data: reports, error } = await supabaseAdmin
+          .from('security_reports')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+
+        // Get user profiles
+        const reportUserIds = [...new Set(reports?.map(r => r.user_id) || [])];
+        const { data: reportProfiles } = await supabaseAdmin
+          .from('profiles')
+          .select('user_id, full_name, phone')
+          .in('user_id', reportUserIds);
+
+        const reportsWithUser = reports?.map(r => ({
+          ...r,
+          userName: reportProfiles?.find(p => p.user_id === r.user_id)?.full_name || 'Unknown',
+          userPhone: reportProfiles?.find(p => p.user_id === r.user_id)?.phone || null,
+        }));
+
+        return new Response(
+          JSON.stringify({ reports: reportsWithUser }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      case 'update_security_report': {
+        const { reportId, reportUrl, reportStatus } = data;
+
+        const { error: updateError } = await supabaseAdmin
+          .from('security_reports')
+          .update({
+            report_url: reportUrl || null,
+            report_status: reportStatus || 'completed',
+            risk_level: reportStatus === 'completed' ? 'reviewed' : 'pending',
+          })
+          .eq('id', reportId);
+
+        if (updateError) throw updateError;
+
+        return new Response(
+          JSON.stringify({ success: true, message: 'Report updated' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: 'Unknown action' }),

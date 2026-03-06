@@ -9,6 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAdmin } from "@/hooks/useAdmin";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 import { 
   Users, 
   Coins, 
@@ -23,7 +24,11 @@ import {
   UserCog,
   GraduationCap,
   Eye,
-  ExternalLink
+  ExternalLink,
+  Globe,
+  FileText,
+  Send,
+  Link as LinkIcon
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -52,11 +57,15 @@ export default function AdminDashboard() {
     updateUserRole
   } = useAdmin();
 
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [mentorProfiles, setMentorProfiles] = useState<any[]>([]);
+  const [securityReports, setSecurityReports] = useState<any[]>([]);
+  const [reportDriveLink, setReportDriveLink] = useState("");
+  const [selectedReport, setSelectedReport] = useState<any>(null);
 
   const fetchMentorProfiles = async () => {
     const { data, error } = await supabase.functions.invoke('admin-operations', {
@@ -65,6 +74,32 @@ export default function AdminDashboard() {
     if (!error && data?.profiles) {
       setMentorProfiles(data.profiles);
     }
+  };
+
+  const fetchSecurityReports = async () => {
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      body: { action: 'get_security_reports' }
+    });
+    if (!error && data?.reports) {
+      setSecurityReports(data.reports);
+    }
+  };
+
+  const handleSendReport = async (reportId: string) => {
+    if (!reportDriveLink.trim()) return;
+    setProcessingId(reportId);
+    const { error } = await supabase.functions.invoke('admin-operations', {
+      body: { action: 'update_security_report', data: { reportId, reportUrl: reportDriveLink.trim(), reportStatus: 'completed' } }
+    });
+    if (!error) {
+      toast({ title: "Report Sent", description: "Drive link sent to user successfully." });
+      setReportDriveLink("");
+      setSelectedReport(null);
+      await fetchSecurityReports();
+    } else {
+      toast({ title: "Error", description: "Failed to update report", variant: "destructive" });
+    }
+    setProcessingId(null);
   };
 
   useEffect(() => {
@@ -79,6 +114,7 @@ export default function AdminDashboard() {
       fetchWithdrawalRequests();
       fetchTransactions();
       fetchMentorProfiles();
+      fetchSecurityReports();
     }
   }, [isAdmin]);
 
@@ -209,6 +245,14 @@ export default function AdminDashboard() {
               <TabsTrigger value="users">Users</TabsTrigger>
               <TabsTrigger value="mentors">Mentors</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="security" className="relative">
+                Security
+                {securityReports.filter(r => r.report_status === 'pending').length > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500">
+                    {securityReports.filter(r => r.report_status === 'pending').length}
+                  </Badge>
+                )}
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="withdrawals">
@@ -516,6 +560,82 @@ export default function AdminDashboard() {
                       ))}
                     </TableBody>
                   </Table>
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* Security Reports Tab */}
+            <TabsContent value="security">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Security Scan Requests</CardTitle>
+                  <CardDescription>Users who submitted URLs for security scanning. Send them the report via Google Drive link.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {securityReports.length === 0 ? (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                      <p>No security scan requests yet</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {securityReports.map((report: any) => (
+                        <div key={report.id} className="p-4 rounded-xl border border-border bg-card/50 space-y-3">
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                            <div>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-semibold">{report.userName}</span>
+                                {report.userPhone && <span className="text-sm text-muted-foreground">({report.userPhone})</span>}
+                                <Badge variant={report.report_status === 'completed' ? 'default' : 'secondary'}>
+                                  {report.report_status === 'completed' ? 'Report Sent' : 'Pending'}
+                                </Badge>
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <Globe className="w-3 h-3 text-muted-foreground" />
+                                <a href={report.website_url.startsWith('http') ? report.website_url : `https://${report.website_url}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
+                                  {report.website_url}
+                                </a>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {report.scan_type?.toUpperCase()} • Submitted {format(new Date(report.created_at), 'PPp')}
+                              </p>
+                            </div>
+                            {report.report_status === 'completed' && report.report_url && (
+                              <a href={report.report_url} target="_blank" rel="noopener noreferrer">
+                                <Button size="sm" variant="outline" className="gap-1">
+                                  <ExternalLink className="w-3 h-3" /> View Report
+                                </Button>
+                              </a>
+                            )}
+                          </div>
+                          
+                          {report.report_status !== 'completed' && (
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <Input
+                                placeholder="Paste Google Drive link here..."
+                                value={selectedReport?.id === report.id ? reportDriveLink : ''}
+                                onChange={(e) => {
+                                  setSelectedReport(report);
+                                  setReportDriveLink(e.target.value);
+                                }}
+                                onFocus={() => setSelectedReport(report)}
+                                className="flex-1"
+                              />
+                              <Button
+                                size="sm"
+                                onClick={() => handleSendReport(report.id)}
+                                disabled={processingId === report.id || !reportDriveLink.trim() || selectedReport?.id !== report.id}
+                                className="gap-1"
+                              >
+                                {processingId === report.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
+                                Send Report
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
