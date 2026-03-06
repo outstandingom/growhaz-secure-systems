@@ -243,7 +243,7 @@ export default function SecurityTools() {
                   <Input
                     id="scannerName"
                     type="text"
-                    placeholder="John Doe"
+                    placeholder="Your Name"
                     value={scannerName}
                     onChange={(e) => setScannerName(e.target.value)}
                     className="bg-card border-border"
@@ -257,7 +257,7 @@ export default function SecurityTools() {
                   <Input
                     id="scannerPhone"
                     type="tel"
-                    placeholder="+91 9876543210"
+                    placeholder="+91 9123456789"
                     value={scannerPhone}
                     onChange={(e) => setScannerPhone(e.target.value)}
                     className="bg-card border-border"
@@ -410,7 +410,7 @@ export default function SecurityTools() {
               </div>
 
               {/* Note */}
-              <div className="p-4 rounded-lg bg-secondary/50 border border-border text-left">
+              {   /*    <div className="p-4 rounded-lg bg-secondary/50 border border-border text-left">
                 <div className="flex items-start gap-3">
                   <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">
@@ -418,7 +418,8 @@ export default function SecurityTools() {
                     deployed on AWS / Azure. It will be connected securely with the website frontend for real-time testing.
                   </p>
                 </div>
-              </div>
+              </div> 
+        */}
             </div>
           )}
         </div>
