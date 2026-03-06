@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
+import { Badge } from "@/components/ui/badge";
 import { 
   User, 
   Shield, 
@@ -67,6 +68,8 @@ interface SecurityReport {
   vulnerabilities_found: number;
   scanned_at: string;
   report_data: any;
+  report_url?: string | null;
+  report_status?: string;
 }
 
 export default function Profile() {
@@ -571,19 +574,18 @@ export default function Profile() {
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                            report.risk_level === "low" ? "bg-emerald-500/10" :
-                            report.risk_level === "medium" ? "bg-amber-500/10" :
-                            "bg-red-500/10"
+                            report.report_status === 'completed' ? "bg-emerald-500/10" :
+                            "bg-amber-500/10"
                           }`}>
-                            {report.risk_level === "low" ? (
+                            {report.report_status === 'completed' ? (
                               <CheckCircle2 className="w-6 h-6 text-emerald-400" />
                             ) : (
-                              <AlertTriangle className={`w-6 h-6 ${getRiskColor(report.risk_level)}`} />
+                              <Clock className="w-6 h-6 text-amber-400" />
                             )}
                           </div>
                           <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <h3 className="font-semibold">{report.website_url}</h3>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <h3 className="font-semibold break-all">{report.website_url}</h3>
                               <a 
                                 href={report.website_url.startsWith('http') ? report.website_url : `https://${report.website_url}`}
                                 target="_blank"
@@ -596,25 +598,37 @@ export default function Profile() {
                             <p className="text-sm text-muted-foreground capitalize">
                               {report.scan_type} Scan
                             </p>
-                            <div className="flex items-center gap-4 mt-2 text-sm">
-                              <span className={`font-medium ${getRiskColor(report.risk_level)}`}>
-                                Risk: {report.risk_level.toUpperCase()}
-                              </span>
-                              <span className="text-muted-foreground">
-                                {report.vulnerabilities_found} vulnerabilities found
-                              </span>
+                            <div className="flex items-center gap-2 mt-2">
+                              {report.report_status === 'completed' ? (
+                                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                  Report Ready
+                                </Badge>
+                              ) : (
+                                <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
+                                  <Clock className="w-3 h-3 mr-1" /> Waiting for Report
+                                </Badge>
+                              )}
                             </div>
                             <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
                               <Clock className="w-3 h-3" />
-                              Scanned {format(new Date(report.scanned_at), "MMM d, yyyy 'at' h:mm a")}
+                              Submitted {format(new Date(report.scanned_at), "MMM d, yyyy 'at' h:mm a")}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <Button variant="outline" size="sm">
-                            <FileText className="w-4 h-4 mr-2" />
-                            View Report
-                          </Button>
+                          {report.report_status === 'completed' && report.report_url ? (
+                            <a href={report.report_url} target="_blank" rel="noopener noreferrer">
+                              <Button variant="hero" size="sm" className="gap-1">
+                                <FileText className="w-4 h-4" />
+                                View Report
+                              </Button>
+                            </a>
+                          ) : (
+                            <Button variant="outline" size="sm" disabled className="gap-1">
+                              <Clock className="w-4 h-4" />
+                              Pending
+                            </Button>
+                          )}
                           <Button 
                             variant="ghost" 
                             size="sm"

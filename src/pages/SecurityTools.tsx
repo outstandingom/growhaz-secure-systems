@@ -165,34 +165,28 @@ export default function SecurityTools() {
 
     setIsScanning(true);
 
-    setTimeout(async () => {
-      const { error } = await supabase.from("security_reports").insert({
-        user_id: user.id,
-        website_url: url,
-        scanner_name: scannerName.trim(),
-        scanner_phone: scannerPhone.trim() || null,
-        scan_type: selectedTier.id,
-        vulnerabilities_found: 2,
-        risk_level: "medium",
-        report_data: {
-          https: true,
-          sql_injection: "protected",
-          xss_protection: true,
-          x_frame_options: false,
-          csp: false,
-        },
-      });
+    const { error } = await supabase.from("security_reports").insert({
+      user_id: user.id,
+      website_url: url,
+      scanner_name: scannerName.trim(),
+      scanner_phone: scannerPhone.trim() || null,
+      scan_type: selectedTier.id,
+      vulnerabilities_found: 0,
+      risk_level: "pending",
+      report_data: null,
+      report_status: "pending",
+      report_url: null,
+    });
 
-      setIsScanning(false);
+    setIsScanning(false);
 
-      if (error) {
-        toast({ title: "Error", description: "Failed to save scan results.", variant: "destructive" });
-        return;
-      }
+    if (error) {
+      toast({ title: "Error", description: error.message || "Failed to submit scan request.", variant: "destructive" });
+      return;
+    }
 
-      setShowResult(true);
-      toast({ title: "Scan Complete", description: "Security scan results saved to your profile." });
-    }, 3000);
+    setShowResult(true);
+    toast({ title: "Request Submitted!", description: "Your URL has been submitted. Our team will review and send you the report." });
   };
 
   return (
@@ -434,49 +428,22 @@ export default function SecurityTools() {
       {showResult && (
         <section className="section-container pt-0">
           <div className="max-w-3xl mx-auto">
-            <div className="rounded-2xl bg-card border border-border p-6 md:p-8">
-              <div className="flex items-center gap-3 mb-6 pb-6 border-b border-border">
-                <div className="w-3 h-3 rounded-full bg-destructive" />
-                <div className="w-3 h-3 rounded-full bg-amber-500" />
-                <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                <span className="text-sm text-muted-foreground ml-2 font-mono">Security Report — {selectedTier.name}</span>
+            <div className="rounded-2xl bg-card border border-border p-6 md:p-8 text-center">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
+                <Clock className="w-8 h-8 text-primary animate-pulse" />
               </div>
-
-              <div className="space-y-4 font-mono text-sm">
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <span className="text-primary">Target:</span>
-                  <span>{url}</span>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>HTTPS: Enabled</span>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>SQL Injection: Protected</span>
-                </div>
-                <div className="flex items-center gap-2 text-amber-400">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>X-Frame-Options: Missing</span>
-                </div>
-                <div className="flex items-center gap-2 text-amber-400">
-                  <AlertTriangle className="w-4 h-4" />
-                  <span>Content-Security-Policy: Not configured</span>
-                </div>
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <Lock className="w-4 h-4" />
-                  <span>XSS Protection: Active</span>
-                </div>
-
-                <div className="mt-6 p-4 rounded-lg bg-secondary grid grid-cols-2 gap-4">
-                  <div>
-                    <div className="text-muted-foreground mb-1">Risk Level</div>
-                    <div className="text-2xl font-bold text-amber-400">MEDIUM</div>
-                  </div>
-                  <div>
-                    <div className="text-muted-foreground mb-1">Issues Found</div>
-                    <div className="text-2xl font-bold text-foreground">2</div>
-                  </div>
+              <h3 className="text-xl font-bold mb-3">Request Submitted Successfully!</h3>
+              <p className="text-muted-foreground mb-2">
+                Your website URL <strong className="text-foreground">{url}</strong> has been submitted for security analysis.
+              </p>
+              <p className="text-muted-foreground mb-6">
+                Our security team will review it and send you a detailed report via Google Drive link.
+                You can check the status anytime in your <Link to="/profile" className="text-primary underline">Profile → Security Reports</Link>.
+              </p>
+              <div className="p-4 rounded-lg bg-secondary/50 border border-border">
+                <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
+                  <Info className="w-4 h-4 text-primary" />
+                  <span>You will be notified once the report is ready.</span>
                 </div>
               </div>
             </div>

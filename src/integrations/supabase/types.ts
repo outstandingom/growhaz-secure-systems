@@ -465,6 +465,8 @@ export type Database = {
           created_at: string
           id: string
           report_data: Json | null
+          report_status: string
+          report_url: string | null
           risk_level: string
           scan_type: string
           scanned_at: string
@@ -478,6 +480,8 @@ export type Database = {
           created_at?: string
           id?: string
           report_data?: Json | null
+          report_status?: string
+          report_url?: string | null
           risk_level?: string
           scan_type?: string
           scanned_at?: string
@@ -491,6 +495,8 @@ export type Database = {
           created_at?: string
           id?: string
           report_data?: Json | null
+          report_status?: string
+          report_url?: string | null
           risk_level?: string
           scan_type?: string
           scanned_at?: string
@@ -577,28 +583,18 @@ export type Database = {
         }
         Returns: boolean
       }
-      update_coin_balance:
-        | {
-            Args: {
-              p_amount: number
-              p_description?: string
-              p_type: string
-              p_user_id: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_description?: string
-              p_razorpay_order_id?: string
-              p_razorpay_payment_id?: string
-              p_reference_id?: string
-              p_type: Database["public"]["Enums"]["transaction_type"]
-              p_user_id: string
-            }
-            Returns: undefined
-          }
+      update_coin_balance: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_razorpay_order_id?: string
+          p_razorpay_payment_id?: string
+          p_reference_id?: string
+          p_type: Database["public"]["Enums"]["transaction_type"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
