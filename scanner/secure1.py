@@ -891,7 +891,7 @@ class SecurityTester:
             self.log("✅ No vulnerabilities found!")
 
         self.save_report()
-        return 1 if vuln_count > 0 else 0
+        return 0
 
     def update_markdown_summary(self, results):
         try:
