@@ -839,7 +839,8 @@ class SecurityTester:
     # Payment Security test (with WAF check)
     # ----------------------------------------------------------------------
     def test_payment_security(self):
-        self.log("Testing Payment Security...")
+    
+         self.log("Testing Payment Security...")
         if not self.auth_token and not self.attempt_login():
             self.log("Skipping payment tests requiring authentication.", "WARNING")
             return False
