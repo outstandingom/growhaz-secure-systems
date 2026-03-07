@@ -145,27 +145,47 @@ export default function SecurityTools() {
   };
 
   const handleScan = async () => {
-    if (!url || !user || !scannerName.trim()) {
-      toast({ title: "Required Fields", description: "Please enter your name and the website URL.", variant: "destructive" });
-      return;
-    }
 
-    if (selectedTier.comingSoon) {
-      toast({ title: "Coming Soon", description: `${selectedTier.name} is not yet available. Stay tuned!`, variant: "destructive" });
-      return;
-    }
+  if (!url || !user || !scannerName.trim()) {
+    toast({
+      title: "Required Fields",
+      description: "Please enter your name and the website URL.",
+      variant: "destructive"
+    });
+    return;
+  }
 
-    if (selectedTier.requiresApproval) {
-      toast({ title: "Approval Required", description: `${selectedTier.name} requires a formal approval letter from a Manager or CEO.`, variant: "destructive" });
-      return;
-    }
+  if (selectedTier.comingSoon) {
+    toast({
+      title: "Coming Soon",
+      description: `${selectedTier.name} is not yet available.`,
+      variant: "destructive"
+    });
+    return;
+  }
 
-    const success = await spendCoins(selectedTier.price, `Security Scan (${selectedTier.name}) - ${url}`);
-    if (!success) return;
+  if (selectedTier.requiresApproval) {
+    toast({
+      title: "Approval Required",
+      description: `${selectedTier.name} requires approval.`,
+      variant: "destructive"
+    });
+    return;
+  }
 
-    setIsScanning(true);
+  const success = await spendCoins(
+    selectedTier.price,
+    `Security Scan (${selectedTier.name}) - ${url}`
+  );
 
-    const { error } = await supabase.from("security_reports").insert({
+  if (!success) return;
+
+  setIsScanning(true);
+
+  // STEP 1: create scan request in database
+  const { data, error } = await supabase
+    .from("security_reports")
+    .insert({
       user_id: user.id,
       website_url: url,
       scanner_name: scannerName.trim(),
@@ -175,19 +195,49 @@ export default function SecurityTools() {
       risk_level: "pending",
       report_data: null,
       report_status: "pending",
-      report_url: null,
+      report_url: null
+    })
+    .select()
+    .single();
+
+  if (error) {
+    setIsScanning(false);
+    toast({
+      title: "Error",
+      description: error.message,
+      variant: "destructive"
+    });
+    return;
+  }
+
+  try {
+
+    // STEP 2: trigger GitHub scanner
+    await supabase.rpc("trigger_security_scan", {
+      scan_url: url
     });
 
     setIsScanning(false);
-
-    if (error) {
-      toast({ title: "Error", description: error.message || "Failed to submit scan request.", variant: "destructive" });
-      return;
-    }
-
     setShowResult(true);
-    toast({ title: "Request Submitted!", description: "Your URL has been submitted. Our team will review and send you the report." });
-  };
+
+    toast({
+      title: "Scan Started",
+      description: "Security scan has started. Report will appear soon."
+    });
+
+  } catch (err) {
+
+    setIsScanning(false);
+
+    toast({
+      title: "Scan Failed",
+      description: "Could not start scanner.",
+      variant: "destructive"
+    });
+
+  }
+
+};
 
   return (
     <Layout>
