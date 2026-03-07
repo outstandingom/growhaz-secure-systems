@@ -27,9 +27,12 @@ jobs:
       - name: Run security scanner
         run: |
           python scanner/secure1.py "${{ github.event.inputs.url }}"
+        continue-on-error: true
 
       - name: Upload report
         uses: actions/upload-artifact@v4
         with:
           name: security-report
-          path: security_report.json
+          path: |
+            security_report.json
+            security_report.md
