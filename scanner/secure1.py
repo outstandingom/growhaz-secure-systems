@@ -892,7 +892,8 @@ class SecurityTester:
     # ----------------------------------------------------------------------
     # Main orchestration
     # ----------------------------------------------------------------------
-    def run_all_tests(self):
+
+     def run_all_tests(self):
     self.log(f"Starting security tests for {self.base_url}")
     self.log("=" * 60)
 
@@ -915,11 +916,13 @@ class SecurityTester:
     ]
 
     results = {}
+
     for test_name, test_func in tests:
         try:
             self.log(f"\nRunning {test_name} test...")
             result = test_func()
             results[test_name] = result
+
             if result is True:
                 self.log(f"{test_name}: ❌ VULNERABLE", "WARNING")
             elif result == "BLOCKED":
@@ -928,6 +931,7 @@ class SecurityTester:
                 self.log(f"{test_name}: ✅ SECURE")
             else:
                 self.log(f"{test_name}: ⚠️ UNKNOWN RESULT")
+
         except Exception as e:
             self.log(f"Error during {test_name}: {e}", "ERROR")
             results[test_name] = "ERROR"
@@ -957,6 +961,7 @@ class SecurityTester:
     self.log(f"Total Vulnerabilities: {vuln_count}")
     self.log(f"Total Secure: {secure_count}")
     self.log(f"Total Blocked: {blocked_count}")
+
     if vuln_count > 0:
         self.log("⚠️ VULNERABILITIES FOUND – review the report.", "WARNING")
     elif blocked_count > 0:
@@ -965,11 +970,10 @@ class SecurityTester:
         self.log("✅ No vulnerabilities found!")
 
     self.save_report()
-    
+
     # Return exit code for GitHub Actions – always success
     return 0
 
-    
     def update_markdown_summary(self, results):
         """Update the markdown report with actual test results"""
         try:
