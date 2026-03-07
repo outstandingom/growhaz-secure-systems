@@ -11,6 +11,10 @@ jobs:
   scan:
     runs-on: ubuntu-latest
 
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -29,7 +33,7 @@ jobs:
           python scanner/secure1.py "${{ github.event.inputs.url }}"
         continue-on-error: true
 
-      - name: Upload report
+      - name: Upload report artifact
         uses: actions/upload-artifact@v4
         with:
           name: security-report
