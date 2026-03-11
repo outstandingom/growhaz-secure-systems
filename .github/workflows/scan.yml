@@ -15,10 +15,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.10'
+
+      # 🔴 IMPORTANT: Install dependencies before running the scanner
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          # If you need JavaScript crawling (--js flag), also install Playwright:
+          # playwright install chromium
+
       - name: Run scanner
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
