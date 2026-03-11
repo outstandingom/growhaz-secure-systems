@@ -6,6 +6,9 @@ on:
       url:
         description: "Website URL to scan"
         required: true
+      reportId:          # <--- Add this section
+        description: "Database Report ID"
+        required: true
 
 jobs:
   scan:
@@ -30,7 +33,8 @@ jobs:
 
       - name: Run security scanner
         run: |
-          python scanner/secure1.py "${{ github.event.inputs.url }}"
+          # Pass both inputs to your Python script
+          python scanner/secure1.py "${{ github.event.inputs.url }}" "${{ github.event.inputs.reportId }}"
         continue-on-error: true
 
       - name: Upload report artifact
@@ -39,4 +43,3 @@ jobs:
           name: security-report
           path: |
             security_report.json
-            
