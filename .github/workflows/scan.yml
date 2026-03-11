@@ -1,7 +1,7 @@
 name: Security Scan
 
 on:
-  workflow_dispatches:
+  workflow_dispatch:
     inputs:
       url:
         description: "Website URL to scan"
