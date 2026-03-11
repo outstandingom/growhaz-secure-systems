@@ -27,6 +27,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { MentorProfileSection } from "@/components/profile/MentorProfileSection";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ReportViewer } from "@/components/reports/ReportViewer";
 
 interface Certificate {
   name: string;
@@ -83,6 +85,7 @@ export default function Profile() {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<SecurityReport | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -551,7 +554,7 @@ export default function Profile() {
           )}
 
           {/* Security Reports Tab */}
-          {activeTab === "reports" && (
+             {activeTab === "reports" && (
             <div className="space-y-4">
               {reports.length === 0 ? (
                 <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
@@ -616,13 +619,16 @@ export default function Profile() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {report.report_status === 'completed' && report.report_url ? (
-                            <a href={report.report_url} target="_blank" rel="noopener noreferrer">
-                              <Button variant="hero" size="sm" className="gap-1">
-                                <FileText className="w-4 h-4" />
-                                View Report
-                              </Button>
-                            </a>
+                          {report.report_status === 'completed' ? (
+                            <Button 
+                              variant="hero" 
+                              size="sm" 
+                              className="gap-1"
+                              onClick={() => setSelectedReport(report)}
+                            >
+                              <FileText className="w-4 h-4" />
+                              View Report
+                            </Button>
                           ) : (
                             <Button variant="outline" size="sm" disabled className="gap-1">
                               <Clock className="w-4 h-4" />
@@ -647,6 +653,15 @@ export default function Profile() {
           )}
         </div>
       </section>
+
+      {/* Report Viewer Modal */}
+      <Dialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Security Report</DialogTitle>
+          <ReportViewer report={selectedReport} onClose={() => setSelectedReport(null)} />
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
-}
+                      }
+          
