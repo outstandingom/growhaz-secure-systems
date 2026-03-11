@@ -1,53 +1,86 @@
-# .github/workflows/scan.yml
-name: Security Scan
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
-on:
-  workflow_dispatch:
-    inputs:
-      url:
-        description: "Website URL to scan"
-        required: true
-      reportId:
-        description: "Supabase report ID"
-        required: true
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-application-name',
+  'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+  'Access-Control-Max-Age': '86400',
+}
 
-jobs:
-  scan:
-    runs-on: ubuntu-latest
+serve(async (req) => {
+  // Handle CORS preflight requests
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { 
+      status: 200,
+      headers: corsHeaders 
+    })
+  }
 
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-      REPORT_ID: ${{ github.event.inputs.reportId }}
+  try {
+    const { url, reportId } = await req.json()
+    
+    if (!url || !reportId) {
+      return new Response(
+        JSON.stringify({ error: "url and reportId are required" }),
+        { 
+          status: 400, 
+          headers: {
+            "Content-Type": "application/json",
+            ...corsHeaders
+          }
+        }
+      )
+    }
 
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+    const githubToken = Deno.env.get("GITHUB_TOKEN")
+    const repo = "outstandingom/growhaz-secure-systems"
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.10"
+    const githubApi = `https://api.github.com/repos/${repo}/actions/workflows/scan.yml/dispatch`
 
-      - name: Install dependencies
-        run: |
-          pip install -r requirements.txt
-          pip install playwright
-          playwright install chromium
+    const response = await fetch(githubApi, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${githubToken}`,
+        "Accept": "application/vnd.github+json",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ref: "main",
+        inputs: {
+          url: url,
+          reportId: reportId
+        }
+      })
+    })
 
-      - name: Run security scanner
-        env:
-          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          REPORT_ID: ${{ github.event.inputs.reportId }}
-          SCAN_URL: ${{ github.event.inputs.url }}
-        run: |
-          python scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
+    if (!response.ok) {
+      throw new Error(`GitHub API responded with ${response.status}`)
+    }
 
-      - name: Upload report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-report
-          path: |
-            security_report.json
-            security_report.md
+    return new Response(
+      JSON.stringify({ 
+        status: "scan_started",
+        reportId: reportId,
+        message: "Scan triggered successfully" 
+      }),
+      { 
+        status: 200, 
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      }
+    )
+  } catch (error) {
+    return new Response(
+      JSON.stringify({ error: error.message }),
+      { 
+        status: 500, 
+        headers: {
+          "Content-Type": "application/json",
+          ...corsHeaders
+        }
+      }
+    )
+  }
+})
