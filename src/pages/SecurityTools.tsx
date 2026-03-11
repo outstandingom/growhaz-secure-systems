@@ -145,99 +145,139 @@ export default function SecurityTools() {
   };
 
   const handleScan = async () => {
+    if (!url || !user || !scannerName.trim()) {
+      toast({
+        title: "Required Fields",
+        description: "Please enter your name and the website URL.",
+        variant: "destructive"
+      });
+      return;
+    }
 
-  if (!url || !user || !scannerName.trim()) {
-    toast({
-      title: "Required Fields",
-      description: "Please enter your name and the website URL.",
-      variant: "destructive"
-    });
-    return;
-  }
+    if (selectedTier.comingSoon) {
+      toast({
+        title: "Coming Soon",
+        description: `${selectedTier.name} is not yet available.`,
+        variant: "destructive"
+      });
+      return;
+    }
 
-  if (selectedTier.comingSoon) {
-    toast({
-      title: "Coming Soon",
-      description: `${selectedTier.name} is not yet available.`,
-      variant: "destructive"
-    });
-    return;
-  }
+    if (selectedTier.requiresApproval) {
+      toast({
+        title: "Approval Required",
+        description: `${selectedTier.name} requires approval.`,
+        variant: "destructive"
+      });
+      return;
+    }
 
-  if (selectedTier.requiresApproval) {
-    toast({
-      title: "Approval Required",
-      description: `${selectedTier.name} requires approval.`,
-      variant: "destructive"
-    });
-    return;
-  }
+    const success = await spendCoins(
+      selectedTier.price,
+      `Security Scan (${selectedTier.name}) - ${url}`
+    );
 
-  const success = await spendCoins(
-    selectedTier.price,
-    `Security Scan (${selectedTier.name}) - ${url}`
-  );
+    if (!success) return;
 
-  if (!success) return;
+    setIsScanning(true);
 
-  setIsScanning(true);
+    // STEP 1: Create scan request in database
+    const { data, error } = await supabase
+      .from("security_reports")
+      .insert({
+        user_id: user.id,
+        website_url: url,
+        scanner_name: scannerName.trim(),
+        scanner_phone: scannerPhone.trim() || null,
+        scan_type: selectedTier.id,
+        vulnerabilities_found: 0,
+        risk_level: "pending",
+        report_data: null,
+        report_status: "pending",
+        report_url: null
+      })
+      .select()
+      .single();
 
-  // STEP 1: create scan request in database
-  const { data, error } = await supabase
-    .from("security_reports")
-    .insert({
-      user_id: user.id,
-      website_url: url,
-      scanner_name: scannerName.trim(),
-      scanner_phone: scannerPhone.trim() || null,
-      scan_type: selectedTier.id,
-      vulnerabilities_found: 0,
-      risk_level: "pending",
-      report_data: null,
-      report_status: "pending",
-      report_url: null
-    })
-    .select()
-    .single();
+    if (error) {
+      setIsScanning(false);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+      return;
+    }
 
-  if (error) {
-    setIsScanning(false);
-    toast({
-      title: "Error",
-      description: error.message,
-      variant: "destructive"
-    });
-    return;
-  }
+    try {
+      // STEP 2: Call the edge function with the report ID
+      const { data: functionData, error: functionError } = await supabase.functions.invoke(
+        'trigger_security_scan',
+        {
+          body: { 
+            url: url,
+            reportId: data.id 
+          }
+        }
+      );
 
-  try {
+      if (functionError) {
+        throw new Error(functionError.message);
+      }
 
-    // STEP 2: trigger GitHub scanner
-    await supabase.rpc("trigger_security_scan", {
-      scan_url: url
-    });
+      setIsScanning(false);
+      setShowResult(true);
 
-    setIsScanning(false);
-    setShowResult(true);
+      toast({
+        title: "Scan Started",
+        description: "Security scan has started. Results will appear in your profile soon."
+      });
 
-    toast({
-      title: "Scan Started",
-      description: "Security scan has started. Report will appear soon."
-    });
+    } catch (err) {
+      setIsScanning(false);
+      
+      // Update the report status to failed
+      await supabase
+        .from("security_reports")
+        .update({ 
+          report_status: "failed",
+          report_data: { error: err instanceof Error ? err.message : "Unknown error" }
+        })
+        .eq("id", data.id);
 
-  } catch (err) {
+      toast({
+        title: "Scan Failed",
+        description: err instanceof Error ? err.message : "Could not start scanner.",
+        variant: "destructive"
+      });
+    }
+  };
 
-    setIsScanning(false);
+  // Poll for report completion (optional - shows real-time updates)
+  useEffect(() => {
+    if (!showResult || !user) return;
 
-    toast({
-      title: "Scan Failed",
-      description: "Could not start scanner.",
-      variant: "destructive"
-    });
+    const checkReportStatus = async () => {
+      const { data } = await supabase
+        .from("security_reports")
+        .select("report_status, risk_level, vulnerabilities_found")
+        .eq("user_id", user.id)
+        .eq("website_url", url)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
 
-  }
+      if (data && data.report_status === "completed") {
+        toast({
+          title: "Report Ready!",
+          description: `Scan completed with ${data.vulnerabilities_found} vulnerabilities found. Risk level: ${data.risk_level}`,
+        });
+      }
+    };
 
-};
+    const interval = setInterval(checkReportStatus, 10000); // Check every 10 seconds
+    return () => clearInterval(interval);
+  }, [showResult, user, url, toast]);
 
   return (
     <Layout>
@@ -459,8 +499,8 @@ export default function SecurityTools() {
                 </Button>
               </div>
 
-              {/* Note */}
-              {   /*    <div className="p-4 rounded-lg bg-secondary/50 border border-border text-left">
+              {/* Note - commented out as in original */}
+                   {   /*    <div className="p-4 rounded-lg bg-secondary/50 border border-border text-left">
                 <div className="flex items-start gap-3">
                   <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <p className="text-sm text-muted-foreground">
@@ -488,7 +528,7 @@ export default function SecurityTools() {
                 Your website URL <strong className="text-foreground">{url}</strong> has been submitted for security analysis.
               </p>
               <p className="text-muted-foreground mb-6">
-                Our security team will review it and send you a detailed report via Google Drive link.
+                Our security team will review it and send you a detailed report. 
                 You can check the status anytime in your <Link to="/profile" className="text-primary underline">Profile → Security Reports</Link>.
               </p>
               <div className="p-4 rounded-lg bg-secondary/50 border border-border">
@@ -564,4 +604,5 @@ export default function SecurityTools() {
       </section>
     </Layout>
   );
-}
+                      }
+            
