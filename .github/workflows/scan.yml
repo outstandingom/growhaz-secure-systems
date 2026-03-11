@@ -39,4 +39,4 @@ jobs:
           name: security-report
           path: |
             security_report.json
-            security_report.md
+             # security_report.md
