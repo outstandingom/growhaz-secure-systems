@@ -7,7 +7,7 @@ serve(async (req) => {
   const githubToken = Deno.env.get("GITHUB_TOKEN")
   const repo = "outstandingom/growhaz-secure-systems"
 
-  const githubApi = `https://api.github.com/repos/${repo}/actions/workflows/scan.yml/dispatches`
+  const githubApi = `https://api.github.com/repos/${repo}/actions/workflows/scan.yml/dispatch`
 
   const response = await fetch(githubApi, {
     method: "POST",
