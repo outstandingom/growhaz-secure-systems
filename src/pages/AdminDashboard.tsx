@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { ReportViewer } from "@/components/reports/ReportViewer"; // Import the new component
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -65,7 +66,7 @@ export default function AdminDashboard() {
   const [mentorProfiles, setMentorProfiles] = useState<any[]>([]);
   const [securityReports, setSecurityReports] = useState<any[]>([]);
   const [reportDriveLink, setReportDriveLink] = useState("");
-  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [selectedReport, setSelectedReport] = useState<any>(null); // For modal preview
 
   const fetchMentorProfiles = async () => {
     const { data, error } = await supabase.functions.invoke('admin-operations', {
@@ -600,13 +601,25 @@ export default function AdminDashboard() {
                                 {report.scan_type?.toUpperCase()} • Submitted {format(new Date(report.created_at), 'PPp')}
                               </p>
                             </div>
-                            {report.report_status === 'completed' && report.report_url && (
-                              <a href={report.report_url} target="_blank" rel="noopener noreferrer">
-                                <Button size="sm" variant="outline" className="gap-1">
-                                  <ExternalLink className="w-3 h-3" /> View Report
+                            <div className="flex items-center gap-2">
+                              {report.report_status === 'completed' && report.report_url && (
+                                <a href={report.report_url} target="_blank" rel="noopener noreferrer">
+                                  <Button size="sm" variant="outline" className="gap-1">
+                                    <ExternalLink className="w-3 h-3" /> Open Drive
+                                  </Button>
+                                </a>
+                              )}
+                              {report.report_status === 'completed' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="gap-1"
+                                  onClick={() => setSelectedReport(report)}
+                                >
+                                  <Eye className="w-3 h-3" /> Preview
                                 </Button>
-                              </a>
-                            )}
+                              )}
+                            </div>
                           </div>
                           
                           {report.report_status !== 'completed' && (
@@ -697,6 +710,15 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Report Preview Modal */}
+      <Dialog open={!!selectedReport} onOpenChange={() => setSelectedReport(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Security Report</DialogTitle>
+          <ReportViewer report={selectedReport} onClose={() => setSelectedReport(null)} />
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
-}
+                      }
+            
