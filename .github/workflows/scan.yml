@@ -4,42 +4,25 @@ on:
   workflow_dispatch:
     inputs:
       url:
-        description: "Website URL to scan"
+        description: 'Website URL to scan'
         required: true
-      reportId:          # <--- Add this section
-        description: "Database Report ID"
+      reportId:
+        description: 'Supabase report ID'
         required: true
 
 jobs:
   scan:
     runs-on: ubuntu-latest
-
-    env:
-      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-      SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
-
-      - name: Install dependencies
+          python-version: '3.10'
+      - name: Run scanner
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          REPORT_ID: ${{ github.event.inputs.reportId }}
         run: |
-          pip install -r requirements.txt
-
-      - name: Run security scanner
-        run: |
-          # Pass both inputs to your Python script
-          python scanner/secure1.py "${{ github.event.inputs.url }}" "${{ github.event.inputs.reportId }}"
-        continue-on-error: true
-
-      - name: Upload report artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: security-report
-          path: |
-            security_report.json
+          python scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
