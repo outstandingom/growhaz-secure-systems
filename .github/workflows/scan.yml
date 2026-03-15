@@ -32,5 +32,4 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           REPORT_ID: ${{ github.event.inputs.reportId }}
-        run: |
-          python scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"          python scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
+        run: python3 scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
