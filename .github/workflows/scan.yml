@@ -21,12 +21,11 @@ jobs:
         with:
           python-version: '3.10'
 
-      # 🔴 IMPORTANT: Install dependencies before running the scanner
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          # If you need JavaScript crawling (--js flag), also install Playwright:
-          # playwright install chromium
+          # Install Playwright browsers (required for --js flag)
+          playwright install chromium
 
       - name: Run scanner
         env:
@@ -34,4 +33,4 @@ jobs:
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           REPORT_ID: ${{ github.event.inputs.reportId }}
         run: |
-          python scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
+          python scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"          python scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
