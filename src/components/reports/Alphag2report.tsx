@@ -469,5 +469,4 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 };
 
 export default SecurityReportComponent;
-          
                     
