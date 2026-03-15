@@ -20,40 +20,40 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-// Test descriptions (same as before)
+// Test descriptions
 const TEST_DESCRIPTIONS: Record<string, string> = {
-  "SQL Injection": "Tests for SQL injection vulnerabilities using boolean, time-based, and error-based payloads.",
-  "Cross-Site Scripting (XSS)": "Scans for reflected XSS by injecting script payloads into parameters.",
-  "Authentication Flaws": "Checks for weak password policy, user enumeration, and missing rate limiting.",
-  "IDOR": "Attempts to access unauthorized resources by manipulating object IDs.",
-  "CORS Misconfiguration": "Verifies if CORS headers allow unsafe cross-origin requests.",
-  "Sensitive Data Exposure": "Scans for publicly accessible sensitive files (.env, config, backups).",
-  "Security Headers": "Checks for missing or misconfigured security headers.",
-  "SSL/TLS Vulnerabilities": "Analyzes certificate validity, cipher strength, and protocol versions.",
-  "CSRF": "Tests if state-changing endpoints accept requests without authentication tokens.",
+  "SQL Injection": "Tests for SQL injection using boolean, time‑based, and error‑based payloads.",
+  "Cross-Site Scripting (XSS)": "Injects script payloads to detect reflected XSS.",
+  "Authentication Flaws": "Checks weak passwords, user enumeration, and rate limiting.",
+  "IDOR": "Attempts to access other users' data by manipulating IDs.",
+  "CORS Misconfiguration": "Verifies unsafe cross‑origin configurations.",
+  "Sensitive Data Exposure": "Scans for publicly accessible .env, config, backups.",
+  "Security Headers": "Validates X‑Frame‑Options, CSP, HSTS, etc.",
+  "SSL/TLS Vulnerabilities": "Analyses certificate expiry, weak ciphers, old protocols.",
+  "CSRF": "Tests if state‑changing endpoints work without authentication.",
   "Open Redirect": "Injects malicious URLs to test for unvalidated redirects.",
-  "Directory Traversal": "Attempts to read files outside the web root using path traversal sequences."
+  "Directory Traversal": "Attempts to read files outside the web root."
 };
 
-// Remediation tips (same as before)
+// Remediation tips
 const REMEDIATION_TIPS: Record<string, string> = {
-  "SQL Injection": "Use parameterized queries / prepared statements. Validate and sanitize all user inputs. Apply least privilege to database accounts.",
-  "Cross-Site Scripting (XSS)": "Escape all user input before rendering. Use Content Security Policy (CSP). Validate input on server side.",
-  "IDOR": "Implement proper access controls. Use indirect object references (e.g., random tokens). Always verify user permissions.",
-  "Directory Traversal": "Use a whitelist of allowed files/paths. Normalize paths and reject any containing '../' or absolute paths.",
-  "CORS Misconfiguration": "Restrict Access-Control-Allow-Origin to trusted domains only. Do not use wildcard with credentials.",
-  "Missing Rate Limiting": "Implement rate limiting on authentication endpoints and sensitive operations. Use tools like express-rate-limit.",
-  "Weak Password Policy": "Enforce minimum password complexity and length. Implement account lockout after failed attempts.",
-  "User Enumeration": "Return generic error messages for both invalid username and password. Avoid revealing user existence.",
-  "Missing Security Header": "Add recommended security headers: X-Frame-Options, CSP, HSTS, etc. Refer to OWASP Secure Headers Project.",
-  "Server Version Disclosure": "Remove or obfuscate server version headers. Use a reverse proxy to strip sensitive headers.",
-  "Technology Disclosure": "Remove X-Powered-By headers and other technology fingerprints. Use generic error pages.",
-  "Expired SSL Certificate": "Renew SSL/TLS certificate immediately. Set up automatic renewal reminders.",
-  "Weak SSL Cipher": "Disable weak ciphers and protocols (e.g., RC4, 3DES). Use strong ciphers like AES-GCM.",
-  "Outdated TLS Version": "Disable TLS 1.0 and 1.1. Enable TLS 1.2 and 1.3. Update server software.",
-  "CSRF / Missing Authentication": "Implement anti-CSRF tokens for state-changing requests. Require authentication for sensitive endpoints.",
-  "Open Redirect": "Whitelist allowed redirect URLs. Avoid using user input to construct redirects. Validate and sanitize redirect parameters.",
-  "Sensitive Data Exposure": "Do not store sensitive data in publicly accessible files. Use environment variables for secrets. Restrict file permissions."
+  "SQL Injection": "Use parameterized queries. Validate all inputs. Apply least privilege.",
+  "Cross-Site Scripting (XSS)": "Escape output. Use CSP. Validate on server side.",
+  "IDOR": "Implement proper access controls. Use indirect references.",
+  "Directory Traversal": "Whitelist allowed paths. Normalise and reject '../'.",
+  "CORS Misconfiguration": "Restrict Access-Control-Allow-Origin to trusted domains.",
+  "Missing Rate Limiting": "Add rate limiting (e.g., express-rate-limit).",
+  "Weak Password Policy": "Enforce complexity and length. Implement account lockout.",
+  "User Enumeration": "Return generic error messages for both valid/invalid users.",
+  "Missing Security Header": "Add headers: X-Frame-Options, CSP, HSTS, etc.",
+  "Server Version Disclosure": "Remove or obfuscate server version headers.",
+  "Technology Disclosure": "Remove X-Powered-By and similar fingerprints.",
+  "Expired SSL Certificate": "Renew immediately; set up auto‑renewal.",
+  "Weak SSL Cipher": "Disable RC4, 3DES; use AES‑GCM.",
+  "Outdated TLS Version": "Disable TLS 1.0/1.1; enable TLS 1.2/1.3.",
+  "CSRF / Missing Authentication": "Require auth and anti‑CSRF tokens.",
+  "Open Redirect": "Whitelist allowed redirect URLs.",
+  "Sensitive Data Exposure": "Store secrets in environment variables, not public files."
 };
 
 interface Vulnerability {
@@ -100,10 +100,8 @@ interface SecurityReportProps {
 const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExport, onShare }) => {
   const [expandedVuln, setExpandedVuln] = useState<number | null>(null);
 
-  // Debug: log vulnerabilities to console (remove after testing)
   useEffect(() => {
-    console.log("Report vulnerabilities:", report.vulnerabilities);
-    console.log("Total vulnerabilities (summary):", report.summary.total_vulnerabilities);
+    console.log("Vulnerabilities array length:", report.vulnerabilities.length);
   }, [report]);
 
   const getRiskColor = (level: string) => {
@@ -155,55 +153,46 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
     if (vuln.remediation) return vuln.remediation;
     const type = vuln.vulnerability;
     for (const [key, tip] of Object.entries(REMEDIATION_TIPS)) {
-      if (type.includes(key) || key.includes(type)) {
-        return tip;
-      }
+      if (type.includes(key) || key.includes(type)) return tip;
     }
-    return "Review the vulnerability details and apply security best practices. Consult OWASP guidelines for specific recommendations.";
+    return "Apply security best practices. See OWASP guidelines.";
   };
 
-  const getSanitizedUrl = (url: string) => {
-    return url.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-  };
+  const getSanitizedUrl = (url: string) => url.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
   const handleDownloadPDF = () => {
     const originalTitle = document.title;
     document.title = `security-report-${getSanitizedUrl(report.base_url)}`;
     window.print();
-    setTimeout(() => {
-      document.title = originalTitle;
-    }, 1000);
+    setTimeout(() => { document.title = originalTitle; }, 1000);
   };
 
   return (
     <>
-      {/* Print styles – clean and no duplication */}
       <style type="text/css" media="print">{`
         @page {
           size: A4;
           margin: 1.5cm;
+          @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 10pt;
+            color: #666;
+          }
         }
         body {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          counter-reset: page;
         }
-        .no-print {
-          display: none !important;
-        }
-        .print-only {
-          display: block !important;
-        }
-        .print-break-inside {
-          break-inside: avoid;
-        }
-        /* Remove web-only styling */
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        .print-break-inside { break-inside: avoid; }
         .border, .shadow-md, .shadow-xl, .bg-card {
           border: none !important;
           box-shadow: none !important;
           background: white !important;
         }
-        /* Simple table borders */
         table {
           border-collapse: collapse;
           width: 100%;
@@ -214,25 +203,14 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           padding: 8px;
           text-align: left;
         }
-        th {
-          background-color: #f5f5f5;
-        }
-        /* Page break control */
-        h2, h3 {
-          page-break-after: avoid;
-        }
-        .vuln-card {
-          page-break-inside: avoid;
-          margin-bottom: 20px;
-        }
-        /* Ensure vulnerability details are always visible */
-        .vuln-details {
-          display: block !important;
-        }
+        th { background-color: #f5f5f5; }
+        h2, h3 { page-break-after: avoid; }
+        .vuln-card { page-break-inside: avoid; margin-bottom: 20px; }
+        .vuln-details { display: block !important; }
       `}</style>
 
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none print:p-0">
-        {/* Header with actions (web only) */}
+        {/* Web header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
@@ -241,19 +219,16 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           <div className="flex flex-wrap items-center gap-2">
             {onExport && (
               <Button variant="outline" size="sm" onClick={onExport} className="gap-1">
-                <Download className="w-4 h-4" />
-                Export JSON
+                <Download className="w-4 h-4" /> Export JSON
               </Button>
             )}
             {onShare && (
               <Button variant="outline" size="sm" onClick={onShare} className="gap-1">
-                <Share2 className="w-4 h-4" />
-                Share
+                <Share2 className="w-4 h-4" /> Share
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-1">
-              <Download className="w-4 h-4" />
-              Download PDF
+              <Download className="w-4 h-4" /> Download PDF
             </Button>
           </div>
         </div>
@@ -262,14 +237,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
         <div className="hidden print:block mb-8">
           <div className="flex items-center justify-between border-b border-gray-300 pb-4">
             <div className="flex items-center space-x-4">
-              <img 
-                src="/favicon.ico" 
-                alt="GROWHAZ Logo" 
-                className="w-12 h-12"
-                onError={(e) => {
-                  e.currentTarget.style.display = 'none';
-                }}
-              />
+              <img src="/favicon.ico" alt="GROWHAZ Logo" className="w-12 h-12" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               <div>
                 <h1 className="text-2xl font-bold text-gray-800">Alpha G2 Security Report</h1>
                 <p className="text-sm text-gray-600">GROWHAZ Professional Scanner</p>
@@ -320,14 +288,10 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
             <p className="text-muted-foreground">Website URL</p>
             <div className="flex items-center gap-2">
               <Globe className="w-4 h-4 text-primary" />
-              <a
-                href={report.base_url.startsWith('http') ? report.base_url : `https://${report.base_url}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-primary hover:underline break-all"
-              >
-                {report.base_url}
-                <ExternalLink className="w-3 h-3 inline ml-1" />
+              <a href={report.base_url.startsWith('http') ? report.base_url : `https://${report.base_url}`}
+                 target="_blank" rel="noopener noreferrer"
+                 className="text-primary hover:underline break-all">
+                {report.base_url} <ExternalLink className="w-3 h-3 inline ml-1" />
               </a>
             </div>
           </div>
@@ -384,17 +348,16 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           </div>
         )}
 
-        {/* Vulnerabilities List – always fully expanded in print */}
+        {/* Vulnerabilities List */}
         {report.vulnerabilities.length > 0 ? (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">Vulnerabilities Found</h3>
             <div className="space-y-3">
               {report.vulnerabilities.map((vuln, idx) => {
-                // For web, we allow expand/collapse; for print, always show full.
                 const showDetails = expandedVuln === idx;
                 return (
                   <div key={idx} className="border border-border rounded-lg p-4 print:border print:border-gray-200 print:shadow-none print:mb-4 print:break-inside-avoid vuln-card">
-                    {/* Clickable header for web */}
+                    {/* Web interactive header */}
                     <div
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer no-print"
                       onClick={() => setExpandedVuln(showDetails ? null : idx)}
@@ -410,15 +373,11 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                         <Badge className={`${getCVSSColor(vuln.cvss_score)} text-xs`}>
                           CVSS {vuln.cvss_score}
                         </Badge>
-                        {showDetails ? (
-                          <ChevronUp className="w-4 h-4 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="w-4 h-4 text-muted-foreground" />
-                        )}
+                        {showDetails ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                       </div>
                     </div>
 
-                    {/* Print header (static) – visible only in print */}
+                    {/* Static print header */}
                     <div className="hidden print:block mb-2">
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5" />
@@ -432,7 +391,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                       </div>
                     </div>
 
-                    {/* Details – always visible in print */}
+                    {/* Details – always visible in print, toggleable in web */}
                     <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
@@ -455,18 +414,14 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                         )}
                       </div>
 
-                      {/* Remediation */}
                       <div>
                         <h4 className="font-medium mb-1 flex items-center gap-1">
                           <Info className="w-4 h-4 text-primary" />
                           How to Fix
                         </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {getRemediation(vuln)}
-                        </p>
+                        <p className="text-sm text-muted-foreground">{getRemediation(vuln)}</p>
                       </div>
 
-                      {/* Evidence (optional) */}
                       {(vuln.raw_request || vuln.raw_response) && (
                         <div>
                           <h4 className="font-medium mb-2">Evidence</h4>
@@ -503,10 +458,10 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           </div>
         )}
 
-        {/* Print footer (only at the end) */}
+        {/* Print footer (only once) */}
         <div className="hidden print:block text-xs text-center text-gray-500 mt-8 pt-4 border-t border-gray-300">
           <p>Report generated by GROWHAZ Alpha G2 Professional Scanner on {formatDate(report.timestamp)}</p>
-          <p className="mt-1">This is a computer-generated report. For queries, contact support@growhaz.com</p>
+          <p className="mt-1">This is a computer‑generated report. For queries, contact support@growhaz.com</p>
         </div>
       </div>
     </>
@@ -514,4 +469,5 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 };
 
 export default SecurityReportComponent;
-                            
+          
+                    
