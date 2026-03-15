@@ -9,6 +9,30 @@ on:
       reportId:
         description: 'Supabase report ID'
         required: true
+      scanner_version:
+        description: 'Scanner version to use'
+        required: true
+        default: 'alpha-g2'
+        type: choice
+        options:
+          - alpha-g1
+          - alpha-g2
+      enable_js:
+        description: 'Enable JavaScript crawling (Alpha G2 only)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+      test_email:
+        description: 'Test email for login (optional)'
+        required: false
+        type: string
+      openapi_spec:
+        description: 'Path to OpenAPI spec file (optional)'
+        required: false
+        type: string
 
 jobs:
   scan:
@@ -25,11 +49,98 @@ jobs:
         run: |
           pip install -r requirements.txt
           # Install Playwright browsers (required for --js flag)
-          playwright install chromium
+          npx playwright install chromium
+        shell: bash
 
-      - name: Run scanner
+      - name: Validate scanner files
+        run: |
+          if [ ! -f "scanner/secure1.py" ]; then
+            echo "❌ secure1.py (Alpha G1) not found in scanner directory"
+            exit 1
+          fi
+          if [ ! -f "scanner/secure2.py" ]; then
+            echo "❌ secure2.py (Alpha G2) not found in scanner directory"
+            exit 1
+          fi
+          echo "✅ Scanner files verified"
+
+      - name: Run Alpha G1 Scanner
+        if: ${{ github.event.inputs.scanner_version == 'alpha-g1' }}
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
           REPORT_ID: ${{ github.event.inputs.reportId }}
-        run: python3 scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
+          TEST_EMAIL: ${{ github.event.inputs.test_email }}
+        run: |
+          echo "🚀 Running Alpha G1 Scanner..."
+          CMD="python3 scanner/secure1.py \"${{ github.event.inputs.url }}\" --report-id \"${{ github.event.inputs.reportId }}\""
+          
+          if [ ! -z "${{ github.event.inputs.test_email }}" ]; then
+            CMD="$CMD \"${{ github.event.inputs.test_email }}\""
+          fi
+          
+          if [ ! -z "${{ github.event.inputs.openapi_spec }}" ]; then
+            CMD="$CMD \"${{ github.event.inputs.openapi_spec }}\""
+          fi
+          
+          echo "Executing: $CMD"
+          eval $CMD
+
+      - name: Run Alpha G2 Scanner
+        if: ${{ github.event.inputs.scanner_version == 'alpha-g2' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          REPORT_ID: ${{ github.event.inputs.reportId }}
+          TEST_EMAIL: ${{ github.event.inputs.test_email }}
+        run: |
+          echo "🚀 Running Alpha G2 Professional Scanner..."
+          CMD="python3 scanner/secure2.py \"${{ github.event.inputs.url }}\""
+          
+          # Add report ID
+          CMD="$CMD --report-id \"${{ github.event.inputs.reportId }}\""
+          
+          # Add test email if provided
+          if [ ! -z "${{ github.event.inputs.test_email }}" ]; then
+            CMD="$CMD \"${{ github.event.inputs.test_email }}\""
+          fi
+          
+          # Add OpenAPI spec if provided
+          if [ ! -z "${{ github.event.inputs.openapi_spec }}" ]; then
+            CMD="$CMD \"${{ github.event.inputs.openapi_spec }}\""
+          fi
+          
+          # Add JS flag if enabled
+          if [[ "${{ github.event.inputs.enable_js }}" == "true" ]]; then
+            CMD="$CMD --js"
+            echo "✅ JavaScript crawling enabled"
+          fi
+          
+          echo "Executing: $CMD"
+          eval $CMD
+
+      - name: Upload scan artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: security-reports-${{ github.event.inputs.scanner_version }}-${{ github.run_id }}
+          path: |
+            security_report.json
+            security_report.md
+          retention-days: 30
+
+      - name: Display scan summary
+        run: |
+          echo "## 📊 Scan Complete - Alpha ${{ github.event.inputs.scanner_version == 'alpha-g1' && 'G1' || 'G2' }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Target URL:** ${{ github.event.inputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scanner:** Alpha ${{ github.event.inputs.scanner_version == 'alpha-g1' && 'G1' || 'G2' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Report ID:** ${{ github.event.inputs.reportId }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **JavaScript:** ${{ github.event.inputs.enable_js }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Email:** ${{ github.event.inputs.test_email || 'Not provided' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **OpenAPI Spec:** ${{ github.event.inputs.openapi_spec || 'Not provided' }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ -f "security_report.md" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 📈 Results" >> $GITHUB_STEP_SUMMARY
+            grep -E "Total Vulnerabilities|Risk Level" security_report.md | sed 's/#//g' >> $GITHUB_STEP_SUMMARY
+          fi
