@@ -1,0 +1,30 @@
+name: Alpha G1 Security Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Website URL to scan'
+        required: true
+      reportId:
+        description: 'Supabase report ID'
+        required: true
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+      - name: Run Alpha G1 Scanner
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          REPORT_ID: ${{ github.event.inputs.reportId }}
+        run: python3 scanner/secure1.py "${{ github.event.inputs.url }}" --report-id "${{ github.event.inputs.reportId }}"
