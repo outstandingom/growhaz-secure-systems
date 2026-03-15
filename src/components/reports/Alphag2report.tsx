@@ -1,22 +1,23 @@
-import { useState } from "react";
-import {
-  Shield,
-  AlertTriangle,
-  XCircle,
-  CheckCircle2,
+import React, { useState } from 'react';
+import { 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle, 
   AlertCircle,
   Download,
+  Share2,
   Clock,
+  Target,
   Globe,
   FileText,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
-  Target
-} from "lucide-react";
+  Copy,
+  ExternalLink
+} from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
 
 interface Vulnerability {
   vulnerability: string;
@@ -52,23 +53,17 @@ interface SecurityReport {
   };
 }
 
-interface AlphaG2ReportProps {
+interface SecurityReportProps {
   report: SecurityReport;
-  onClose?: () => void;
-  showDownload?: boolean;
   onExport?: () => void;
   onShare?: () => void;
 }
 
-export function AlphaG2Report({ 
-  report, 
-  onClose, 
-  showDownload = true,
-  onExport,
-  onShare 
-}: AlphaG2ReportProps) {
-  const [expandedVuln, setExpandedVuln] = useState<string | null>(null);
+const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExport, onShare }) => {
+  const [expandedVuln, setExpandedVuln] = useState<number | null>(null);
+  const [expandedSection, setExpandedSection] = useState<string | null>('summary');
 
+  // Helper functions
   const getRiskColor = (level: string) => {
     switch (level?.toLowerCase()) {
       case "low": return "text-emerald-400";
@@ -79,18 +74,12 @@ export function AlphaG2Report({
     }
   };
 
-  const getCVSSColor = (score: number) => {
-    if (score >= 7.0) return "bg-red-100 text-red-700 border-red-200";
-    if (score >= 4.0) return "bg-yellow-100 text-yellow-700 border-yellow-200";
-    return "bg-green-100 text-green-700 border-green-200";
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "VULNERABLE":
         return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> Vulnerable</Badge>;
       case "SECURE":
-        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1"><CheckCircle2 className="w-3 h-3" /> Secure</Badge>;
+        return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1"><CheckCircle className="w-3 h-3" /> Secure</Badge>;
       case "BLOCKED":
         return <Badge variant="secondary" className="gap-1"><Shield className="w-3 h-3" /> Blocked</Badge>;
       case "ERROR":
@@ -100,11 +89,27 @@ export function AlphaG2Report({
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return format(new Date(dateString), "PPp");
+  const getCVSSColor = (score: number) => {
+    if (score >= 7.0) return "bg-red-100 text-red-700 border-red-200";
+    if (score >= 4.0) return "bg-yellow-100 text-yellow-700 border-yellow-200";
+    return "bg-green-100 text-green-700 border-green-200";
   };
 
-  // Sanitize URL for PDF filename
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+  };
+
+  // PDF download (uses window.print)
   const getSanitizedUrl = (url: string) => {
     return url.replace(/[^a-z0-9]/gi, '-').toLowerCase();
   };
@@ -157,21 +162,14 @@ export function AlphaG2Report({
             )}
             {onShare && (
               <Button variant="outline" size="sm" onClick={onShare} className="gap-1">
-                <AlertCircle className="w-4 h-4" />
+                <Share2 className="w-4 h-4" />
                 Share
               </Button>
             )}
-            {showDownload && (
-              <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-1">
-                <Download className="w-4 h-4" />
-                Download PDF
-              </Button>
-            )}
-            {onClose && (
-              <Button variant="ghost" size="sm" onClick={onClose}>
-                Close
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-1">
+              <Download className="w-4 h-4" />
+              Download PDF
+            </Button>
           </div>
         </div>
 
@@ -279,12 +277,12 @@ export function AlphaG2Report({
             <h3 className="text-lg font-semibold">Vulnerabilities Found</h3>
             <div className="space-y-2">
               {report.vulnerabilities.map((vuln, idx) => {
-                const isExpanded = expandedVuln === `${idx}`;
+                const isExpanded = expandedVuln === idx;
                 return (
                   <div key={idx} className="border border-border rounded-lg p-4">
                     <div
                       className="flex items-center justify-between cursor-pointer"
-                      onClick={() => setExpandedVuln(isExpanded ? null : `${idx}`)}
+                      onClick={() => setExpandedVuln(isExpanded ? null : idx)}
                     >
                       <div className="flex items-center gap-2">
                         <AlertTriangle className="w-4 h-4 text-red-400" />
@@ -359,17 +357,19 @@ export function AlphaG2Report({
           </div>
         ) : (
           <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <CheckCircle2 className="w-8 h-8 mr-2 text-emerald-400" />
+            <CheckCircle className="w-8 h-8 mr-2 text-emerald-400" />
             <span>No vulnerabilities found</span>
           </div>
         )}
 
         {/* Print footer */}
         <div className="hidden print:block text-xs text-center text-gray-500 mt-8 pt-4 border-t border-gray-300">
-          <p>Report generated by GROWHAZ Alpha G2 Professional Scanner on {format(new Date(), "PPp")}</p>
+          <p>Report generated by GROWHAZ Alpha G2 Professional Scanner on {formatDate(report.timestamp)}</p>
           <p className="mt-1">This is a computer-generated report. For queries, contact support@growhaz.com</p>
         </div>
       </div>
     </>
   );
-      }
+};
+
+export default SecurityReportComponent;
