@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Shield, 
   AlertTriangle, 
@@ -20,7 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-// Test descriptions for context
+// Test descriptions (same as before)
 const TEST_DESCRIPTIONS: Record<string, string> = {
   "SQL Injection": "Tests for SQL injection vulnerabilities using boolean, time-based, and error-based payloads.",
   "Cross-Site Scripting (XSS)": "Scans for reflected XSS by injecting script payloads into parameters.",
@@ -100,6 +100,12 @@ interface SecurityReportProps {
 const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExport, onShare }) => {
   const [expandedVuln, setExpandedVuln] = useState<number | null>(null);
 
+  // Debug: log vulnerabilities to console (remove after testing)
+  useEffect(() => {
+    console.log("Report vulnerabilities:", report.vulnerabilities);
+    console.log("Total vulnerabilities (summary):", report.summary.total_vulnerabilities);
+  }, [report]);
+
   const getRiskColor = (level: string) => {
     switch (level?.toLowerCase()) {
       case "low": return "text-emerald-400";
@@ -171,7 +177,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 
   return (
     <>
-      {/* Print styles – clean, no duplication */}
+      {/* Print styles – clean and no duplication */}
       <style type="text/css" media="print">{`
         @page {
           size: A4;
@@ -197,10 +203,6 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           box-shadow: none !important;
           background: white !important;
         }
-        /* Ensure all vulnerability details are visible */
-        .vuln-details {
-          display: block !important;
-        }
         /* Simple table borders */
         table {
           border-collapse: collapse;
@@ -223,9 +225,12 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           page-break-inside: avoid;
           margin-bottom: 20px;
         }
+        /* Ensure vulnerability details are always visible */
+        .vuln-details {
+          display: block !important;
+        }
       `}</style>
 
-      {/* Main container – same for web and print, but print overrides */}
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none print:p-0">
         {/* Header with actions (web only) */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
@@ -388,7 +393,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                 // For web, we allow expand/collapse; for print, always show full.
                 const showDetails = expandedVuln === idx;
                 return (
-                  <div key={idx} className="border border-border rounded-lg p-4 print:border print:border-gray-200 print:shadow-none print:mb-4 print:break-inside-avoid">
+                  <div key={idx} className="border border-border rounded-lg p-4 print:border print:border-gray-200 print:shadow-none print:mb-4 print:break-inside-avoid vuln-card">
                     {/* Clickable header for web */}
                     <div
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer no-print"
@@ -413,7 +418,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                       </div>
                     </div>
 
-                    {/* Print header (static) */}
+                    {/* Print header (static) – visible only in print */}
                     <div className="hidden print:block mb-2">
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5" />
@@ -427,8 +432,8 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                       </div>
                     </div>
 
-                    {/* Details – always visible in print, conditionally in web */}
-                            <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
+                    {/* Details – always visible in print */}
+                    <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">OWASP Category</p>
@@ -498,7 +503,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           </div>
         )}
 
-        {/* Print footer (appears only at the end of print) */}
+        {/* Print footer (only at the end) */}
         <div className="hidden print:block text-xs text-center text-gray-500 mt-8 pt-4 border-t border-gray-300">
           <p>Report generated by GROWHAZ Alpha G2 Professional Scanner on {formatDate(report.timestamp)}</p>
           <p className="mt-1">This is a computer-generated report. For queries, contact support@growhaz.com</p>
@@ -509,4 +514,4 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 };
 
 export default SecurityReportComponent;
-                              
+                            
