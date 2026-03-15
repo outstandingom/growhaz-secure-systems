@@ -27,206 +27,69 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock,
-  Zap,
-  Eye,
-  FileSearch,
-  Bug,
-  Database,
-  Code,
-  Server,
-  Wifi,
-  Lock as LockIcon,
-  Key,
-  Fingerprint,
-  Bot,
-  Brain,
-  Target,
-  Gauge,
-  AlertOctagon
+  Zap
 } from "lucide-react";
 
 const scanTiers = [
   {
     id: "alpha-g1",
-    name: "Alpha G1",
+    name: "AlphaG1",
     price: 1999,
     description: "Basic Security Scan",
     comingSoon: false,
     requiresApproval: false,
-    icon: Shield,
-    color: "from-blue-500 to-cyan-500",
-    features: [
-      "11+ SQL injection payloads",
-      "8 XSS payload types",
-      "Rate limiting detection",
-      "Security headers validation",
-      "SSL/TLS analysis"
-    ],
     tests: [
-      { 
-        name: "SQL Injection Testing", 
-        desc: "Tests login, search & API endpoints with 11+ SQL injection payloads including time-based, boolean-based, and UNION attacks",
-        severity: "Critical",
-        icon: Database
-      },
-      { 
-        name: "XSS Detection", 
-        desc: "Scans for Cross-Site Scripting with 8 payload types across registration, contact & profile endpoints",
-        severity: "High",
-        icon: Code
-      },
-      { 
-        name: "Authentication Flaws", 
-        desc: "Checks weak password acceptance, user enumeration via error messages, and rate limiting on login",
-        severity: "Medium",
-        icon: Key
-      },
-      { 
-        name: "IDOR Vulnerability", 
-        desc: "Tests Insecure Direct Object Reference by accessing other users' profiles, orders, documents & payments",
-        severity: "Critical",
-        icon: Fingerprint
-      },
-      { 
-        name: "CORS Misconfiguration", 
-        desc: "Detects dangerous CORS settings allowing arbitrary origins with credentials",
-        severity: "Medium",
-        icon: Wifi
-      },
-      { 
-        name: "Sensitive Data Exposure", 
-        desc: "Scans for exposed .env, config.json, .git/config, backup.sql and more sensitive files",
-        severity: "Critical",
-        icon: FileSearch
-      },
-      { 
-        name: "Security Headers Check", 
-        desc: "Validates X-Frame-Options, CSP, HSTS, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy",
-        severity: "Low",
-        icon: Shield
-      },
-      { 
-        name: "SSL/TLS Analysis", 
-        desc: "Checks HTTPS enforcement and SSL/TLS certificate configuration",
-        severity: "Medium",
-        icon: LockIcon
-      },
+      { name: "SQL Injection Testing", desc: "Tests login, search & API endpoints with 11+ SQL injection payloads including time-based, boolean-based, and UNION attacks" },
+      { name: "XSS Detection", desc: "Scans for Cross-Site Scripting with 8 payload types across registration, contact & profile endpoints" },
+      { name: "Authentication Flaws", desc: "Checks weak password acceptance, user enumeration via error messages, and rate limiting on login" },
+      { name: "IDOR Vulnerability", desc: "Tests Insecure Direct Object Reference by accessing other users' profiles, orders, documents & payments" },
+      { name: "CORS Misconfiguration", desc: "Detects dangerous CORS settings allowing arbitrary origins with credentials" },
+      { name: "Sensitive Data Exposure", desc: "Scans for exposed .env, config.json, .git/config, backup.sql and more sensitive files" },
+      { name: "Security Headers Check", desc: "Validates X-Frame-Options, CSP, HSTS, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy" },
+      { name: "SSL/TLS Analysis", desc: "Checks HTTPS enforcement and SSL/TLS certificate configuration" },
     ],
   },
   {
     id: "alpha-g2",
-    name: "Alpha G2",
+    name: "AlphaG2",
     price: 4999,
     description: "Advanced Vulnerability Scan",
     comingSoon: false,
     requiresApproval: false,
-    icon: Brain,
-    color: "from-purple-500 to-pink-500",
-    features: [
-      "All Alpha G1 tests + advanced features",
-      "JavaScript crawling (React/Next.js)",
-      "WAF bypass with header rotation",
-      "Payload obfuscation",
-      "CVSS v3.1 scoring",
-      "OWASP Top 10 mapping",
-      "Raw request/response evidence",
-      "Circuit breaker for blocked endpoints",
-      "Threaded XSS testing (10 workers)",
-      "Deep site mapping (100+ endpoints)"
-    ],
     tests: [
-      { 
-        name: "All Alpha G1 Tests", 
-        desc: "Includes every test from Alpha G1 with enhanced detection",
-        severity: "Various",
-        icon: CheckCircle2
-      },
-      { 
-        name: "Deep JavaScript Crawling", 
-        desc: "Uses Playwright to crawl React/Next.js SPAs, discovers hidden API routes from network requests",
-        severity: "High",
-        icon: Bot
-      },
-      { 
-        name: "WAF Bypass Engine", 
-        desc: "Header rotation (User-Agent rotation), IP spoofing (X-Forwarded-For, X-Real-IP), randomized throttling (1.5-4s Gaussian delay)",
-        severity: "High",
-        icon: Zap
-      },
-      { 
-        name: "Payload Obfuscation", 
-        desc: "SQLi comment injection (/**/), mixed case, URL encoding, XSS mixed case and encoding to bypass regex filters",
-        severity: "Critical",
-        icon: Bug
-      },
-      { 
-        name: "CVSS v3.1 Scoring", 
-        desc: "Industry-standard vulnerability scoring (0-10) based on impact, attack vector, and complexity",
-        severity: "Info",
-        icon: Gauge
-      },
-      { 
-        name: "OWASP Top 10 Mapping", 
-        desc: "Maps each finding to specific OWASP categories (A03:2021-Injection, A01:2021-Broken Access Control, etc.)",
-        severity: "Info",
-        icon: Target
-      },
-      { 
-        name: "Evidence Capture", 
-        desc: "Stores raw request/response headers and body snippets for every vulnerability as proof",
-        severity: "Info",
-        icon: Eye
-      },
-      { 
-        name: "Circuit Breaker", 
-        desc: "Stops testing endpoints after 3 consecutive blocks to avoid IP bans and save resources",
-        severity: "Info",
-        icon: AlertOctagon
-      },
-      { 
-        name: "Threaded XSS Testing", 
-        desc: "Tests 10 payload/parameter combinations simultaneously for faster results",
-        severity: "High",
-        icon: Server
-      },
-      { 
-        name: "Deep Site Mapping", 
-        desc: "Recursive crawling up to 100 pages, discovers hidden API endpoints (/api/v1, /graphql, /swagger)",
-        severity: "Info",
-        icon: Globe
-      },
+      { name: "All AlphaG1 Tests", desc: "Includes every test from AlphaG1 with enhanced detection" },
+      { name: "Deep JavaScript Crawling", desc: "Uses Playwright to crawl React/Next.js SPAs and discover hidden API routes" },
+      { name: "WAF Bypass Engine", desc: "Header rotation, IP spoofing, and randomized throttling to avoid blocking" },
+      { name: "Payload Obfuscation", desc: "SQLi comment injection, mixed case, URL encoding to bypass WAF filters" },
+      { name: "CVSS v3.1 Scoring", desc: "Industry-standard vulnerability scoring (0-10) based on impact" },
+      { name: "OWASP Top 10 Mapping", desc: "Maps findings to OWASP categories (A03:2021-Injection, A01:2021-Broken Access Control)" },
+      { name: "Evidence Capture", desc: "Stores raw request/response headers and body for every vulnerability" },
+      { name: "Circuit Breaker", desc: "Stops testing endpoints after 3 consecutive blocks to avoid IP bans" },
+      { name: "Threaded XSS Testing", desc: "Tests 10 payload/parameter combinations simultaneously" },
+      { name: "Deep Site Mapping", desc: "Recursive crawling up to 100 pages, discovers hidden API endpoints" },
     ],
   },
   {
     id: "alpha-g3",
-    name: "Alpha G3",
+    name: "AlphaG3",
     price: 9999,
     description: "Full Penetration Testing",
     comingSoon: true,
     requiresApproval: true,
-    icon: AlertTriangle,
-    color: "from-red-500 to-orange-500",
-    features: [
-      "All Alpha G2 tests",
-      "Full Pen-Test Simulation",
-      "Custom Exploit Detection",
-      "Detailed Remediation Report"
-    ],
     tests: [
-      { name: "All Alpha G2 Tests", desc: "Includes every test from Alpha G2", severity: "Various", icon: CheckCircle2 },
-      { name: "Full Pen-Test Simulation", desc: "Automated penetration testing workflow", severity: "Critical", icon: Bug },
-      { name: "Custom Exploit Detection", desc: "Zero-day and custom exploit scanning", severity: "Critical", icon: AlertOctagon },
-      { name: "Detailed Remediation Report", desc: "Step-by-step fix guide with code examples", severity: "Info", icon: FileSearch },
+      { name: "All AlphaG2 Tests", desc: "Includes every test from AlphaG2" },
+      { name: "Full Pen-Test Simulation", desc: "Automated penetration testing workflow" },
+      { name: "Custom Exploit Detection", desc: "Zero-day and custom exploit scanning" },
+      { name: "Detailed Remediation Report", desc: "Step-by-step fix guide with code examples" },
     ],
   },
 ];
 
 const outputs = [
-  { icon: AlertTriangle, text: "Security risk level (Low / Medium / High) with CVSS v3.1 scores" },
-  { icon: XCircle, text: "Vulnerable points with endpoint details and parameter information" },
-  { icon: Info, text: "OWASP Top 10 category mapping for compliance reporting" },
-  { icon: Eye, text: "Raw request/response evidence for every finding (Alpha G2)" },
-  { icon: CheckCircle2, text: "Actionable fix suggestions with severity ratings" },
+  { icon: AlertTriangle, text: "Security risk level (Low / Medium / High)" },
+  { icon: XCircle, text: "Vulnerable points with details" },
+  { icon: Info, text: "Simple explanation of each issue" },
+  { icon: CheckCircle2, text: "Actionable fix suggestions" },
 ];
 
 export default function SecurityTools() {
@@ -244,7 +107,6 @@ export default function SecurityTools() {
   const { spendCoins, balance } = useSpendCoins();
 
   const selectedTier = scanTiers[currentTierIndex];
-  const TierIcon = selectedTier.icon;
 
   const goNext = () => setCurrentTierIndex((i) => Math.min(i + 1, scanTiers.length - 1));
   const goPrev = () => setCurrentTierIndex((i) => Math.max(i - 1, 0));
@@ -427,7 +289,7 @@ export default function SecurityTools() {
       }
     };
 
-    const interval = setInterval(checkReportStatus, 10000); // Check every 10 seconds
+    const interval = setInterval(checkReportStatus, 10000);
     return () => clearInterval(interval);
   }, [showResult, user, url, selectedTier.name, toast]);
 
@@ -442,13 +304,13 @@ export default function SecurityTools() {
           </div>
           
           <h1 className="section-title mb-6">
-            Professional{" "}
-            <span className="gradient-text">Website Security</span> Testing
+            Smart Website{" "}
+            <span className="gradient-text">Security Testing</span> Tools
           </h1>
           
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-12">
-            GROWHAZ provides enterprise-grade security testing tools with CVSS scoring, 
-            OWASP mapping, and raw evidence capture.
+            GROWHAZ provides real, usable website security testing tools that help businesses 
+            identify vulnerabilities before attackers do.
           </p>
 
           {loading ? (
@@ -526,7 +388,7 @@ export default function SecurityTools() {
 
                   {/* Tier Card */}
                   <div className="overflow-hidden rounded-2xl border-2 border-primary bg-card transition-all duration-300">
-                    <div className={`p-6 relative bg-gradient-to-br ${selectedTier.color} bg-opacity-5`}>
+                    <div className="p-6 relative">
                       {selectedTier.comingSoon && (
                         <div className="absolute inset-0 bg-background/70 backdrop-blur-sm z-10 flex flex-col items-center justify-center rounded-2xl">
                           <Clock className="w-12 h-12 text-primary mb-3 animate-pulse" />
@@ -536,14 +398,9 @@ export default function SecurityTools() {
                       )}
 
                       <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                            <TierIcon className="w-6 h-6 text-primary" />
-                          </div>
-                          <div className="text-left">
-                            <h3 className="text-2xl font-bold">{selectedTier.name}</h3>
-                            <p className="text-sm text-muted-foreground">{selectedTier.description}</p>
-                          </div>
+                        <div>
+                          <h3 className="text-2xl font-bold">{selectedTier.name}</h3>
+                          <p className="text-sm text-muted-foreground">{selectedTier.description}</p>
                         </div>
                         <div className="text-right">
                           <div className="flex items-center gap-1 text-primary font-bold text-xl">
@@ -561,21 +418,7 @@ export default function SecurityTools() {
                         </Badge>
                       )}
 
-                      {/* Feature Tags */}
-                      <div className="flex flex-wrap gap-2 mb-4">
-                        {selectedTier.features.slice(0, 4).map((feature) => (
-                          <Badge key={feature} variant="outline" className="bg-primary/5">
-                            {feature}
-                          </Badge>
-                        ))}
-                        {selectedTier.features.length > 4 && (
-                          <Badge variant="outline" className="bg-primary/5">
-                            +{selectedTier.features.length - 4} more
-                          </Badge>
-                        )}
-                      </div>
-
-                      {/* Alpha G2 JS Option */}
+                      {/* Alpha G2 JS Option - NEW */}
                       {selectedTier.id === "alpha-g2" && !selectedTier.comingSoon && (
                         <div className="mb-4 p-3 rounded-lg bg-secondary/50 border border-border">
                           <Label className="flex items-center gap-2 cursor-pointer">
@@ -585,10 +428,8 @@ export default function SecurityTools() {
                               onChange={(e) => setEnableJs(e.target.checked)}
                               className="rounded border-border text-primary focus:ring-primary"
                             />
-                            <div className="flex items-center gap-2">
-                              <Bot className="w-4 h-4 text-primary" />
-                              <span className="text-sm font-medium">Enable JavaScript Crawling</span>
-                            </div>
+                            <span className="text-sm font-medium">Enable JavaScript Crawling</span>
+                            <Zap className="w-4 h-4 text-primary ml-1" />
                           </Label>
                           <p className="text-xs text-muted-foreground mt-1 ml-6">
                             Uses Playwright to crawl React/Next.js SPAs and discover hidden API routes
@@ -598,35 +439,17 @@ export default function SecurityTools() {
 
                       {/* Test List */}
                       <div className="space-y-3 mt-4">
-                        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                          <Shield className="w-4 h-4" />
-                          Tests Performed
-                        </h4>
+                        <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tests Performed</h4>
                         <div className="grid gap-2 max-h-96 overflow-y-auto pr-2">
-                          {selectedTier.tests.map((test) => {
-                            const TestIcon = test.icon;
-                            return (
-                              <div key={test.name} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary/70 transition-colors">
-                                <TestIcon className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-2">
-                                    <div className="text-sm font-medium">{test.name}</div>
-                                    {test.severity !== "Info" && test.severity !== "Various" && (
-                                      <Badge variant="outline" className={`text-xs ${
-                                        test.severity === "Critical" ? "border-red-500 text-red-500" :
-                                        test.severity === "High" ? "border-orange-500 text-orange-500" :
-                                        test.severity === "Medium" ? "border-yellow-500 text-yellow-500" :
-                                        "border-blue-500 text-blue-500"
-                                      }`}>
-                                        {test.severity}
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="text-xs text-muted-foreground mt-1">{test.desc}</div>
-                                </div>
+                          {selectedTier.tests.map((test) => (
+                            <div key={test.name} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
+                              <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
+                              <div>
+                                <div className="text-sm font-medium">{test.name}</div>
+                                <div className="text-xs text-muted-foreground">{test.desc}</div>
                               </div>
-                            );
-                          })}
+                            </div>
+                          ))}
                         </div>
                       </div>
                     </div>
@@ -721,14 +544,14 @@ export default function SecurityTools() {
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
                 <Clock className="w-8 h-8 text-primary animate-pulse" />
               </div>
-              <h3 className="text-xl font-bold mb-3">Scan Started Successfully!</h3>
+              <h3 className="text-xl font-bold mb-3">Request Submitted Successfully!</h3>
               <p className="text-muted-foreground mb-2">
-                <strong className="text-foreground">{selectedTier.name}</strong> scan for{" "}
-                <strong className="text-foreground">{url}</strong> has been initiated.
+                Your website URL <strong className="text-foreground">{url}</strong> has been submitted for{" "}
+                <strong className="text-foreground">{selectedTier.name}</strong> analysis.
               </p>
               <p className="text-muted-foreground mb-6">
-                You can check the status anytime in your{" "}
-                <Link to="/profile" className="text-primary underline">Profile → Security Reports</Link>.
+                Our security team will review it and send you a detailed report. 
+                You can check the status anytime in your <Link to="/profile" className="text-primary underline">Profile → Security Reports</Link>.
               </p>
               <div className="p-4 rounded-lg bg-secondary/50 border border-border">
                 <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
@@ -741,30 +564,52 @@ export default function SecurityTools() {
         </section>
       )}
 
-      {/* What Alpha G2 Tests */}
+      {/* What AlphaG1 Tests */}
       <section className="section-container bg-card/50">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">
-            🚀 <span className="gradient-text">Alpha G2</span> Professional Features
+            🔐 What Does <span className="gradient-text">AlphaG1</span> Test?
           </h2>
           <p className="text-muted-foreground text-center mb-8">
-            Our ₹4,999 professional scanner includes all Alpha G1 tests plus these advanced capabilities:
+            Based on our proprietary Python security engine, AlphaG1 performs these automated checks on any website:
           </p>
           <div className="grid sm:grid-cols-2 gap-4">
-            {scanTiers[1].tests.slice(1).map((test) => {
-              const TestIcon = test.icon;
-              return (
-                <div key={test.name} className="p-4 rounded-xl bg-card border border-border hover:border-primary/40 transition-colors">
-                  <div className="flex items-start gap-3">
-                    <TestIcon className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                    <div>
-                      <h4 className="font-semibold text-sm">{test.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-1">{test.desc}</p>
-                    </div>
+            {scanTiers[0].tests.map((test) => (
+              <div key={test.name} className="p-4 rounded-xl bg-card border border-border hover:border-primary/40 transition-colors">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-sm">{test.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">{test.desc}</p>
                   </div>
                 </div>
-              );
-            })}
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AlphaG2 Features */}
+      <section className="section-container">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">
+            🚀 <span className="gradient-text">AlphaG2</span> Professional Features
+          </h2>
+          <p className="text-muted-foreground text-center mb-8">
+            For ₹4,999, AlphaG2 includes all AlphaG1 tests plus these advanced capabilities:
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {scanTiers[1].tests.slice(1).map((test) => (
+              <div key={test.name} className="p-4 rounded-xl bg-card border border-border hover:border-primary/40 transition-colors">
+                <div className="flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-sm">{test.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">{test.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -793,8 +638,8 @@ export default function SecurityTools() {
             Need a Comprehensive Security Audit?
           </h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Our Alpha G3 penetration testing goes deeper to uncover hidden vulnerabilities 
-            and provides detailed remediation strategies with code examples.
+            Our advanced security audit goes deeper to uncover hidden vulnerabilities 
+            and provides detailed remediation strategies.
           </p>
           <Button variant="hero" size="xl">
             <Link to="/contact" className="flex items-center gap-2">
@@ -806,4 +651,4 @@ export default function SecurityTools() {
       </section>
     </Layout>
   );
-                      }
+                  } 
