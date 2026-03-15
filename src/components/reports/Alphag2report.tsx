@@ -20,7 +20,22 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
-// Remediation tips by vulnerability type
+// Test descriptions for context
+const TEST_DESCRIPTIONS: Record<string, string> = {
+  "SQL Injection": "Tests for SQL injection vulnerabilities using boolean, time-based, and error-based payloads.",
+  "Cross-Site Scripting (XSS)": "Scans for reflected XSS by injecting script payloads into parameters.",
+  "Authentication Flaws": "Checks for weak password policy, user enumeration, and missing rate limiting.",
+  "IDOR": "Attempts to access unauthorized resources by manipulating object IDs.",
+  "CORS Misconfiguration": "Verifies if CORS headers allow unsafe cross-origin requests.",
+  "Sensitive Data Exposure": "Scans for publicly accessible sensitive files (.env, config, backups).",
+  "Security Headers": "Checks for missing or misconfigured security headers.",
+  "SSL/TLS Vulnerabilities": "Analyzes certificate validity, cipher strength, and protocol versions.",
+  "CSRF": "Tests if state-changing endpoints accept requests without authentication tokens.",
+  "Open Redirect": "Injects malicious URLs to test for unvalidated redirects.",
+  "Directory Traversal": "Attempts to read files outside the web root using path traversal sequences."
+};
+
+// Remediation tips (same as before)
 const REMEDIATION_TIPS: Record<string, string> = {
   "SQL Injection": "Use parameterized queries / prepared statements. Validate and sanitize all user inputs. Apply least privilege to database accounts.",
   "Cross-Site Scripting (XSS)": "Escape all user input before rendering. Use Content Security Policy (CSP). Validate input on server side.",
@@ -84,7 +99,6 @@ interface SecurityReportProps {
 
 const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExport, onShare }) => {
   const [expandedVuln, setExpandedVuln] = useState<number | null>(null);
-  const [expandedSection, setExpandedSection] = useState<string | null>('summary');
 
   const getRiskColor = (level: string) => {
     switch (level?.toLowerCase()) {
@@ -157,7 +171,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 
   return (
     <>
-      {/* Print styles */}
+      {/* Print styles – clean, no duplication */}
       <style type="text/css" media="print">{`
         @page {
           size: A4;
@@ -177,31 +191,42 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
         .print-break-inside {
           break-inside: avoid;
         }
-        .border, .border-r, .border-l, .border-t, .border-b, .shadow-md, .shadow-xl {
+        /* Remove web-only styling */
+        .border, .shadow-md, .shadow-xl, .bg-card {
           border: none !important;
           box-shadow: none !important;
+          background: white !important;
         }
-        .bg-card, .bg-white {
-          background-color: white !important;
+        /* Ensure all vulnerability details are visible */
+        .vuln-details {
+          display: block !important;
         }
-        .text-muted-foreground {
-          color: #4b5563 !important;
-        }
+        /* Simple table borders */
         table {
           border-collapse: collapse;
           width: 100%;
+          margin: 1em 0;
         }
         th, td {
-          border: 1px solid #e5e7eb;
+          border: 1px solid #ddd;
           padding: 8px;
           text-align: left;
         }
         th {
-          background-color: #f3f4f6;
+          background-color: #f5f5f5;
+        }
+        /* Page break control */
+        h2, h3 {
+          page-break-after: avoid;
+        }
+        .vuln-card {
+          page-break-inside: avoid;
+          margin-bottom: 20px;
         }
       `}</style>
 
-      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none">
+      {/* Main container – same for web and print, but print overrides */}
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none print:p-0">
         {/* Header with actions (web only) */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
           <h2 className="text-xl font-bold flex items-center gap-2">
@@ -259,21 +284,21 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
             Executive Summary
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 bg-muted/30 rounded-lg border print:border-0">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Total Vulnerabilities</p>
               <p className="text-2xl font-bold">{report.summary.total_vulnerabilities}</p>
             </div>
-            <div className="p-4 bg-muted/30 rounded-lg border print:border-0">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Risk Level</p>
               <p className={`text-2xl font-bold ${getRiskColor(report.summary.risk_level)}`}>
                 {report.summary.risk_level.toUpperCase()}
               </p>
             </div>
-            <div className="p-4 bg-muted/30 rounded-lg border print:border-0">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Tests Blocked</p>
               <p className="text-2xl font-bold">{report.summary.blocked_tests}</p>
             </div>
-            <div className="p-4 bg-muted/30 rounded-lg border print:border-0">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Average CVSS</p>
               <p className="text-2xl font-bold">
                 {report.vulnerabilities.length > 0
@@ -284,7 +309,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           </div>
         </div>
 
-        {/* Basic info grid */}
+        {/* Target Info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
           <div className="space-y-1">
             <p className="text-muted-foreground">Website URL</p>
@@ -332,6 +357,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                 <thead>
                   <tr className="border-b border-border print:border-gray-300">
                     <th className="text-left py-2 px-3">Test</th>
+                    <th className="text-left py-2 px-3">Description</th>
                     <th className="text-left py-2 px-3">Status</th>
                     <th className="text-left py-2 px-3">Details</th>
                   </tr>
@@ -340,6 +366,9 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                   {Object.entries(report.test_summary).map(([testName, info]) => (
                     <tr key={testName} className="border-b border-border/50 print:border-gray-200">
                       <td className="py-2 px-3 font-medium">{testName}</td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground">
+                        {TEST_DESCRIPTIONS[testName] || "No description available."}
+                      </td>
                       <td className="py-2 px-3">{getStatusBadge(info.status)}</td>
                       <td className="py-2 px-3 text-muted-foreground">{info.details || "-"}</td>
                     </tr>
@@ -350,18 +379,20 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           </div>
         )}
 
-        {/* Vulnerabilities List */}
+        {/* Vulnerabilities List – always fully expanded in print */}
         {report.vulnerabilities.length > 0 ? (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">Vulnerabilities Found</h3>
             <div className="space-y-3">
               {report.vulnerabilities.map((vuln, idx) => {
-                const isExpanded = expandedVuln === idx;
+                // For web, we allow expand/collapse; for print, always show full.
+                const showDetails = expandedVuln === idx;
                 return (
-                  <div key={idx} className="border border-border rounded-lg p-4 print:border-0 print:shadow-none print:mb-4 print:break-inside-avoid">
+                  <div key={idx} className="border border-border rounded-lg p-4 print:border print:border-gray-200 print:shadow-none print:mb-4 print:break-inside-avoid">
+                    {/* Clickable header for web */}
                     <div
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer"
-                      onClick={() => setExpandedVuln(isExpanded ? null : idx)}
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer no-print"
+                      onClick={() => setExpandedVuln(showDetails ? null : idx)}
                     >
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5 flex-shrink-0" />
@@ -374,73 +405,87 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                         <Badge className={`${getCVSSColor(vuln.cvss_score)} text-xs`}>
                           CVSS {vuln.cvss_score}
                         </Badge>
-                        {isExpanded ? (
+                        {showDetails ? (
                           <ChevronUp className="w-4 h-4 text-muted-foreground" />
                         ) : (
                           <ChevronDown className="w-4 h-4 text-muted-foreground" />
                         )}
                       </div>
                     </div>
-                    {(isExpanded || true) && ( // Always show in print
-                      <div className={`mt-3 space-y-4 ${!isExpanded ? 'hidden print:block' : ''}`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-                          <div>
-                            <p className="text-muted-foreground">OWASP Category</p>
-                            <p className="font-medium">{vuln.owasp}</p>
-                          </div>
-                          {vuln.parameter && (
-                            <div>
-                              <p className="text-muted-foreground">Parameter</p>
-                              <p className="font-medium break-all">{vuln.parameter}</p>
-                            </div>
-                          )}
-                          {vuln.payload && (
-                            <div className="col-span-1 sm:col-span-2">
-                              <p className="text-muted-foreground">Payload</p>
-                              <code className="mt-1 block bg-muted p-2 rounded text-xs font-mono break-all">
-                                {vuln.payload}
-                              </code>
-                            </div>
-                          )}
-                        </div>
 
-                        {/* Remediation */}
+                    {/* Print header (static) */}
+                    <div className="hidden print:block mb-2">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5" />
                         <div>
-                          <h4 className="font-medium mb-1 flex items-center gap-1">
-                            <Info className="w-4 h-4 text-primary" />
-                            How to Fix
-                          </h4>
-                          <p className="text-sm text-muted-foreground">
-                            {getRemediation(vuln)}
-                          </p>
+                          <span className="font-bold">{vuln.vulnerability}</span>
+                          <div className="text-xs text-gray-600">{vuln.endpoint}</div>
                         </div>
+                        <Badge className={`${getCVSSColor(vuln.cvss_score)} text-xs ml-auto`}>
+                          CVSS {vuln.cvss_score}
+                        </Badge>
+                      </div>
+                    </div>
 
-                        {/* Evidence */}
-                        {(vuln.raw_request || vuln.raw_response) && (
+                    {/* Details – always visible in print, conditionally in web */}
+                            <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+                        <div>
+                          <p className="text-muted-foreground">OWASP Category</p>
+                          <p className="font-medium">{vuln.owasp}</p>
+                        </div>
+                        {vuln.parameter && (
                           <div>
-                            <h4 className="font-medium mb-2">Evidence</h4>
-                            <div className="space-y-3">
-                              {vuln.raw_request && (
-                                <div>
-                                  <p className="text-sm text-muted-foreground mb-1">Request:</p>
-                                  <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
-                                    {JSON.stringify(vuln.raw_request, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-                              {vuln.raw_response && (
-                                <div>
-                                  <p className="text-sm text-muted-foreground mb-1">Response:</p>
-                                  <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
-                                    {JSON.stringify(vuln.raw_response, null, 2)}
-                                  </pre>
-                                </div>
-                              )}
-                            </div>
+                            <p className="text-muted-foreground">Parameter</p>
+                            <p className="font-medium break-all">{vuln.parameter}</p>
+                          </div>
+                        )}
+                        {vuln.payload && (
+                          <div className="col-span-1 sm:col-span-2">
+                            <p className="text-muted-foreground">Payload</p>
+                            <code className="mt-1 block bg-muted p-2 rounded text-xs font-mono break-all">
+                              {vuln.payload}
+                            </code>
                           </div>
                         )}
                       </div>
-                    )}
+
+                      {/* Remediation */}
+                      <div>
+                        <h4 className="font-medium mb-1 flex items-center gap-1">
+                          <Info className="w-4 h-4 text-primary" />
+                          How to Fix
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {getRemediation(vuln)}
+                        </p>
+                      </div>
+
+                      {/* Evidence (optional) */}
+                      {(vuln.raw_request || vuln.raw_response) && (
+                        <div>
+                          <h4 className="font-medium mb-2">Evidence</h4>
+                          <div className="space-y-3">
+                            {vuln.raw_request && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Request:</p>
+                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
+                                  {JSON.stringify(vuln.raw_request, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                            {vuln.raw_response && (
+                              <div>
+                                <p className="text-sm text-muted-foreground mb-1">Response:</p>
+                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
+                                  {JSON.stringify(vuln.raw_response, null, 2)}
+                                </pre>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 );
               })}
@@ -453,7 +498,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           </div>
         )}
 
-        {/* Print footer */}
+        {/* Print footer (appears only at the end of print) */}
         <div className="hidden print:block text-xs text-center text-gray-500 mt-8 pt-4 border-t border-gray-300">
           <p>Report generated by GROWHAZ Alpha G2 Professional Scanner on {formatDate(report.timestamp)}</p>
           <p className="mt-1">This is a computer-generated report. For queries, contact support@growhaz.com</p>
@@ -464,5 +509,4 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 };
 
 export default SecurityReportComponent;
-
-      
+                              
