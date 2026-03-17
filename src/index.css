@@ -1,8 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 @layer base {
   :root {
@@ -152,11 +152,11 @@
     mask-composite: exclude;
     pointer-events: none;
   }
-/*
+
   .glow-effect {
     box-shadow: var(--shadow-glow);
   }
-*/
+
   .card-hover {
     @apply transition-all duration-300;
   }
@@ -166,6 +166,13 @@
     box-shadow: var(--shadow-card), var(--shadow-glow);
   }
 
+ /* .grid-pattern {
+    background-image: 
+      linear-gradient(hsl(var(--border) / 0.3) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.3) 1px, transparent 1px);
+    background-size: 60px 60px;
+  }
+*/
   .section-container {
     @apply container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24;
   }
