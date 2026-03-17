@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Shield, 
   AlertTriangle, 
@@ -15,8 +15,7 @@ import {
   ChevronUp,
   Copy,
   ExternalLink,
-  Info,
-  Printer
+  Info
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -100,7 +99,6 @@ interface SecurityReportProps {
 
 const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExport, onShare }) => {
   const [expandedVuln, setExpandedVuln] = useState<number | null>(null);
-  const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     console.log("Vulnerabilities array length:", report.vulnerabilities.length);
@@ -147,14 +145,6 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
     });
   };
 
-  const formatDateLong = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
   };
@@ -173,452 +163,55 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
   const handleDownloadPDF = () => {
     const originalTitle = document.title;
     document.title = `security-report-${getSanitizedUrl(report.base_url)}`;
-    
-    // Trigger print
     window.print();
-    
-    setTimeout(() => { 
-      document.title = originalTitle; 
-    }, 1000);
+    setTimeout(() => { document.title = originalTitle; }, 1000);
   };
 
   return (
     <>
-      {/* Print-specific styles - completely separate from UI */}
       <style type="text/css" media="print">{`
         @page {
           size: A4;
-          margin: 2cm;
+          margin: 1.5cm;
+          @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 10pt;
+            color: #666;
+          }
         }
-        
-        /* Hide all web UI elements when printing */
-        body * {
-          visibility: hidden;
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          counter-reset: page;
         }
-        
-        /* Show only the print container */
-        #print-container, #print-container * {
-          visibility: visible;
+        .no-print { display: none !important; }
+        .print-only { display: block !important; }
+        .print-break-inside { break-inside: avoid; }
+        .border, .shadow-md, .shadow-xl, .bg-card {
+          border: none !important;
+          box-shadow: none !important;
+          background: white !important;
         }
-        
-        #print-container {
-          position: absolute;
-          left: 0;
-          top: 0;
-          width: 100%;
-          background: white;
-          color: black;
-          font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          line-height: 1.5;
-          padding: 0;
-        }
-        
-        /* Print-specific styling */
-        .print-cover-page {
-          text-align: center;
-          margin-bottom: 30px;
-          page-break-after: avoid;
-        }
-        
-        .print-cover-page h1 {
-          font-size: 28pt;
-          color: #1e3a8a;
-          margin-bottom: 10px;
-        }
-        
-        .print-cover-page h2 {
-          font-size: 20pt;
-          color: #4b5563;
-          margin-bottom: 30px;
-        }
-        
-        .print-border-line {
-          border-top: 2px solid #d1d5db;
-          border-bottom: 2px solid #d1d5db;
-          padding: 20px;
-          margin: 30px 0;
-        }
-        
-        .print-section {
-          margin-bottom: 30px;
-          page-break-inside: avoid;
-        }
-        
-        .print-section h2 {
-          font-size: 18pt;
-          color: #1e3a8a;
-          border-bottom: 2px solid #1e3a8a;
-          padding-bottom: 5px;
-          margin-bottom: 15px;
-        }
-        
-        .print-section h3 {
-          font-size: 14pt;
-          color: #374151;
-          margin: 15px 0 10px;
-        }
-        
-        .print-table {
-          width: 100%;
+        table {
           border-collapse: collapse;
-          margin: 15px 0;
-          font-size: 11pt;
+          width: 100%;
+          margin: 1em 0;
         }
-        
-        .print-table th {
-          background-color: #f3f4f6;
-          border: 1px solid #e5e7eb;
-          padding: 8px 12px;
+        th, td {
+          border: 1px solid #ddd;
+          padding: 8px;
           text-align: left;
-          font-weight: 600;
         }
-        
-        .print-table td {
-          border: 1px solid #e5e7eb;
-          padding: 8px 12px;
-        }
-        
-        .print-vuln-card {
-          border: 1px solid #e5e7eb;
-          border-radius: 4px;
-          padding: 15px;
-          margin-bottom: 15px;
-          page-break-inside: avoid;
-        }
-        
-        .print-risk-badge {
-          display: inline-block;
-          padding: 3px 8px;
-          border-radius: 4px;
-          font-size: 10pt;
-          font-weight: 500;
-        }
-        
-        .print-risk-high {
-          background-color: #fee2e2;
-          color: #991b1b;
-        }
-        
-        .print-risk-medium {
-          background-color: #fef3c7;
-          color: #92400e;
-        }
-        
-        .print-risk-low {
-          background-color: #d1fae5;
-          color: #065f46;
-        }
-        
-        .print-footer {
-          text-align: center;
-          font-size: 9pt;
-          color: #6b7280;
-          margin-top: 40px;
-          padding-top: 20px;
-          border-top: 1px solid #e5e7eb;
-        }
-        
-        .print-page-break {
-          page-break-before: always;
-        }
-        
-        .print-avoid-break {
-          page-break-inside: avoid;
-        }
-        
-        pre {
-          background: #f9fafb;
-          border: 1px solid #e5e7eb;
-          border-radius: 4px;
-          padding: 10px;
-          font-size: 9pt;
-          white-space: pre-wrap;
-        }
+        th { background-color: #f5f5f5; }
+        h2, h3 { page-break-after: avoid; }
+        .vuln-card { page-break-inside: avoid; margin-bottom: 20px; }
+        .vuln-details { display: block !important; }
       `}</style>
 
-      {/* Print Container - Hidden on screen, visible only when printing */}
-      <div id="print-container" style={{ display: 'none' }} aria-hidden="true">
-        {/* Cover Page */}
-        <div className="print-cover-page">
-          <h1>Alpha G2 Security Report</h1>
-          <h2>Security Assessment Report</h2>
-          <div className="print-border-line">
-            <p style={{ margin: '5px 0' }}>Website: {report.base_url}</p>
-            <p style={{ margin: '5px 0' }}>Report ID: {report.test_run_id}</p>
-            <p style={{ margin: '5px 0' }}>Date: {formatDateLong(report.timestamp)}</p>
-          </div>
-          <p style={{ color: '#6b7280' }}>GROWHAZ Professional Security Scanner</p>
-        </div>
-
-        {/* Table of Contents */}
-        <div className="print-section print-page-break">
-          <h2>Table of Contents</h2>
-          <ul style={{ listStyle: 'none', padding: 0 }}>
-            <li style={{ margin: '8px 0' }}>1. Executive Summary</li>
-            <li style={{ margin: '8px 0' }}>2. Target Information</li>
-            <li style={{ margin: '8px 0' }}>3. Test Summary</li>
-            <li style={{ margin: '8px 0' }}>4. Vulnerabilities Found</li>
-            <li style={{ margin: '8px 0' }}>5. Appendices</li>
-            <li style={{ margin: '8px 0' }}>6. Approval</li>
-          </ul>
-        </div>
-
-        {/* Executive Summary */}
-        <div className="print-section">
-          <h2>1. Executive Summary</h2>
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th style={{ width: '50%' }}>Metric</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Total Vulnerabilities</td>
-                <td><strong>{report.summary.total_vulnerabilities}</strong></td>
-              </tr>
-              <tr>
-                <td>Risk Level</td>
-                <td>
-                  <span className={`print-risk-badge ${
-                    report.summary.risk_level === 'high' ? 'print-risk-high' :
-                    report.summary.risk_level === 'medium' ? 'print-risk-medium' : 'print-risk-low'
-                  }`}>
-                    {report.summary.risk_level.toUpperCase()}
-                  </span>
-                </td>
-              </tr>
-              <tr>
-                <td>Tests Blocked</td>
-                <td>{report.summary.blocked_tests}</td>
-              </tr>
-              <tr>
-                <td>Average CVSS Score</td>
-                <td>
-                  {report.vulnerabilities.length > 0
-                    ? (report.vulnerabilities.reduce((acc, v) => acc + v.cvss_score, 0) / report.vulnerabilities.length).toFixed(1)
-                    : '0.0'}
-                </td>
-              </tr>
-              <tr>
-                <td>Scan Completed</td>
-                <td>{report.summary.scan_completed ? 'Yes' : 'No'}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Target Information */}
-        <div className="print-section">
-          <h2>2. Target Information</h2>
-          <table className="print-table">
-            <tbody>
-              <tr>
-                <th style={{ width: '30%' }}>Field</th>
-                <th>Details</th>
-              </tr>
-              <tr>
-                <td>Website URL</td>
-                <td>{report.base_url}</td>
-              </tr>
-              <tr>
-                <td>Scan Type</td>
-                <td>Alpha G2 Professional Security Scan</td>
-              </tr>
-              <tr>
-                <td>Scan Date</td>
-                <td>{formatDateLong(report.timestamp)}</td>
-              </tr>
-              <tr>
-                <td>Scan ID</td>
-                <td style={{ fontFamily: 'monospace' }}>{report.test_run_id}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Test Summary */}
-        {Object.keys(report.test_summary).length > 0 && (
-          <div className="print-section">
-            <h2>3. Test Summary</h2>
-            <table className="print-table">
-              <thead>
-                <tr>
-                  <th>Test Name</th>
-                  <th>Status</th>
-                  <th>Details</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(report.test_summary).map(([testName, info]) => (
-                  <tr key={testName}>
-                    <td>{testName}</td>
-                    <td>
-                      <span className={`print-risk-badge ${
-                        info.status === 'VULNERABLE' ? 'print-risk-high' :
-                        info.status === 'SECURE' ? 'print-risk-low' :
-                        info.status === 'BLOCKED' ? 'print-risk-medium' : 'print-risk-medium'
-                      }`}>
-                        {info.status}
-                      </span>
-                    </td>
-                    <td>{info.details || '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {/* Vulnerabilities */}
-        <div className="print-section">
-          <h2>4. Vulnerabilities Found</h2>
-          {report.vulnerabilities.length > 0 ? (
-            report.vulnerabilities.map((vuln, idx) => (
-              <div key={idx} className="print-vuln-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '10px' }}>
-                  <div>
-                    <h3 style={{ margin: '0 0 5px 0', fontSize: '14pt' }}>{vuln.vulnerability}</h3>
-                    <p style={{ fontFamily: 'monospace', fontSize: '10pt', color: '#4b5563', margin: 0 }}>
-                      {vuln.endpoint}
-                    </p>
-                  </div>
-                  <span className={`print-risk-badge ${
-                    vuln.cvss_score >= 7 ? 'print-risk-high' :
-                    vuln.cvss_score >= 4 ? 'print-risk-medium' : 'print-risk-low'
-                  }`}>
-                    CVSS {vuln.cvss_score}
-                  </span>
-                </div>
-                
-                <table className="print-table" style={{ margin: '10px 0' }}>
-                  <tbody>
-                    <tr>
-                      <th style={{ width: '20%' }}>OWASP</th>
-                      <td>{vuln.owasp}</td>
-                    </tr>
-                    {vuln.parameter && (
-                      <tr>
-                        <th>Parameter</th>
-                        <td>{vuln.parameter}</td>
-                      </tr>
-                    )}
-                    {vuln.payload && (
-                      <tr>
-                        <th>Payload</th>
-                        <td><pre style={{ margin: 0 }}>{vuln.payload}</pre></td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-                
-                <div style={{ marginTop: '10px' }}>
-                  <h4 style={{ margin: '0 0 5px 0', fontSize: '12pt' }}>Remediation</h4>
-                  <p style={{ margin: 0, padding: '10px', background: '#f9fafb', borderRadius: '4px' }}>
-                    {getRemediation(vuln)}
-                  </p>
-                </div>
-              </div>
-            ))
-          ) : (
-            <p style={{ textAlign: 'center', padding: '30px', background: '#f9fafb', borderRadius: '4px' }}>
-              No vulnerabilities were found during this scan.
-            </p>
-          )}
-        </div>
-
-        {/* Appendices */}
-        <div className="print-section print-page-break">
-          <h2>5. Appendices</h2>
-          
-          <h3>5.1 CVSS Scoring Guide</h3>
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th>Severity</th>
-                <th>CVSS Score Range</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td><span className="print-risk-badge print-risk-low">Low</span></td>
-                <td>0.0 - 3.9</td>
-              </tr>
-              <tr>
-                <td><span className="print-risk-badge print-risk-medium">Medium</span></td>
-                <td>4.0 - 6.9</td>
-              </tr>
-              <tr>
-                <td><span className="print-risk-badge print-risk-high">High</span></td>
-                <td>7.0 - 8.9</td>
-              </tr>
-              <tr>
-                <td><span className="print-risk-badge" style={{ backgroundColor: '#ef4444', color: 'white' }}>Critical</span></td>
-                <td>9.0 - 10.0</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <h3>5.2 Scan Configuration</h3>
-          <table className="print-table">
-            <tbody>
-              <tr>
-                <th style={{ width: '30%' }}>Scanner Version</th>
-                <td>Alpha G2 Professional v2.1.0</td>
-              </tr>
-              <tr>
-                <th>Scan Depth</th>
-                <td>Standard</td>
-              </tr>
-              <tr>
-                <th>Tests Executed</th>
-                <td>{Object.keys(report.test_summary).length}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Approval */}
-        <div className="print-section">
-          <h2>6. Approval</h2>
-          <table className="print-table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Role</th>
-                <th>Signature</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Security Team</td>
-                <td>Lead Auditor</td>
-                <td></td>
-                <td>{formatDateLong(report.timestamp)}</td>
-              </tr>
-              <tr>
-                <td>Client Representative</td>
-                <td>System Owner</td>
-                <td></td>
-                <td></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        {/* Footer */}
-        <div className="print-footer">
-          <p>Report generated by GROWHAZ Alpha G2 Professional Scanner</p>
-          <p>This is a computer-generated report. For queries, contact support@growhaz.com</p>
-        </div>
-      </div>
-
-      {/* Original Web UI - Completely unchanged */}
-      <div ref={printRef} className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none print:p-0">
         {/* Web header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
             Alpha G2 Security Report
@@ -635,8 +228,25 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-1">
-              <Printer className="w-4 h-4" /> Download PDF
+              <Download className="w-4 h-4" /> Download PDF
             </Button>
+          </div>
+        </div>
+
+        {/* Print header with logo */}
+        <div className="hidden print:block mb-8">
+          <div className="flex items-center justify-between border-b border-gray-300 pb-4">
+            <div className="flex items-center space-x-4">
+              <img src="/favicon.ico" alt="GROWHAZ Logo" className="w-12 h-12" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Alpha G2 Security Report</h1>
+                <p className="text-sm text-gray-600">GROWHAZ Professional Scanner</p>
+              </div>
+            </div>
+            <div className="text-right text-sm text-gray-600">
+              <p>Report ID: {report.test_run_id.slice(0, 8)}</p>
+              <p>Generated: {formatDate(report.timestamp)}</p>
+            </div>
           </div>
         </div>
 
@@ -647,21 +257,21 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
             Executive Summary
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="p-4 bg-muted/30 rounded-lg border">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Total Vulnerabilities</p>
               <p className="text-2xl font-bold">{report.summary.total_vulnerabilities}</p>
             </div>
-            <div className="p-4 bg-muted/30 rounded-lg border">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Risk Level</p>
               <p className={`text-2xl font-bold ${getRiskColor(report.summary.risk_level)}`}>
                 {report.summary.risk_level.toUpperCase()}
               </p>
             </div>
-            <div className="p-4 bg-muted/30 rounded-lg border">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Tests Blocked</p>
               <p className="text-2xl font-bold">{report.summary.blocked_tests}</p>
             </div>
-            <div className="p-4 bg-muted/30 rounded-lg border">
+            <div className="p-4 bg-muted/30 rounded-lg border print:border print:border-gray-200 print:bg-gray-50">
               <p className="text-sm text-muted-foreground">Average CVSS</p>
               <p className="text-2xl font-bold">
                 {report.vulnerabilities.length > 0
@@ -700,7 +310,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
             <p className="text-muted-foreground">Scan ID</p>
             <div className="flex items-center gap-2">
               <code className="bg-muted px-2 py-1 rounded text-xs">{report.test_run_id.slice(0, 8)}</code>
-              <button onClick={() => copyToClipboard(report.test_run_id)} className="text-muted-foreground hover:text-primary">
+              <button onClick={() => copyToClipboard(report.test_run_id)} className="text-muted-foreground hover:text-primary no-print">
                 <Copy className="w-4 h-4" />
               </button>
             </div>
@@ -714,7 +324,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
-                  <tr className="border-b border-border">
+                  <tr className="border-b border-border print:border-gray-300">
                     <th className="text-left py-2 px-3">Test</th>
                     <th className="text-left py-2 px-3">Description</th>
                     <th className="text-left py-2 px-3">Status</th>
@@ -723,7 +333,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                 </thead>
                 <tbody>
                   {Object.entries(report.test_summary).map(([testName, info]) => (
-                    <tr key={testName} className="border-b border-border/50">
+                    <tr key={testName} className="border-b border-border/50 print:border-gray-200">
                       <td className="py-2 px-3 font-medium">{testName}</td>
                       <td className="py-2 px-3 text-xs text-muted-foreground">
                         {TEST_DESCRIPTIONS[testName] || "No description available."}
@@ -746,10 +356,10 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
               {report.vulnerabilities.map((vuln, idx) => {
                 const showDetails = expandedVuln === idx;
                 return (
-                  <div key={idx} className="border border-border rounded-lg p-4">
+                  <div key={idx} className="border border-border rounded-lg p-4 print:border print:border-gray-200 print:shadow-none print:mb-4 print:break-inside-avoid vuln-card">
                     {/* Web interactive header */}
                     <div
-                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer"
+                      className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer no-print"
                       onClick={() => setExpandedVuln(showDetails ? null : idx)}
                     >
                       <div className="flex items-start gap-2">
@@ -767,8 +377,22 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                       </div>
                     </div>
 
-                    {/* Details */}
-                    <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden' : ''}`}>
+                    {/* Static print header */}
+                    <div className="hidden print:block mb-2">
+                      <div className="flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5" />
+                        <div>
+                          <span className="font-bold">{vuln.vulnerability}</span>
+                          <div className="text-xs text-gray-600">{vuln.endpoint}</div>
+                        </div>
+                        <Badge className={`${getCVSSColor(vuln.cvss_score)} text-xs ml-auto`}>
+                          CVSS {vuln.cvss_score}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    {/* Details – always visible in print, toggleable in web */}
+                    <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">OWASP Category</p>
@@ -805,7 +429,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                             {vuln.raw_request && (
                               <div>
                                 <p className="text-sm text-muted-foreground mb-1">Request:</p>
-                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto">
+                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
                                   {JSON.stringify(vuln.raw_request, null, 2)}
                                 </pre>
                               </div>
@@ -813,7 +437,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                             {vuln.raw_response && (
                               <div>
                                 <p className="text-sm text-muted-foreground mb-1">Response:</p>
-                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto">
+                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
                                   {JSON.stringify(vuln.raw_response, null, 2)}
                                 </pre>
                               </div>
@@ -833,9 +457,16 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
             <span>No vulnerabilities found</span>
           </div>
         )}
+
+        {/* Print footer (only once) */}
+        <div className="hidden print:block text-xs text-center text-gray-500 mt-8 pt-4 border-t border-gray-300">
+          <p>Report generated by GROWHAZ Alpha G2 Professional Scanner on {formatDate(report.timestamp)}</p>
+          <p className="mt-1">This is a computer‑generated report. For queries, contact support@growhaz.com</p>
+        </div>
       </div>
     </>
   );
 };
 
 export default SecurityReportComponent;
+                    
