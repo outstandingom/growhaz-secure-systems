@@ -24,9 +24,12 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['lucide-react', 'framer-motion', 'clsx', 'tailwind-merge'],
+        manualChunks(id) {
+          // This is a "safer" way to split code without naming specific libraries
+          // It automatically moves all node_modules into a separate 'vendor' file
+          if (id.includes('node_modules')) {
+            return 'vendor';
+          }
         },
       },
     },
