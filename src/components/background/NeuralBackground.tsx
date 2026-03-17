@@ -20,18 +20,8 @@ function isWebGLAvailable(): boolean {
 
 function isLowPowerDevice(): boolean {
   if (typeof window === "undefined") return false;
-
   const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  
-  // NOTE: Temporarily commented out for development so it renders reliably.
-  // Uncomment before pushing to production if you want strict performance limits.
-  // const smallScreen = window.matchMedia("(max-width: 900px)").matches;
-  // const lowMemory = typeof navigator !== "undefined" && "deviceMemory" in navigator
-  //   ? (navigator as Navigator & { deviceMemory?: number }).deviceMemory! <= 4
-  //   : false;
-  // const lowCpu = typeof navigator !== "undefined" && navigator.hardwareConcurrency <= 4;
-
-  return reducedMotion; // || smallScreen || lowMemory || lowCpu;
+  return reducedMotion;
 }
 
 function createGlowTexture(): THREE.CanvasTexture {
@@ -64,7 +54,6 @@ function Comet({ data, onDead }: { data: CometData; onDead: (id: number) => void
 
   useFrame(() => {
     const c = cometData.current;
-
     c.position.add(c.velocity);
     c.velocity.multiplyScalar(0.98);
 
@@ -143,7 +132,6 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
   const { starPositions, linePositions } = useMemo(() => {
     const positions: number[] = [];
     const radius = 120;
-
     for (let i = 0; i < starCount; i++) {
       const phi = Math.acos(-1 + (2 * i) / starCount);
       const theta = Math.sqrt(starCount * Math.PI) * phi;
@@ -153,7 +141,6 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
         radius * Math.cos(phi),
       );
     }
-
     const linePos: number[] = [];
     for (let i = 0; i < starCount; i++) {
       for (let j = i + 1; j < starCount; j++) {
@@ -161,14 +148,12 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
         const dy = positions[i * 3 + 1] - positions[j * 3 + 1];
         const dz = positions[i * 3 + 2] - positions[j * 3 + 2];
         const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-
         if (dist < connectionDistance) {
           linePos.push(positions[i * 3], positions[i * 3 + 1], positions[i * 3 + 2]);
           linePos.push(positions[j * 3], positions[j * 3 + 1], positions[j * 3 + 2]);
         }
       }
     }
-
     return {
       starPositions: new Float32Array(positions),
       linePositions: new Float32Array(linePos),
@@ -177,25 +162,19 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
 
   const shedSkin = () => {
     if (!starsRef.current || !groupRef.current || reducedMotion) return;
-
     const positions = starsRef.current.geometry.attributes.position.array;
     const worldMatrix = starsRef.current.matrixWorld;
     const count = positions.length / 3;
     const oldColorHex = currentColor.current.getHex();
-
     const newComets: CometData[] = [];
-
     for (let i = 0; i < count; i += 3) {
       const x = positions[i * 3];
       const y = positions[i * 3 + 1];
       const z = positions[i * 3 + 2];
-
       const vector = new THREE.Vector3(x, y, z).applyMatrix4(worldMatrix);
       const direction = vector.clone().normalize().multiplyScalar(Math.random() * 10 + 5);
-
       const trailHistory: THREE.Vector3[] = [];
       for (let j = 0; j < 15; j++) trailHistory.push(vector.clone());
-
       newComets.push({
         id: cometIdRef.current++,
         position: vector.clone(),
@@ -205,26 +184,18 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
         trailHistory,
       });
     }
-
     setComets((prev) => [...prev, ...newComets]);
-
     const hue = Math.random();
     currentColor.current.setHSL(hue, 1, 0.6);
-    if (starsRef.current) {
-      (starsRef.current.material as THREE.PointsMaterial).color.set(currentColor.current);
-    }
-    if (linesRef.current) {
-      (linesRef.current.material as THREE.LineBasicMaterial).color.set(currentColor.current);
-    }
+    if (starsRef.current) (starsRef.current.material as THREE.PointsMaterial).color.set(currentColor.current);
+    if (linesRef.current) (linesRef.current.material as THREE.LineBasicMaterial).color.set(currentColor.current);
   };
 
   useEffect(() => {
     if (reducedMotion) return;
-
     const handleClick = () => shedSkin();
     gl.domElement.addEventListener("mousedown", handleClick);
     gl.domElement.addEventListener("touchstart", handleClick, { passive: true });
-
     return () => {
       gl.domElement.removeEventListener("mousedown", handleClick);
       gl.domElement.removeEventListener("touchstart", handleClick);
@@ -233,14 +204,11 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
 
   useFrame(() => {
     if (!groupRef.current) return;
-
     if (!reducedMotion) {
       const scrollY = window.pageYOffset;
       const scrollP = scrollY / (document.body.scrollHeight - window.innerHeight || 1);
-
       groupRef.current.rotation.y += 0.004;
       groupRef.current.rotation.x += 0.0015;
-
       const scale = 1 + scrollP * 3.5;
       groupRef.current.scale.set(scale, scale, scale);
     }
@@ -271,7 +239,6 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
             depthWrite={false}
           />
         </points>
-
         <lineSegments ref={linesRef}>
           <bufferGeometry>
             <bufferAttribute
@@ -284,7 +251,6 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
           <lineBasicMaterial color={currentColor.current} transparent opacity={0.18} blending={THREE.AdditiveBlending} />
         </lineSegments>
       </group>
-
       {comets.map((comet) => (
         <Comet key={comet.id} data={comet} onDead={removeComet} />
       ))}
@@ -294,19 +260,8 @@ function NeuralCore({ starCount, connectionDistance, reducedMotion }: NeuralCore
 
 function FallbackBackground() {
   return (
-    <div
-      className="fixed inset-0 z-0"
-      style={{
-        background: "radial-gradient(ellipse at center, #0a1628 0%, #010103 70%)",
-      }}
-    >
-      <div
-        className="absolute inset-0 opacity-30"
-        style={{
-          background:
-            "radial-gradient(circle at 30% 40%, rgba(0, 210, 255, 0.15) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(147, 51, 234, 0.1) 0%, transparent 50%)",
-        }}
-      />
+    <div className="fixed inset-0 z-0" style={{ background: "radial-gradient(ellipse at center, #0a1628 0%, #010103 70%)" }}>
+      <div className="absolute inset-0 opacity-30" style={{ background: "radial-gradient(circle at 30% 40%, rgba(0, 210, 255, 0.15) 0%, transparent 50%), radial-gradient(circle at 70% 60%, rgba(147, 51, 234, 0.1) 0%, transparent 50%)" }} />
     </div>
   );
 }
@@ -322,13 +277,8 @@ export function NeuralBackground() {
     setUseLiteMode(isLowPowerDevice());
   }, []);
 
-  if (webGLSupported === null) {
-    return <div className="fixed inset-0 z-0" style={{ background: "#010103" }} />;
-  }
-
-  if (!webGLSupported || useLiteMode) {
-    return <FallbackBackground />;
-  }
+  if (webGLSupported === null) return <div className="fixed inset-0 z-0" style={{ background: "#010103" }} />;
+  if (!webGLSupported || useLiteMode) return <FallbackBackground />;
 
   return (
     <div className="fixed inset-0 z-0" style={{ background: "#010103" }}>
@@ -336,15 +286,13 @@ export function NeuralBackground() {
         dpr={[1, 1.5]}
         camera={{ position: [0, 0, 500], fov: 60, near: 1, far: 3000 }}
         gl={{ antialias: false, alpha: true, powerPreference: "high-performance" }}
-        onCreated={({ gl }) => {
-          gl.setClearColor(0x010103, 1);
-        }}
+        onCreated={({ gl }) => { gl.setClearColor(0x010103, 1); }}
         fallback={<FallbackBackground />}
       >
         <fog attach="fog" args={[0x010103, 0, 1000]} />
         <NeuralCore starCount={STAR_COUNT} connectionDistance={48} reducedMotion={reducedMotion} />
       </Canvas>
-      <div className="absolute inset-0 pointer-events-none" />
     </div>
   );
-        }
+      }
+    
