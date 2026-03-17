@@ -152,11 +152,11 @@
     mask-composite: exclude;
     pointer-events: none;
   }
-
+/*
   .glow-effect {
     box-shadow: var(--shadow-glow);
   }
-
+*/
   .card-hover {
     @apply transition-all duration-300;
   }
