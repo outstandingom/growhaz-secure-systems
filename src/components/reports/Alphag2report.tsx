@@ -1,18 +1,21 @@
-import React, { useState } from 'react';
-import {
-  Shield,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
+import React, { useState, useEffect } from 'react';
+import { 
+  Shield, 
+  AlertTriangle, 
+  CheckCircle, 
+  XCircle, 
+  AlertCircle,
   Download,
   Share2,
   Clock,
+  Target,
   Globe,
-  Info,
+  FileText,
   ChevronDown,
   ChevronUp,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Info
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -97,7 +100,10 @@ interface SecurityReportProps {
 const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExport, onShare }) => {
   const [expandedVuln, setExpandedVuln] = useState<number | null>(null);
 
-  // Helper functions
+  useEffect(() => {
+    console.log("Vulnerabilities array length:", report.vulnerabilities.length);
+  }, [report]);
+
   const getRiskColor = (level: string) => {
     switch (level?.toLowerCase()) {
       case "low": return "text-emerald-400";
@@ -154,156 +160,34 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 
   const getSanitizedUrl = (url: string) => url.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
-  // New PDF download handler using a separate print window
   const handleDownloadPDF = () => {
-    // Find the report container (we add the class "report-container" to the main div)
-    const reportElement = document.querySelector('.report-container') as HTMLElement;
-    if (!reportElement) {
-      alert('Report content not found.');
-      return;
-    }
-
-    // Clone the node to avoid modifying the live DOM
-    const reportClone = reportElement.cloneNode(true) as HTMLElement;
-
-    // Remove all interactive and non‑print elements from the clone
-    reportClone.querySelectorAll('.no-print, button, [onclick], .cursor-pointer').forEach(el => el.remove());
-
-    // Get the print styles from the main document (if any)
-    const printStyles = document.querySelector('style[media="print"]')?.outerHTML || '';
-
-    // Open a new window
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) {
-      alert('Please allow pop-ups to download the PDF.');
-      return;
-    }
-
-    // Write the print‑optimised document
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Security Report - ${getSanitizedUrl(report.base_url)}</title>
-          <meta charset="utf-8">
-          <style>
-            /* Print‑specific styles (same as before, but without media="print") */
-            @page {
-              size: A4 portrait;
-              margin: 1.5cm;
-            }
-            body {
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-              background: white;
-              color: black;
-              line-height: 1.4;
-              text-rendering: optimizeLegibility;
-              padding: 0;
-              margin: 0;
-            }
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            .vuln-details { display: block !important; }
-            .border, .shadow-md, .shadow-xl, .bg-card {
-              border: none !important;
-              box-shadow: none !important;
-              background: white !important;
-            }
-            table {
-              border-collapse: collapse;
-              width: 100%;
-              margin: 1em 0;
-              font-size: 11pt;
-            }
-            th, td {
-              border: 1px solid #ddd;
-              padding: 6px 8px;
-              text-align: left;
-            }
-            th {
-              background-color: #f5f5f5;
-              font-weight: 600;
-            }
-            .vuln-card, tr, pre, .break-inside-avoid {
-              break-inside: avoid;
-              page-break-inside: avoid;
-            }
-            pre {
-              white-space: pre-wrap;
-              word-wrap: break-word;
-              background: #f6f8fa !important;
-              border: 1px solid #ddd;
-              padding: 8px;
-              font-size: 9pt;
-            }
-            h2, h3, h4 {
-              break-after: avoid;
-              margin-top: 1.2em;
-              margin-bottom: 0.6em;
-            }
-            .print-header {
-              display: flex;
-              justify-content: space-between;
-              align-items: center;
-              border-bottom: 1px solid #ccc;
-              padding-bottom: 0.5cm;
-              margin-bottom: 1cm;
-            }
-            .print-header img {
-              max-height: 1.5cm;
-              width: auto;
-            }
-            .badge {
-              background: transparent !important;
-              border: 1px solid currentColor;
-              color: black !important;
-            }
-            .text-muted-foreground {
-              color: #333 !important;
-            }
-          </style>
-          ${printStyles}
-        </head>
-        <body>
-          ${reportClone.outerHTML}
-          <script>
-            // Automatically trigger print when content is ready
-            window.onload = function() {
-              setTimeout(() => {
-                window.print();
-                // Optionally close the window after printing (or after cancel)
-                window.onafterprint = function() { window.close(); };
-              }, 500);
-            };
-          <\/script>
-        </body>
-      </html>
-    `);
-
-    printWindow.document.close();
+    const originalTitle = document.title;
+    document.title = `security-report-${getSanitizedUrl(report.base_url)}`;
+    window.print();
+    setTimeout(() => { document.title = originalTitle; }, 1000);
   };
 
   return (
     <>
-      {/* Print styles for the main document (used only if user prints directly) */}
       <style type="text/css" media="print">{`
         @page {
-          size: A4 portrait;
+          size: A4;
           margin: 1.5cm;
+          @bottom-center {
+            content: "Page " counter(page) " of " counter(pages);
+            font-size: 10pt;
+            color: #666;
+          }
         }
         body {
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          background: white;
-          color: black;
-          line-height: 1.4;
+          counter-reset: page;
         }
         .no-print { display: none !important; }
         .print-only { display: block !important; }
-        .vuln-details { display: block !important; }
+        .print-break-inside { break-inside: avoid; }
         .border, .shadow-md, .shadow-xl, .bg-card {
           border: none !important;
           box-shadow: none !important;
@@ -313,32 +197,20 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           border-collapse: collapse;
           width: 100%;
           margin: 1em 0;
-          font-size: 11pt;
         }
         th, td {
           border: 1px solid #ddd;
-          padding: 6px 8px;
+          padding: 8px;
           text-align: left;
         }
         th { background-color: #f5f5f5; }
-        .vuln-card, tr, pre {
-          break-inside: avoid;
-          page-break-inside: avoid;
-        }
-        pre {
-          white-space: pre-wrap;
-          word-wrap: break-word;
-          background: #f6f8fa !important;
-          border: 1px solid #ddd;
-        }
-        h2, h3, h4 { break-after: avoid; }
-        .print-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ccc; padding-bottom: 0.5cm; margin-bottom: 1cm; }
-        .print-header img { max-height: 1.5cm; width: auto; }
+        h2, h3 { page-break-after: avoid; }
+        .vuln-card { page-break-inside: avoid; margin-bottom: 20px; }
+        .vuln-details { display: block !important; }
       `}</style>
 
-      {/* Main report container – note the class "report-container" for cloning */}
-      <div className="report-container bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none print:p-0">
-        {/* Web header – hidden in print */}
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none print:p-0">
+        {/* Web header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
@@ -361,18 +233,20 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
           </div>
         </div>
 
-        {/* Print header with logo – only visible in print */}
-        <div className="hidden print:block print-header">
-          <div className="flex items-center gap-4">
-            <img src="/favicon.ico" alt="GROWHAZ Logo" className="h-12 w-auto" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            <div>
-              <h1 className="text-2xl font-bold">Alpha G2 Security Report</h1>
-              <p className="text-sm text-gray-600">GROWHAZ Professional Scanner</p>
+        {/* Print header with logo */}
+        <div className="hidden print:block mb-8">
+          <div className="flex items-center justify-between border-b border-gray-300 pb-4">
+            <div className="flex items-center space-x-4">
+              <img src="/favicon.ico" alt="GROWHAZ Logo" className="w-12 h-12" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              <div>
+                <h1 className="text-2xl font-bold text-gray-800">Alpha G2 Security Report</h1>
+                <p className="text-sm text-gray-600">GROWHAZ Professional Scanner</p>
+              </div>
             </div>
-          </div>
-          <div className="text-right text-sm">
-            <p>Report ID: {report.test_run_id.slice(0, 8)}</p>
-            <p>Generated: {formatDate(report.timestamp)}</p>
+            <div className="text-right text-sm text-gray-600">
+              <p>Report ID: {report.test_run_id.slice(0, 8)}</p>
+              <p>Generated: {formatDate(report.timestamp)}</p>
+            </div>
           </div>
         </div>
 
@@ -447,7 +321,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
         {Object.keys(report.test_summary).length > 0 && (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">Test Summary</h3>
-            <div className="overflow-x-auto print:overflow-visible">
+            <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
                   <tr className="border-b border-border print:border-gray-300">
@@ -461,11 +335,11 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                   {Object.entries(report.test_summary).map(([testName, info]) => (
                     <tr key={testName} className="border-b border-border/50 print:border-gray-200">
                       <td className="py-2 px-3 font-medium">{testName}</td>
-                      <td className="py-2 px-3 text-xs text-muted-foreground print:text-gray-700">
+                      <td className="py-2 px-3 text-xs text-muted-foreground">
                         {TEST_DESCRIPTIONS[testName] || "No description available."}
                       </td>
                       <td className="py-2 px-3">{getStatusBadge(info.status)}</td>
-                      <td className="py-2 px-3 text-muted-foreground print:text-gray-700">{info.details || "-"}</td>
+                      <td className="py-2 px-3 text-muted-foreground">{info.details || "-"}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -475,7 +349,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
         )}
 
         {/* Vulnerabilities List */}
-           {report.vulnerabilities.length > 0 ? (
+        {report.vulnerabilities.length > 0 ? (
           <div className="space-y-3">
             <h3 className="text-lg font-semibold">Vulnerabilities Found</h3>
             <div className="space-y-3">
@@ -483,7 +357,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                 const showDetails = expandedVuln === idx;
                 return (
                   <div key={idx} className="border border-border rounded-lg p-4 print:border print:border-gray-200 print:shadow-none print:mb-4 print:break-inside-avoid vuln-card">
-                    {/* Web interactive header – hidden in print */}
+                    {/* Web interactive header */}
                     <div
                       className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 cursor-pointer no-print"
                       onClick={() => setExpandedVuln(showDetails ? null : idx)}
@@ -503,7 +377,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                       </div>
                     </div>
 
-                    {/* Static print header – visible only in print */}
+                    {/* Static print header */}
                     <div className="hidden print:block mb-2">
                       <div className="flex items-start gap-2">
                         <AlertTriangle className="w-4 h-4 text-red-400 mt-0.5" />
@@ -521,19 +395,19 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                     <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
-                          <p className="text-muted-foreground print:text-gray-600">OWASP Category</p>
+                          <p className="text-muted-foreground">OWASP Category</p>
                           <p className="font-medium">{vuln.owasp}</p>
                         </div>
                         {vuln.parameter && (
                           <div>
-                            <p className="text-muted-foreground print:text-gray-600">Parameter</p>
+                            <p className="text-muted-foreground">Parameter</p>
                             <p className="font-medium break-all">{vuln.parameter}</p>
                           </div>
                         )}
                         {vuln.payload && (
                           <div className="col-span-1 sm:col-span-2">
-                            <p className="text-muted-foreground print:text-gray-600">Payload</p>
-                            <code className="mt-1 block bg-muted p-2 rounded text-xs font-mono break-all print:bg-gray-100 print:border print:border-gray-300">
+                            <p className="text-muted-foreground">Payload</p>
+                            <code className="mt-1 block bg-muted p-2 rounded text-xs font-mono break-all">
                               {vuln.payload}
                             </code>
                           </div>
@@ -542,10 +416,10 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 
                       <div>
                         <h4 className="font-medium mb-1 flex items-center gap-1">
-                          <Info className="w-4 h-4 text-primary print:hidden" />
-                          <span>How to Fix</span>
+                          <Info className="w-4 h-4 text-primary" />
+                          How to Fix
                         </h4>
-                        <p className="text-sm text-muted-foreground print:text-gray-700">{getRemediation(vuln)}</p>
+                        <p className="text-sm text-muted-foreground">{getRemediation(vuln)}</p>
                       </div>
 
                       {(vuln.raw_request || vuln.raw_response) && (
@@ -554,39 +428,19 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                           <div className="space-y-3">
                             {vuln.raw_request && (
                               <div>
-                                <p className="text-sm text-muted-foreground mb-1 print:text-gray-600">Request:</p>
-                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900 print:border print:border-gray-300">
+                                <p className="text-sm text-muted-foreground mb-1">Request:</p>
+                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
                                   {JSON.stringify(vuln.raw_request, null, 2)}
                                 </pre>
                               </div>
                             )}
                             {vuln.raw_response && (
                               <div>
-                                <p className="text-sm text-muted-foreground mb-1 print:text-gray-600">Response:</p>
-                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900 print:border print:border-gray-300">
+                                <p className="text-sm text-muted-foreground mb-1">Response:</p>
+                                <pre className="bg-gray-900 text-gray-100 p-3 rounded-lg text-xs overflow-x-auto print:bg-gray-100 print:text-gray-900">
                                   {JSON.stringify(vuln.raw_response, null, 2)}
                                 </pre>
                               </div>
                             )}
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ) : (
-          <div className="text-center py-8 text-muted-foreground">
-            <CheckCircle className="w-12 h-12 mx-auto mb-3 text-emerald-500" />
-            <p className="text-lg font-medium">No vulnerabilities found</p>
-            <p className="text-sm">Your application passed all security tests.</p>
-          </div>
-        )}
-      </div>
-    </>
-  );
-};
-
-export default SecurityReportComponent;
+               
