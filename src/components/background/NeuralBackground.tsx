@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useRef, useMemo, useEffect, useState } from "react";
@@ -347,4 +348,4 @@ export function NeuralBackground() {
       <div className="absolute inset-0 pointer-events-none" />
     </div>
   );
-        }
+          }

@@ -1,0 +1,43 @@
+name: Alpha G2 Professional Security Scan
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Website URL to scan'
+        required: true
+      reportId:
+        description: 'Supabase report ID'
+        required: true
+      enable_js:
+        description: 'Enable JavaScript crawling'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+          npx playwright install chromium
+      - name: Run Alpha G2 Scanner
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          REPORT_ID: ${{ github.event.inputs.reportId }}
+        run: |
+          JS_FLAG=""
+          if [[ "${{ github.event.inputs.enable_js }}" == "true" ]]; then
+            JS_FLAG="--js"
+          fi
+          python3 scanner/secure2.py "${{ github.event.inputs.url }}" \
+            --report-id "${{ github.event.inputs.reportId }}" \
+            $JS_FLAG

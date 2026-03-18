@@ -22,11 +22,15 @@ import {
   Edit3,
   Save,
   X,
-  GraduationCap
+  GraduationCap,
+  Zap
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { MentorProfileSection } from "@/components/profile/MentorProfileSection";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { ReportViewer } from "@/components/reports/ReportViewer";
+import AlphaG2Report from "@/components/reports/Alphag2report";
 
 interface Certificate {
   name: string;
@@ -83,6 +87,8 @@ export default function Profile() {
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
   const [saving, setSaving] = useState(false);
+  const [selectedReport, setSelectedReport] = useState<SecurityReport | null>(null);
+  const [showG2Report, setShowG2Report] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -276,6 +282,16 @@ export default function Profile() {
       case "expired": return "bg-red-500/20 text-red-400 border-red-500/30";
       case "pending": return "bg-amber-500/20 text-amber-400 border-amber-500/30";
       default: return "bg-muted text-muted-foreground border-border";
+    }
+  };
+
+  const handleViewReport = (report: SecurityReport) => {
+    if (report.scan_type === "alpha-g2") {
+      setSelectedReport(report);
+      setShowG2Report(true);
+    } else {
+      setSelectedReport(report);
+      setShowG2Report(false);
     }
   };
 
@@ -497,7 +513,7 @@ export default function Profile() {
           )}
 
           {/* Services Tab */}
-          {activeTab === "services" && (
+             {activeTab === "services" && (
             <div className="space-y-4">
               {purchases.length === 0 ? (
                 <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
@@ -574,11 +590,16 @@ export default function Profile() {
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                            report.report_status === 'completed' ? "bg-emerald-500/10" :
-                            "bg-amber-500/10"
+                            report.report_status === 'completed' ? 
+                              (report.scan_type === "alpha-g2" ? "bg-purple-500/10" : "bg-emerald-500/10") :
+                              "bg-amber-500/10"
                           }`}>
                             {report.report_status === 'completed' ? (
-                              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                              report.scan_type === "alpha-g2" ? (
+                                <Zap className="w-6 h-6 text-purple-400" />
+                              ) : (
+                                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                              )
                             ) : (
                               <Clock className="w-6 h-6 text-amber-400" />
                             )}
@@ -595,17 +616,35 @@ export default function Profile() {
                                 <ExternalLink className="w-4 h-4" />
                               </a>
                             </div>
-                            <p className="text-sm text-muted-foreground capitalize">
-                              {report.scan_type} Scan
+                            <p className="text-sm text-muted-foreground capitalize flex items-center gap-1">
+                              {report.scan_type === "alpha-g2" ? (
+                                <>
+                                  <Zap className="w-3 h-3 text-purple-400" />
+                                  AlphaG2 Professional Scan
+                                </>
+                              ) : (
+                                <>
+                                  <Shield className="w-3 h-3 text-primary" />
+                                  AlphaG1 Basic Scan
+                                </>
+                              )}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
                               {report.report_status === 'completed' ? (
-                                <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                                <Badge className={report.scan_type === "alpha-g2" ? 
+                                  "bg-purple-500/20 text-purple-400 border-purple-500/30" : 
+                                  "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
+                                }>
                                   Report Ready
                                 </Badge>
                               ) : (
                                 <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30">
                                   <Clock className="w-3 h-3 mr-1" /> Waiting for Report
+                                </Badge>
+                              )}
+                              {report.scan_type === "alpha-g2" && report.report_status === 'completed' && (
+                                <Badge variant="outline" className="border-purple-500/30 text-purple-400">
+                                  CVSS Scored
                                 </Badge>
                               )}
                             </div>
@@ -616,13 +655,16 @@ export default function Profile() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {report.report_status === 'completed' && report.report_url ? (
-                            <a href={report.report_url} target="_blank" rel="noopener noreferrer">
-                              <Button variant="hero" size="sm" className="gap-1">
-                                <FileText className="w-4 h-4" />
-                                View Report
-                              </Button>
-                            </a>
+                          {report.report_status === 'completed' ? (
+                            <Button 
+                              variant="hero" 
+                              size="sm" 
+                              className={`gap-1 ${report.scan_type === "alpha-g2" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                              onClick={() => handleViewReport(report)}
+                            >
+                              <FileText className="w-4 h-4" />
+                              View Report
+                            </Button>
                           ) : (
                             <Button variant="outline" size="sm" disabled className="gap-1">
                               <Clock className="w-4 h-4" />
@@ -647,6 +689,58 @@ export default function Profile() {
           )}
         </div>
       </section>
+
+      {/* Report Viewer Modal */}
+      <Dialog open={!!selectedReport} onOpenChange={() => {
+        setSelectedReport(null);
+        setShowG2Report(false);
+      }}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogTitle className="sr-only">Security Report</DialogTitle>
+          {selectedReport && showG2Report ? (
+            <AlphaG2Report 
+              report={{
+                base_url: selectedReport.website_url,
+                test_run_id: selectedReport.id,
+                timestamp: selectedReport.scanned_at,
+                vulnerabilities: selectedReport.report_data?.vulnerabilities || [],
+                test_summary: selectedReport.report_data?.test_summary || {},
+                summary: {
+                  total_vulnerabilities: selectedReport.vulnerabilities_found,
+                  risk_level: selectedReport.risk_level as 'low' | 'medium' | 'high',
+                  scan_completed: true,
+                  blocked_tests: selectedReport.report_data?.summary?.blocked_tests || 0
+                }
+              }}
+              onExport={() => {
+                // Handle export
+                const dataStr = JSON.stringify(selectedReport.report_data, null, 2);
+                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                const exportFileDefaultName = `security-report-${selectedReport.id}.json`;
+                const linkElement = document.createElement('a');
+                linkElement.setAttribute('href', dataUri);
+                linkElement.setAttribute('download', exportFileDefaultName);
+                linkElement.click();
+              }}
+              onShare={() => {
+                toast({
+                  title: "Share Report",
+                  description: "Report sharing feature coming soon!",
+                });
+              }}
+            />
+          ) : selectedReport && !showG2Report ? (
+            <ReportViewer 
+              report={selectedReport} 
+              onClose={() => {
+                setSelectedReport(null);
+                setShowG2Report(false);
+              }}
+            />
+          ) : null}
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
-}
+                          }
+          

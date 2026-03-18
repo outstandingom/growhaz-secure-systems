@@ -41,6 +41,7 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { ReportViewer } from "@/components/reports/ReportViewer";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -65,7 +66,8 @@ export default function AdminDashboard() {
   const [mentorProfiles, setMentorProfiles] = useState<any[]>([]);
   const [securityReports, setSecurityReports] = useState<any[]>([]);
   const [reportDriveLink, setReportDriveLink] = useState("");
-  const [selectedReport, setSelectedReport] = useState<any>(null);
+  const [driveLinkReport, setDriveLinkReport] = useState<any>(null); // for which report we are sending a link
+  const [previewReport, setPreviewReport] = useState<any>(null); // for modal preview
 
   const fetchMentorProfiles = async () => {
     const { data, error } = await supabase.functions.invoke('admin-operations', {
@@ -94,7 +96,7 @@ export default function AdminDashboard() {
     if (!error) {
       toast({ title: "Report Sent", description: "Drive link sent to user successfully." });
       setReportDriveLink("");
-      setSelectedReport(null);
+      setDriveLinkReport(null);
       await fetchSecurityReports();
     } else {
       toast({ title: "Error", description: "Failed to update report", variant: "destructive" });
@@ -419,7 +421,7 @@ export default function AdminDashboard() {
             </TabsContent>
 
             {/* Mentors Tab */}
-            <TabsContent value="mentors">
+              <TabsContent value="mentors">
               <Card>
                 <CardHeader>
                   <CardTitle>Mentor Profiles</CardTitle>
@@ -600,31 +602,43 @@ export default function AdminDashboard() {
                                 {report.scan_type?.toUpperCase()} • Submitted {format(new Date(report.created_at), 'PPp')}
                               </p>
                             </div>
-                            {report.report_status === 'completed' && report.report_url && (
-                              <a href={report.report_url} target="_blank" rel="noopener noreferrer">
-                                <Button size="sm" variant="outline" className="gap-1">
-                                  <ExternalLink className="w-3 h-3" /> View Report
+                            <div className="flex items-center gap-2">
+                              {report.report_status === 'completed' && report.report_url && (
+                                <a href={report.report_url} target="_blank" rel="noopener noreferrer">
+                                  <Button size="sm" variant="outline" className="gap-1">
+                                    <ExternalLink className="w-3 h-3" /> Open Drive
+                                  </Button>
+                                </a>
+                              )}
+                              {report.report_status === 'completed' && (
+                                <Button 
+                                  size="sm" 
+                                  variant="outline" 
+                                  className="gap-1"
+                                  onClick={() => setPreviewReport(report)}
+                                >
+                                  <Eye className="w-3 h-3" /> Preview
                                 </Button>
-                              </a>
-                            )}
+                              )}
+                            </div>
                           </div>
                           
                           {report.report_status !== 'completed' && (
                             <div className="flex flex-col sm:flex-row gap-2">
                               <Input
                                 placeholder="Paste Google Drive link here..."
-                                value={selectedReport?.id === report.id ? reportDriveLink : ''}
+                                value={driveLinkReport?.id === report.id ? reportDriveLink : ''}
                                 onChange={(e) => {
-                                  setSelectedReport(report);
+                                  setDriveLinkReport(report);
                                   setReportDriveLink(e.target.value);
                                 }}
-                                onFocus={() => setSelectedReport(report)}
+                                onFocus={() => setDriveLinkReport(report)}
                                 className="flex-1"
                               />
                               <Button
                                 size="sm"
                                 onClick={() => handleSendReport(report.id)}
-                                disabled={processingId === report.id || !reportDriveLink.trim() || selectedReport?.id !== report.id}
+                                disabled={processingId === report.id || !reportDriveLink.trim() || driveLinkReport?.id !== report.id}
                                 className="gap-1"
                               >
                                 {processingId === report.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
@@ -697,6 +711,16 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Report Preview Modal */}
+      <Dialog open={!!previewReport} onOpenChange={() => setPreviewReport(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogTitle className="sr-only">Security Report</DialogTitle>
+          <ReportViewer report={previewReport} onClose={() => setPreviewReport(null)} />
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
-}
+                              }
+                                    
+  

@@ -26,12 +26,13 @@ import {
   Coins,
   ChevronLeft,
   ChevronRight,
-  Clock
+  Clock,
+  Zap
 } from "lucide-react";
 
 const scanTiers = [
   {
-    id: "alphag1",
+    id: "alpha-g1",
     name: "AlphaG1",
     price: 1999,
     description: "Basic Security Scan",
@@ -49,21 +50,27 @@ const scanTiers = [
     ],
   },
   {
-    id: "alphag2",
+    id: "alpha-g2",
     name: "AlphaG2",
     price: 4999,
     description: "Advanced Vulnerability Scan",
-    comingSoon: true,
-    requiresApproval: true,
+    comingSoon: false,
+    requiresApproval: false,
     tests: [
-      { name: "All AlphaG1 Tests", desc: "Includes every test from AlphaG1" },
-      { name: "Deep XSS Analysis", desc: "DOM-based and stored XSS detection" },
-      { name: "Auth Flow Analysis", desc: "OAuth, JWT & session management testing" },
-      { name: "API Endpoint Testing", desc: "Full REST API fuzzing and validation" },
+      { name: "All AlphaG1 Tests", desc: "Includes every test from AlphaG1 with enhanced detection" },
+      { name: "Deep JavaScript Crawling", desc: "Uses Playwright to crawl React/Next.js SPAs and discover hidden API routes" },
+      { name: "WAF Bypass Engine", desc: "Header rotation, IP spoofing, and randomized throttling to avoid blocking" },
+      { name: "Payload Obfuscation", desc: "SQLi comment injection, mixed case, URL encoding to bypass WAF filters" },
+      { name: "CVSS v3.1 Scoring", desc: "Industry-standard vulnerability scoring (0-10) based on impact" },
+      { name: "OWASP Top 10 Mapping", desc: "Maps findings to OWASP categories (A03:2021-Injection, A01:2021-Broken Access Control)" },
+      { name: "Evidence Capture", desc: "Stores raw request/response headers and body for every vulnerability" },
+      { name: "Circuit Breaker", desc: "Stops testing endpoints after 3 consecutive blocks to avoid IP bans" },
+      { name: "Threaded XSS Testing", desc: "Tests 10 payload/parameter combinations simultaneously" },
+      { name: "Deep Site Mapping", desc: "Recursive crawling up to 100 pages, discovers hidden API endpoints" },
     ],
   },
   {
-    id: "alphag3",
+    id: "alpha-g3",
     name: "AlphaG3",
     price: 9999,
     description: "Full Penetration Testing",
@@ -95,6 +102,7 @@ export default function SecurityTools() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [enableJs, setEnableJs] = useState(false);
   const { toast } = useToast();
   const { spendCoins, balance } = useSpendCoins();
 
@@ -146,48 +154,144 @@ export default function SecurityTools() {
 
   const handleScan = async () => {
     if (!url || !user || !scannerName.trim()) {
-      toast({ title: "Required Fields", description: "Please enter your name and the website URL.", variant: "destructive" });
+      toast({
+        title: "Required Fields",
+        description: "Please enter your name and the website URL.",
+        variant: "destructive"
+      });
       return;
     }
 
     if (selectedTier.comingSoon) {
-      toast({ title: "Coming Soon", description: `${selectedTier.name} is not yet available. Stay tuned!`, variant: "destructive" });
+      toast({
+        title: "Coming Soon",
+        description: `${selectedTier.name} is not yet available.`,
+        variant: "destructive"
+      });
       return;
     }
 
     if (selectedTier.requiresApproval) {
-      toast({ title: "Approval Required", description: `${selectedTier.name} requires a formal approval letter from a Manager or CEO.`, variant: "destructive" });
+      toast({
+        title: "Approval Required",
+        description: `${selectedTier.name} requires approval.`,
+        variant: "destructive"
+      });
       return;
     }
 
-    const success = await spendCoins(selectedTier.price, `Security Scan (${selectedTier.name}) - ${url}`);
+    const success = await spendCoins(
+      selectedTier.price,
+      `Security Scan (${selectedTier.name}) - ${url}`
+    );
+
     if (!success) return;
 
     setIsScanning(true);
 
-    const { error } = await supabase.from("security_reports").insert({
-      user_id: user.id,
-      website_url: url,
-      scanner_name: scannerName.trim(),
-      scanner_phone: scannerPhone.trim() || null,
-      scan_type: selectedTier.id,
-      vulnerabilities_found: 0,
-      risk_level: "pending",
-      report_data: null,
-      report_status: "pending",
-      report_url: null,
-    });
-
-    setIsScanning(false);
+    // STEP 1: Create scan request in database
+    const { data, error } = await supabase
+      .from("security_reports")
+      .insert({
+        user_id: user.id,
+        website_url: url,
+        scanner_name: scannerName.trim(),
+        scanner_phone: scannerPhone.trim() || null,
+        scan_type: selectedTier.id,
+        vulnerabilities_found: 0,
+        risk_level: "pending",
+        report_data: null,
+        report_status: "pending",
+        report_url: null
+      })
+      .select()
+      .single();
 
     if (error) {
-      toast({ title: "Error", description: error.message || "Failed to submit scan request.", variant: "destructive" });
+      setIsScanning(false);
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
       return;
     }
 
-    setShowResult(true);
-    toast({ title: "Request Submitted!", description: "Your URL has been submitted. Our team will review and send you the report." });
+    try {
+      // STEP 2: Call the edge function with the report ID and scanner version
+      const payload: any = { 
+        url: url,
+        reportId: data.id,
+        scannerVersion: selectedTier.id
+      };
+
+      // Add Alpha G2 specific options
+      if (selectedTier.id === "alpha-g2" && enableJs) {
+        payload.enableJs = true;
+      }
+
+      const { data: functionData, error: functionError } = await supabase.functions.invoke(
+        'trigger_security_scan',
+        { body: payload }
+      );
+
+      if (functionError) {
+        throw new Error(functionError.message);
+      }
+
+      setIsScanning(false);
+      setShowResult(true);
+
+      toast({
+        title: "Scan Started",
+        description: `${selectedTier.name} security scan has started. Results will appear in your profile soon.`
+      });
+
+    } catch (err) {
+      setIsScanning(false);
+      
+      // Update the report status to failed
+      await supabase
+        .from("security_reports")
+        .update({ 
+          report_status: "failed",
+          report_data: { error: err instanceof Error ? err.message : "Unknown error" }
+        })
+        .eq("id", data.id);
+
+      toast({
+        title: "Scan Failed",
+        description: err instanceof Error ? err.message : "Could not start scanner.",
+        variant: "destructive"
+      });
+    }
   };
+
+  // Poll for report completion (optional - shows real-time updates)
+  useEffect(() => {
+    if (!showResult || !user) return;
+
+    const checkReportStatus = async () => {
+      const { data } = await supabase
+        .from("security_reports")
+        .select("report_status, risk_level, vulnerabilities_found")
+        .eq("user_id", user.id)
+        .eq("website_url", url)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .single();
+
+      if (data && data.report_status === "completed") {
+        toast({
+          title: "Report Ready!",
+          description: `${selectedTier.name} scan completed with ${data.vulnerabilities_found} vulnerabilities found. Risk level: ${data.risk_level}`,
+        });
+      }
+    };
+
+    const interval = setInterval(checkReportStatus, 10000);
+    return () => clearInterval(interval);
+  }, [showResult, user, url, selectedTier.name, toast]);
 
   return (
     <Layout>
@@ -314,10 +418,29 @@ export default function SecurityTools() {
                         </Badge>
                       )}
 
+                      {/* Alpha G2 JS Option - NEW */}
+                      {selectedTier.id === "alpha-g2" && !selectedTier.comingSoon && (
+                        <div className="mb-4 p-3 rounded-lg bg-secondary/50 border border-border">
+                          <Label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={enableJs}
+                              onChange={(e) => setEnableJs(e.target.checked)}
+                              className="rounded border-border text-primary focus:ring-primary"
+                            />
+                            <span className="text-sm font-medium">Enable JavaScript Crawling</span>
+                            <Zap className="w-4 h-4 text-primary ml-1" />
+                          </Label>
+                          <p className="text-xs text-muted-foreground mt-1 ml-6">
+                            Uses Playwright to crawl React/Next.js SPAs and discover hidden API routes
+                          </p>
+                        </div>
+                      )}
+
                       {/* Test List */}
                       <div className="space-y-3 mt-4">
                         <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Tests Performed</h4>
-                        <div className="grid gap-2">
+                        <div className="grid gap-2 max-h-96 overflow-y-auto pr-2">
                           {selectedTier.tests.map((test) => (
                             <div key={test.name} className="flex items-start gap-3 p-3 rounded-lg bg-secondary/50">
                               <CheckCircle2 className="w-4 h-4 text-primary mt-0.5 flex-shrink-0" />
@@ -408,18 +531,6 @@ export default function SecurityTools() {
                   )}
                 </Button>
               </div>
-
-              {/* Note */}
-              {   /*    <div className="p-4 rounded-lg bg-secondary/50 border border-border text-left">
-                <div className="flex items-start gap-3">
-                  <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-muted-foreground">
-                    <strong className="text-foreground">Note:</strong> The security engine is already developed and is being 
-                    deployed on AWS / Azure. It will be connected securely with the website frontend for real-time testing.
-                  </p>
-                </div>
-              </div> 
-        */}
             </div>
           )}
         </div>
@@ -435,10 +546,11 @@ export default function SecurityTools() {
               </div>
               <h3 className="text-xl font-bold mb-3">Request Submitted Successfully!</h3>
               <p className="text-muted-foreground mb-2">
-                Your website URL <strong className="text-foreground">{url}</strong> has been submitted for security analysis.
+                Your website URL <strong className="text-foreground">{url}</strong> has been submitted for{" "}
+                <strong className="text-foreground">{selectedTier.name}</strong> analysis.
               </p>
               <p className="text-muted-foreground mb-6">
-                Our security team will review it and send you a detailed report via Google Drive link.
+                Our security team will review it and send you a detailed report. 
                 You can check the status anytime in your <Link to="/profile" className="text-primary underline">Profile → Security Reports</Link>.
               </p>
               <div className="p-4 rounded-lg bg-secondary/50 border border-border">
@@ -466,6 +578,31 @@ export default function SecurityTools() {
               <div key={test.name} className="p-4 rounded-xl bg-card border border-border hover:border-primary/40 transition-colors">
                 <div className="flex items-start gap-3">
                   <Shield className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <h4 className="font-semibold text-sm">{test.name}</h4>
+                    <p className="text-xs text-muted-foreground mt-1">{test.desc}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* AlphaG2 Features */}
+      <section className="section-container">
+        <div className="max-w-4xl mx-auto">
+          <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">
+            🚀 <span className="gradient-text">AlphaG2</span> Professional Features
+          </h2>
+          <p className="text-muted-foreground text-center mb-8">
+            For ₹4,999, AlphaG2 includes all AlphaG1 tests plus these advanced capabilities:
+          </p>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {scanTiers[1].tests.slice(1).map((test) => (
+              <div key={test.name} className="p-4 rounded-xl bg-card border border-border hover:border-primary/40 transition-colors">
+                <div className="flex items-start gap-3">
+                  <Zap className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <div>
                     <h4 className="font-semibold text-sm">{test.name}</h4>
                     <p className="text-xs text-muted-foreground mt-1">{test.desc}</p>
@@ -514,4 +651,4 @@ export default function SecurityTools() {
       </section>
     </Layout>
   );
-}
+                  } 
