@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
+import {
+  Shield,
+  AlertTriangle,
+  CheckCircle,
+  XCircle,
   AlertCircle,
   Download,
   Share2,
   Clock,
-  Target, 
+  Target,
   Globe,
   FileText,
   ChevronDown,
@@ -18,7 +18,6 @@ import {
   Copy,
   ExternalLink,
   Info
-  
 } from 'lucide-react';
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -163,7 +162,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 
   const getSanitizedUrl = (url: string) => url.replace(/[^a-z0-9]/gi, '-').toLowerCase();
 
-  // ========== NEW PDF GENERATION FUNCTION USING JSPDF ==========
+  // ========== ENHANCED PDF GENERATION ==========
   const generatePDF = () => {
     const doc = new jsPDF();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -171,80 +170,102 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
     const margin = 20;
     let y = margin;
 
-    // Helper to add a new page and reset Y
+    // Helper to add a new page
     const addNewPage = () => {
       doc.addPage();
       y = margin;
     };
 
-    // Helper to check if we need a page break before adding content of given height
-    const checkPageBreak = (height: number) => {
-      if (y + height > pageHeight - margin) {
-        addNewPage();
-        return true;
-      }
-      return false;
+    // Helper to draw a colored badge (rounded rectangle with text)
+    const drawBadge = (text: string, x: number, y: number, bgColor: number[], textColor: number[] = [255, 255, 255]) => {
+      doc.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
+      doc.roundedRect(x, y - 4, doc.getTextWidth(text) + 6, 7, 2, 2, 'F');
+      doc.setTextColor(textColor[0], textColor[1], textColor[2]);
+      doc.setFontSize(8);
+      doc.text(text, x + 3, y);
+      doc.setTextColor(0, 0, 0); // reset
     };
 
-    // ---- Title ----
+    // CVSS badge color
+    const getCVSSColorRGB = (score: number): number[] => {
+      if (score >= 7.0) return [239, 68, 68];   // red-500
+      if (score >= 4.0) return [245, 158, 11];  // amber-500
+      return [16, 185, 129];                     // emerald-500
+    };
+
+    // Status badge color
+    const getStatusColor = (status: string): number[] => {
+      switch (status) {
+        case 'VULNERABLE': return [239, 68, 68];
+        case 'SECURE': return [16, 185, 129];
+        case 'BLOCKED': return [107, 114, 128];
+        default: return [239, 68, 68];
+      }
+    };
+
+    // ----- Header (first page only) -----
     doc.setFontSize(20);
     doc.setTextColor(0, 0, 0);
     doc.text('Alpha G2 Security Report', margin, y);
-    y += 12;
-
-    // Report ID and date
-    doc.setFontSize(10);
-    doc.setTextColor(100);
-    doc.text(`Report ID: ${report.test_run_id.slice(0, 8)}`, margin, y);
-    doc.text(`Generated: ${formatDate(report.timestamp)}`, pageWidth - margin - 50, y, { align: 'right' });
     y += 10;
 
-    // ---- Executive Summary as boxes ----
+    doc.setFontSize(10);
+    doc.setTextColor(100, 100, 100);
+    doc.text(`Report ID: ${report.test_run_id.slice(0, 8)}`, margin, y);
+    doc.text(`Generated: ${formatDate(report.timestamp)}`, pageWidth - margin - 50, y, { align: 'right' });
+    y += 15;
+
+    // ----- Executive Summary -----
     doc.setFontSize(14);
-    doc.setTextColor(0);
+    doc.setTextColor(0, 0, 0);
     doc.text('Executive Summary', margin, y);
     y += 8;
 
-    // Draw four boxes
     const boxWidth = (pageWidth - 2 * margin - 10) / 4;
     const boxHeight = 40;
     const summaries = [
-      { label: 'Total Vulnerabilities', value: report.summary.total_vulnerabilities },
-      { label: 'Risk Level', value: report.summary.risk_level.toUpperCase() },
-      { label: 'Tests Blocked', value: report.summary.blocked_tests },
-      { 
-        label: 'Average CVSS', 
-        value: report.vulnerabilities.length > 0 
+      { label: 'Total Vulnerabilities', value: report.summary.total_vulnerabilities, color: [245, 245, 245] },
+      {
+        label: 'Risk Level',
+        value: report.summary.risk_level.toUpperCase(),
+        color: report.summary.risk_level === 'low' ? [16, 185, 129] :
+               report.summary.risk_level === 'medium' ? [245, 158, 11] : [239, 68, 68]
+      },
+      { label: 'Tests Blocked', value: report.summary.blocked_tests, color: [245, 245, 245] },
+      {
+        label: 'Average CVSS',
+        value: report.vulnerabilities.length > 0
           ? (report.vulnerabilities.reduce((acc, v) => acc + v.cvss_score, 0) / report.vulnerabilities.length).toFixed(1)
-          : '0.0'
+          : '0.0',
+        color: [245, 245, 245]
       }
     ];
 
     summaries.forEach((item, idx) => {
       const x = margin + idx * (boxWidth + 3);
-      // Box background (light gray)
-      doc.setFillColor(245, 245, 245);
+      // Background
+      doc.setFillColor(item.color[0], item.color[1], item.color[2]);
       doc.rect(x, y, boxWidth, boxHeight, 'F');
       // Border
       doc.setDrawColor(200, 200, 200);
       doc.rect(x, y, boxWidth, boxHeight, 'S');
-      // Text
+      // Label
       doc.setFontSize(8);
-      doc.setTextColor(100);
+      doc.setTextColor(100, 100, 100);
       doc.text(item.label, x + 2, y + 7);
+      // Value
       doc.setFontSize(14);
-      doc.setTextColor(0);
+      doc.setTextColor(0, 0, 0);
       doc.text(String(item.value), x + 2, y + 25);
     });
     y += boxHeight + 10;
 
-    // ---- Target Information ----
+    // ----- Target Information -----
     doc.setFontSize(14);
-    doc.setTextColor(0);
+    doc.setTextColor(0, 0, 0);
     doc.text('Target Information', margin, y);
     y += 8;
 
-    // Two-column grid
     const colWidth = (pageWidth - 2 * margin) / 2;
     const rowHeight = 10;
     const targetRows = [
@@ -260,14 +281,18 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
       const x = margin + col * colWidth;
       const yPos = y + rowIdx * rowHeight;
       doc.setFontSize(10);
-      doc.setTextColor(100);
+      doc.setTextColor(100, 100, 100);
       doc.text(row.label + ':', x, yPos);
-      doc.setTextColor(0);
-      doc.text(row.value, x + (col === 0 ? 50 : 40), yPos); // approximate indentation
+      doc.setTextColor(0, 0, 0);
+      let displayValue = row.value;
+      if (row.label === 'Website URL' && doc.getTextWidth(row.value) > colWidth - 60) {
+        displayValue = row.value.substring(0, 40) + '...';
+      }
+      doc.text(displayValue, x + (col === 0 ? 45 : 35), yPos);
     });
     y += rowHeight * 2 + 10;
 
-    // ---- Test Summary Table ----
+    // ----- Test Summary Table (if any) -----
     if (Object.keys(report.test_summary).length > 0) {
       doc.setFontSize(14);
       doc.text('Test Summary', margin, y);
@@ -287,132 +312,162 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
         theme: 'striped',
         headStyles: { fillColor: [60, 60, 60] },
         columnStyles: {
-          0: { cellWidth: 40 },
+          0: { cellWidth: 35 },
           1: { cellWidth: 70 },
           2: { cellWidth: 30 },
           3: { cellWidth: 'auto' }
         },
+        didDrawCell: (data) => {
+          // Color status cells
+          if (data.column.index === 2 && data.cell.section === 'body') {
+            const status = data.cell.raw as string;
+            const color = getStatusColor(status);
+            doc.setFillColor(color[0], color[1], color[2]);
+            doc.rect(data.cell.x, data.cell.y, data.cell.width, data.cell.height, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.text(status, data.cell.x + 2, data.cell.y + 6);
+          }
+        },
         margin: { left: margin, right: margin },
-        didDrawPage: (data) => {
-          // Update y after table
-          y = data.cursor?.y || y + 10;
-        }
       });
-      // Get final Y from autoTable
       y = (doc as any).lastAutoTable.finalY + 10;
     }
 
-    // ---- Vulnerabilities ----
+    // ----- Vulnerabilities -----
     if (report.vulnerabilities.length > 0) {
       doc.setFontSize(14);
       doc.text('Vulnerabilities Found', margin, y);
       y += 8;
 
       report.vulnerabilities.forEach((vuln, index) => {
-        // Check if we need a new page
-        if (y > pageHeight - margin - 40) addNewPage();
+        // Estimate required height for this vulnerability card
+        let estimatedHeight = 60; // base
+        if (vuln.parameter) estimatedHeight += 10;
+        if (vuln.payload) {
+          const lines = doc.splitTextToSize(vuln.payload, pageWidth - 2 * margin - 20);
+          estimatedHeight += lines.length * 5 + 15;
+        }
+        if (vuln.raw_request) {
+          const lines = doc.splitTextToSize(JSON.stringify(vuln.raw_request, null, 2), pageWidth - 2 * margin - 30);
+          estimatedHeight += lines.length * 4 + 20;
+        }
+        if (vuln.raw_response) {
+          const lines = doc.splitTextToSize(JSON.stringify(vuln.raw_response, null, 2), pageWidth - 2 * margin - 30);
+          estimatedHeight += lines.length * 4 + 20;
+        }
+        estimatedHeight += 30; // remediation and spacing
+
+        if (y + estimatedHeight > pageHeight - margin) {
+          addNewPage();
+        }
 
         // Card background
         doc.setFillColor(250, 250, 250);
-        doc.rect(margin, y, pageWidth - 2 * margin, 25, 'F');
+        doc.rect(margin, y, pageWidth - 2 * margin, estimatedHeight - 10, 'F');
         doc.setDrawColor(200, 200, 200);
-        doc.rect(margin, y, pageWidth - 2 * margin, 25, 'S');
+        doc.rect(margin, y, pageWidth - 2 * margin, estimatedHeight - 10, 'S');
 
-        // Vulnerability title and CVSS
+        // Vulnerability title
         doc.setFontSize(11);
-        doc.setTextColor(0);
-        doc.text(vuln.vulnerability, margin + 2, y + 7);
-        doc.setFontSize(9);
-        doc.setTextColor(100);
-        doc.text(`CVSS: ${vuln.cvss_score}`, pageWidth - margin - 25, y + 7);
-        doc.text(`Endpoint: ${vuln.endpoint}`, margin + 2, y + 15);
+        doc.setTextColor(0, 0, 0);
+        doc.text(vuln.vulnerability, margin + 5, y + 7);
 
-        // Expandable details (we'll show them always in PDF)
-        y += 30; // after card header
+        // CVSS badge
+        const cvssColor = getCVSSColorRGB(vuln.cvss_score);
+        drawBadge(`CVSS ${vuln.cvss_score}`, pageWidth - margin - 40, y + 7, cvssColor);
+
+        // Endpoint
+        doc.setFontSize(9);
+        doc.setTextColor(100, 100, 100);
+        doc.text(`Endpoint: ${vuln.endpoint}`, margin + 5, y + 15);
+
+        let currentY = y + 25;
 
         // OWASP
         doc.setFontSize(10);
-        doc.setTextColor(60);
-        doc.text(`OWASP: ${vuln.owasp}`, margin + 2, y);
-        y += 6;
+        doc.setTextColor(60, 60, 60);
+        doc.text(`OWASP: ${vuln.owasp}`, margin + 5, currentY);
+        currentY += 6;
 
         if (vuln.parameter) {
-          doc.text(`Parameter: ${vuln.parameter}`, margin + 2, y);
-          y += 6;
+          doc.text(`Parameter: ${vuln.parameter}`, margin + 5, currentY);
+          currentY += 6;
         }
+
         if (vuln.payload) {
-          doc.text('Payload:', margin + 2, y);
-          y += 5;
-          // Split long payload
-          const payloadLines = doc.splitTextToSize(vuln.payload, pageWidth - 2 * margin - 10);
+          doc.text('Payload:', margin + 5, currentY);
+          currentY += 5;
           doc.setFontSize(8);
-          doc.setTextColor(80);
+          doc.setTextColor(80, 80, 80);
+          const payloadLines = doc.splitTextToSize(vuln.payload, pageWidth - 2 * margin - 20);
           payloadLines.forEach((line: string) => {
-            if (y > pageHeight - margin - 10) addNewPage();
-            doc.text(line, margin + 4, y);
-            y += 4;
+            if (currentY > pageHeight - margin - 20) addNewPage();
+            doc.text(line, margin + 10, currentY);
+            currentY += 4;
           });
-          y += 2;
+          currentY += 2;
           doc.setFontSize(10);
-          doc.setTextColor(0);
+          doc.setTextColor(0, 0, 0);
         }
 
-        // Remediation
+        // How to Fix
         doc.setFontSize(10);
-        doc.setTextColor(0);
-        doc.text('How to Fix:', margin + 2, y);
-        y += 5;
+        doc.setTextColor(0, 0, 0);
+        doc.text('How to Fix:', margin + 5, currentY);
+        currentY += 5;
         doc.setFontSize(9);
-        doc.setTextColor(80);
+        doc.setTextColor(80, 80, 80);
         const remediation = getRemediation(vuln);
-        const remLines = doc.splitTextToSize(remediation, pageWidth - 2 * margin - 10);
+        const remLines = doc.splitTextToSize(remediation, pageWidth - 2 * margin - 20);
         remLines.forEach((line: string) => {
-          if (y > pageHeight - margin - 10) addNewPage();
-          doc.text(line, margin + 4, y);
-          y += 4;
+          if (currentY > pageHeight - margin - 20) addNewPage();
+          doc.text(line, margin + 10, currentY);
+          currentY += 4;
         });
-        y += 4;
+        currentY += 4;
 
-        // Evidence (if any)
+        // Evidence
         if (vuln.raw_request || vuln.raw_response) {
           doc.setFontSize(10);
-          doc.setTextColor(0);
-          doc.text('Evidence:', margin + 2, y);
-          y += 5;
+          doc.setTextColor(0, 0, 0);
+          doc.text('Evidence:', margin + 5, currentY);
+          currentY += 5;
+
           if (vuln.raw_request) {
             doc.setFontSize(8);
-            doc.setTextColor(80);
-            doc.text('Request:', margin + 4, y);
-            y += 4;
+            doc.setTextColor(80, 80, 80);
+            doc.text('Request:', margin + 10, currentY);
+            currentY += 4;
             const reqStr = JSON.stringify(vuln.raw_request, null, 2);
-            const reqLines = doc.splitTextToSize(reqStr, pageWidth - 2 * margin - 20);
+            const reqLines = doc.splitTextToSize(reqStr, pageWidth - 2 * margin - 30);
             reqLines.forEach((line: string) => {
-              if (y > pageHeight - margin - 10) addNewPage();
-              doc.text(line, margin + 6, y);
-              y += 4;
+              if (currentY > pageHeight - margin - 20) addNewPage();
+              doc.text(line, margin + 15, currentY);
+              currentY += 4;
             });
           }
+
           if (vuln.raw_response) {
-            if (y > pageHeight - margin - 10) addNewPage();
+            if (currentY > pageHeight - margin - 20) addNewPage();
             doc.setFontSize(8);
-            doc.setTextColor(80);
-            doc.text('Response:', margin + 4, y);
-            y += 4;
+            doc.setTextColor(80, 80, 80);
+            doc.text('Response:', margin + 10, currentY);
+            currentY += 4;
             const resStr = JSON.stringify(vuln.raw_response, null, 2);
-            const resLines = doc.splitTextToSize(resStr, pageWidth - 2 * margin - 20);
+            const resLines = doc.splitTextToSize(resStr, pageWidth - 2 * margin - 30);
             resLines.forEach((line: string) => {
-              if (y > pageHeight - margin - 10) addNewPage();
-              doc.text(line, margin + 6, y);
-              y += 4;
+              if (currentY > pageHeight - margin - 20) addNewPage();
+              doc.text(line, margin + 15, currentY);
+              currentY += 4;
             });
           }
-          y += 4;
+          currentY += 4;
         }
 
-        // Separator line between vulnerabilities
+        // Separator line
         doc.setDrawColor(200, 200, 200);
-        doc.line(margin, y, pageWidth - margin, y);
-        y += 10;
+        doc.line(margin, currentY, pageWidth - margin, currentY);
+        y = currentY + 10;
       });
     } else {
       doc.setFontSize(12);
@@ -420,12 +475,12 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
       y += 10;
     }
 
-    // ---- Footer on all pages ----
+    // ----- Footer on all pages -----
     const pageCount = doc.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i);
       doc.setFontSize(8);
-      doc.setTextColor(150);
+      doc.setTextColor(150, 150, 150);
       doc.text(
         `Report generated by GROWHAZ Alpha G2 Professional Scanner on ${formatDate(report.timestamp)}`,
         margin,
@@ -438,12 +493,11 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
     doc.save(`security-report-${getSanitizedUrl(report.base_url)}.pdf`);
   };
 
-  // Replace handleDownloadPDF to use our new function
   const handleDownloadPDF = () => {
     generatePDF();
   };
 
-  // ---- Return JSX (identical to your original, including print styles) ----
+  // ---- JSX (unchanged, matches original UI) ----
   return (
     <>
       <style type="text/css" media="print">{`
@@ -488,7 +542,8 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6 space-y-6 print:bg-white print:text-black print:border-0 print:shadow-none print:p-0">
         {/* Web header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
+        
+       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 no-print">
           <h2 className="text-xl font-bold flex items-center gap-2">
             <Shield className="w-5 h-5 text-primary" />
             Alpha G2 Security Report
@@ -669,7 +724,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                     </div>
 
                     {/* Details – always visible in print, toggleable in web */}
-                     <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
+                    <div className={`mt-3 space-y-4 ${!showDetails ? 'hidden print:block' : ''} vuln-details`}>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                         <div>
                           <p className="text-muted-foreground">OWASP Category</p>
@@ -746,5 +801,4 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
 };
 
 export default SecurityReportComponent;
-            
-        
+      
