@@ -1,61 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Shield, 
-  AlertTriangle, 
-  CheckCircle, 
-  XCircle, 
-  AlertCircle,
-  Download,
-  Share2,
-  Clock,
-  Target,
-  Globe,
-  FileText,
-  ChevronDown,
-  ChevronUp,
-  Copy,
-  ExternalLink,
-  Info
-} from 'lucide-react';
-import { Badge } from "@/components/ui/badge";
+import { useState, useRef, useCallback } from "react";
+import ReactDOM from "react-dom"; // needed for rendering into new window
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import {
+  Upload, FileText, Download, X, FileImage, File,
+  Shield, AlertTriangle, CheckCircle, XCircle, AlertCircle,
+  Share2, Clock, Globe, ChevronDown, ChevronUp,
+  Copy, ExternalLink, Info
+} from "lucide-react";
+import { jsPDF } from "jspdf";
 
-// Test descriptions
-const TEST_DESCRIPTIONS: Record<string, string> = {
-  "SQL Injection": "Tests for SQL injection using boolean, time‑based, and error‑based payloads.",
-  "Cross-Site Scripting (XSS)": "Injects script payloads to detect reflected XSS.",
-  "Authentication Flaws": "Checks weak passwords, user enumeration, and rate limiting.",
-  "IDOR": "Attempts to access other users' data by manipulating IDs.",
-  "CORS Misconfiguration": "Verifies unsafe cross‑origin configurations.",
-  "Sensitive Data Exposure": "Scans for publicly accessible .env, config, backups.",
-  "Security Headers": "Validates X‑Frame‑Options, CSP, HSTS, etc.",
-  "SSL/TLS Vulnerabilities": "Analyses certificate expiry, weak ciphers, old protocols.",
-  "CSRF": "Tests if state‑changing endpoints work without authentication.",
-  "Open Redirect": "Injects malicious URLs to test for unvalidated redirects.",
-  "Directory Traversal": "Attempts to read files outside the web root."
-};
-
-// Remediation tips
-const REMEDIATION_TIPS: Record<string, string> = {
-  "SQL Injection": "Use parameterized queries. Validate all inputs. Apply least privilege.",
-  "Cross-Site Scripting (XSS)": "Escape output. Use CSP. Validate on server side.",
-  "IDOR": "Implement proper access controls. Use indirect references.",
-  "Directory Traversal": "Whitelist allowed paths. Normalise and reject '../'.",
-  "CORS Misconfiguration": "Restrict Access-Control-Allow-Origin to trusted domains.",
-  "Missing Rate Limiting": "Add rate limiting (e.g., express-rate-limit).",
-  "Weak Password Policy": "Enforce complexity and length. Implement account lockout.",
-  "User Enumeration": "Return generic error messages for both valid/invalid users.",
-  "Missing Security Header": "Add headers: X-Frame-Options, CSP, HSTS, etc.",
-  "Server Version Disclosure": "Remove or obfuscate server version headers.",
-  "Technology Disclosure": "Remove X-Powered-By and similar fingerprints.",
-  "Expired SSL Certificate": "Renew immediately; set up auto‑renewal.",
-  "Weak SSL Cipher": "Disable RC4, 3DES; use AES‑GCM.",
-  "Outdated TLS Version": "Disable TLS 1.0/1.1; enable TLS 1.2/1.3.",
-  "CSRF / Missing Authentication": "Require auth and anti‑CSRF tokens.",
-  "Open Redirect": "Whitelist allowed redirect URLs.",
-  "Sensitive Data Exposure": "Store secrets in environment variables, not public files."
-};
-
+// ----------------------------------------------------------------------
+// Types and constants from the security report component
+// ----------------------------------------------------------------------
 interface Vulnerability {
   vulnerability: string;
   endpoint: string;
@@ -91,6 +50,85 @@ interface SecurityReport {
   };
 }
 
+const TEST_DESCRIPTIONS: Record<string, string> = {
+  "SQL Injection": "Tests for SQL injection using boolean, time‑based, and error‑based payloads.",
+  "Cross-Site Scripting (XSS)": "Injects script payloads to detect reflected XSS.",
+  "Authentication Flaws": "Checks weak passwords, user enumeration, and rate limiting.",
+  "IDOR": "Attempts to access other users' data by manipulating IDs.",
+  "CORS Misconfiguration": "Verifies unsafe cross‑origin configurations.",
+  "Sensitive Data Exposure": "Scans for publicly accessible .env, config, backups.",
+  "Security Headers": "Validates X‑Frame‑Options, CSP, HSTS, etc.",
+  "SSL/TLS Vulnerabilities": "Analyses certificate expiry, weak ciphers, old protocols.",
+  "CSRF": "Tests if state‑changing endpoints work without authentication.",
+  "Open Redirect": "Injects malicious URLs to test for unvalidated redirects.",
+  "Directory Traversal": "Attempts to read files outside the web root."
+};
+
+const REMEDIATION_TIPS: Record<string, string> = {
+  "SQL Injection": "Use parameterized queries. Validate all inputs. Apply least privilege.",
+  "Cross-Site Scripting (XSS)": "Escape output. Use CSP. Validate on server side.",
+  "IDOR": "Implement proper access controls. Use indirect references.",
+  "Directory Traversal": "Whitelist allowed paths. Normalise and reject '../'.",
+  "CORS Misconfiguration": "Restrict Access-Control-Allow-Origin to trusted domains.",
+  "Missing Rate Limiting": "Add rate limiting (e.g., express-rate-limit).",
+  "Weak Password Policy": "Enforce complexity and length. Implement account lockout.",
+  "User Enumeration": "Return generic error messages for both valid/invalid users.",
+  "Missing Security Header": "Add headers: X-Frame-Options, CSP, HSTS, etc.",
+  "Server Version Disclosure": "Remove or obfuscate server version headers.",
+  "Technology Disclosure": "Remove X-Powered-By and similar fingerprints.",
+  "Expired SSL Certificate": "Renew immediately; set up auto‑renewal.",
+  "Weak SSL Cipher": "Disable RC4, 3DES; use AES‑GCM.",
+  "Outdated TLS Version": "Disable TLS 1.0/1.1; enable TLS 1.2/1.3.",
+  "CSRF / Missing Authentication": "Require auth and anti‑CSRF tokens.",
+  "Open Redirect": "Whitelist allowed redirect URLs.",
+  "Sensitive Data Exposure": "Store secrets in environment variables, not public files."
+};
+
+// ----------------------------------------------------------------------
+// Helper functions (from original converter + new ones)
+// ----------------------------------------------------------------------
+type ConvertState = "idle" | "selected" | "converting" | "ready" | "jsonPreview";
+
+const ACCEPTED_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "text/plain",
+  "text/csv",
+  "text/markdown",
+  "application/json",
+];
+
+const ACCEPTED_EXTENSIONS = ".jpg,.jpeg,.png,.webp,.txt,.csv,.md,.json";
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function getFileIcon(type: string) {
+  if (type === "application/json") return <FileText className="h-8 w-8 text-accent" />;
+  if (type.startsWith("image/")) return <FileImage className="h-8 w-8 text-accent" />;
+  return <FileText className="h-8 w-8 text-accent" />;
+}
+
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function getSanitizedUrl(url: string) {
+  return url.replace(/[^a-z0-9]/gi, '-').toLowerCase();
+}
+
+// ----------------------------------------------------------------------
+// SecurityReportComponent (embedded, with print styles)
+// ----------------------------------------------------------------------
 interface SecurityReportProps {
   report: SecurityReport;
   onExport?: () => void;
@@ -99,10 +137,6 @@ interface SecurityReportProps {
 
 const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExport, onShare }) => {
   const [expandedVuln, setExpandedVuln] = useState<number | null>(null);
-
-  useEffect(() => {
-    console.log("Vulnerabilities array length:", report.vulnerabilities.length);
-  }, [report]);
 
   const getRiskColor = (level: string) => {
     switch (level?.toLowerCase()) {
@@ -156,15 +190,6 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
       if (type.includes(key) || key.includes(type)) return tip;
     }
     return "Apply security best practices. See OWASP guidelines.";
-  };
-
-  const getSanitizedUrl = (url: string) => url.replace(/[^a-z0-9]/gi, '-').toLowerCase();
-
-  const handleDownloadPDF = () => {
-    const originalTitle = document.title;
-    document.title = `security-report-${getSanitizedUrl(report.base_url)}`;
-    window.print();
-    setTimeout(() => { document.title = originalTitle; }, 1000);
   };
 
   return (
@@ -227,9 +252,7 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
                 <Share2 className="w-4 h-4" /> Share
               </Button>
             )}
-            <Button variant="outline" size="sm" onClick={handleDownloadPDF} className="gap-1">
-              <Download className="w-4 h-4" /> Download PDF
-            </Button>
+            {/* The internal PDF button is kept, but it won't be used in the main flow; we'll use our own outside */}
           </div>
         </div>
 
@@ -452,22 +475,341 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, onExpo
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center py-8 text-muted-foreground">
-            <CheckCircle className="w-8 h-8 mr-2 text-emerald-400" />
-            <span>No vulnerabilities found</span>
-          </div>
+          <div className="text-center py-8 text-muted-foreground">No vulnerabilities found.</div>
         )}
-
-        {/* Print footer (only once) */}
-        <div className="hidden print:block text-xs text-center text-gray-500 mt-8 pt-4 border-t border-gray-300">
-          <p>Report generated by GROWHAZ Alpha G2 Professional Scanner on {formatDate(report.timestamp)}</p>
-          <p className="mt-1">This is a computer‑generated report. For queries, contact support@growhaz.com</p>
-        </div>
       </div>
     </>
   );
 };
 
+// ----------------------------------------------------------------------
+// Main FileToPdfConverter (enhanced with JSON support)
+// ----------------------------------------------------------------------
+export default function FileToPdfConverter() {
+  const [state, setState] = useState<ConvertState>("idle");
+  const [file, setFile] = useState<File | null>(null);
+  const [progress, setProgress] = useState(0);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [jsonReport, setJsonReport] = useState<SecurityReport | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-export default SecurityReportComponent;
-                    
+  const reset = () => {
+    setFile(null);
+    setState("idle");
+    setProgress(0);
+    setPdfBlob(null);
+    setJsonReport(null);
+  };
+
+  const handleFile = useCallback((f: File) => {
+    setFile(f);
+    setPdfBlob(null);
+    setProgress(0);
+    setJsonReport(null);
+
+    if (f.type === "application/json" || f.name.endsWith('.json')) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const report = JSON.parse(e.target?.result as string);
+          // Basic validation: check for required fields
+          if (report && report.base_url && Array.isArray(report.vulnerabilities) && report.summary) {
+            setJsonReport(report as SecurityReport);
+            setState("jsonPreview");
+          } else {
+            alert("Invalid JSON structure: not a valid security report.");
+            reset();
+          }
+        } catch {
+          alert("Invalid JSON file.");
+          reset();
+        }
+      };
+      reader.readAsText(f);
+    } else {
+      setState("selected");
+    }
+  }, []);
+
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (f) handleFile(f);
+  };
+
+  const onDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const f = e.dataTransfer.files?.[0];
+      if (f) handleFile(f);
+    },
+    [handleFile]
+  );
+
+  const convert = async () => {
+    if (!file) return;
+    setState("converting");
+    setProgress(10);
+
+    try {
+      const doc = new jsPDF({ unit: "pt", format: "a4" });
+      const pageW = doc.internal.pageSize.getWidth();
+      const pageH = doc.internal.pageSize.getHeight();
+      const margin = 40;
+
+      if (file.type.startsWith("image/")) {
+        setProgress(30);
+        const dataUrl = await readAsDataUrl(file);
+        setProgress(60);
+
+        const img = new Image();
+        img.src = dataUrl;
+        await new Promise<void>((res) => { img.onload = () => res(); });
+
+        const maxW = pageW - margin * 2;
+        const maxH = pageH - margin * 2;
+        let w = img.width;
+        let h = img.height;
+        const scale = Math.min(maxW / w, maxH / h, 1);
+        w *= scale;
+        h *= scale;
+
+        const x = (pageW - w) / 2;
+        const y = (pageH - h) / 2;
+        doc.addImage(dataUrl, "JPEG", x, y, w, h);
+        setProgress(90);
+      } else {
+        // Text-based files
+        setProgress(30);
+        const text = await file.text();
+        setProgress(50);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(11);
+        const lines = doc.splitTextToSize(text, pageW - margin * 2);
+        const lineHeight = 16;
+        let y = margin;
+
+        for (let i = 0; i < lines.length; i++) {
+          if (y + lineHeight > pageH - margin) {
+            doc.addPage();
+            y = margin;
+          }
+          doc.text(lines[i], margin, y);
+          y += lineHeight;
+        }
+        setProgress(90);
+      }
+
+      const blob = doc.output("blob");
+      setPdfBlob(blob);
+      setProgress(100);
+      setState("ready");
+    } catch {
+      setState("selected");
+      setProgress(0);
+    }
+  };
+
+  const download = () => {
+    if (!pdfBlob || !file) return;
+    const name = file.name.replace(/\.[^.]+$/, "") + ".pdf";
+    const url = URL.createObjectURL(pdfBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Fixed PDF download for JSON reports using a new window
+  const downloadJsonPdf = () => {
+    if (!jsonReport) return;
+
+    // Open a blank window
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Please allow pop-ups to generate the PDF.');
+      return;
+    }
+
+    // Write a basic HTML document with Tailwind CDN and a mount point
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Security Report - ${getSanitizedUrl(jsonReport.base_url)}</title>
+          <script src="https://cdn.tailwindcss.com"></script>
+          <style>
+            /* Hide interactive buttons on screen; they will be hidden in print anyway */
+            .no-print { display: none; }
+            /* Ensure the report takes full width */
+            body { background: white; padding: 1rem; }
+            #report-root { max-width: 1200px; margin: 0 auto; }
+          </style>
+        </head>
+        <body>
+          <div id="report-root"></div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+
+    // Render the React component into the new window's root div
+    const rootDiv = printWindow.document.getElementById('report-root');
+    if (rootDiv) {
+      ReactDOM.render(
+        <SecurityReportComponent report={jsonReport} />,
+        rootDiv,
+        () => {
+          // Once rendered, trigger print after a short delay to ensure styles are applied
+          setTimeout(() => {
+            printWindow.print();
+            // Optionally close the window after print (user may want to keep it)
+            // printWindow.close();
+          }, 500);
+        }
+      );
+    }
+  };
+
+  return (
+    <Card
+      className="w-full max-w-md mx-auto border-0 shadow-xl transition-all duration-200"
+      style={{ borderRadius: "var(--radius)" }}
+    >
+      <CardContent className="p-6">
+        {state === "idle" && (
+          <div
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
+            onDrop={onDrop}
+            onClick={() => inputRef.current?.click()}
+            className={`flex flex-col items-center justify-center gap-4 rounded-lg border-2 border-dashed p-10 cursor-pointer transition-colors duration-200 ${
+              isDragging
+                ? "border-accent bg-accent/10"
+                : "border-muted-foreground/25 hover:border-accent hover:bg-accent/5"
+            }`}
+            style={{ minHeight: 200 }}
+          >
+            <Upload className="h-10 w-10 text-muted-foreground" />
+            <div className="text-center">
+              <p className="text-base font-semibold text-foreground">
+                Drop file here or tap to select
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                JPG, PNG, WEBP, TXT, CSV, MD, JSON
+              </p>
+            </div>
+            <input
+              ref={inputRef}
+              type="file"
+              accept={ACCEPTED_EXTENSIONS}
+              className="hidden"
+              onChange={onInputChange}
+            />
+          </div>
+        )}
+
+        {(state === "selected" || state === "converting") && file && !jsonReport && (
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center gap-3">
+              {getFileIcon(file.type)}
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-foreground truncate">
+                  {file.name}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {formatFileSize(file.size)}
+                </p>
+              </div>
+              <button
+                onClick={reset}
+                className="p-1.5 rounded-md hover:bg-muted transition-colors"
+                aria-label="Remove file"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+
+            {state === "converting" && (
+              <div className="space-y-2">
+                <Progress value={progress} className="h-2 [&>div]:bg-accent" />
+                <p className="text-xs text-muted-foreground text-center">
+                  Converting… {progress}%
+                </p>
+              </div>
+            )}
+
+            {state === "selected" && (
+              <Button
+                onClick={convert}
+                className="w-full h-12 text-base font-semibold"
+              >
+                Convert to PDF
+              </Button>
+            )}
+          </div>
+        )}
+
+        {state === "jsonPreview" && jsonReport && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between no-print">
+              <h3 className="text-lg font-semibold flex items-center gap-2">
+                <FileText className="w-5 h-5 text-primary" />
+                Security Report Preview
+              </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={reset}
+                className="gap-1"
+              >
+                <X className="w-4 h-4" /> New file
+              </Button>
+            </div>
+
+            {/* Render the full report component directly (no scroll wrapper) */}
+            <SecurityReportComponent report={jsonReport} />
+
+            <div className="flex justify-end no-print">
+              <Button onClick={downloadJsonPdf} className="gap-2">
+                <Download className="w-4 h-4" /> Download PDF
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {state === "ready" && file && (
+          <div className="flex flex-col items-center gap-5">
+            <div className="flex items-center justify-center w-16 h-16 rounded-full bg-primary/10">
+              <File className="h-8 w-8 text-primary" />
+            </div>
+            <div className="text-center">
+              <p className="text-base font-semibold text-foreground">
+                PDF Ready!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                {file.name.replace(/\.[^.]+$/, "")}.pdf
+              </p>
+            </div>
+            <Button
+              onClick={download}
+              className="w-full h-12 text-base font-semibold animate-pulse"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Download PDF
+            </Button>
+            <button
+              onClick={reset}
+              className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Convert another file
+            </button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+      }
