@@ -386,7 +386,7 @@ export default function Auth() {
               </p>
             </div>
 
-            <div className="p-8 rounded-2xl backdrop-blur-xl border bg border-white/10 space-y-6">
+            <div className="p-8 rounded-2xl backdrop-blur-xl border bg border space-y-6">
               <form onSubmit={handleVerifySignupOtp} className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="signup-otp">Verification Code</Label>
