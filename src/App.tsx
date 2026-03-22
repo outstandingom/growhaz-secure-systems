@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
 // Page Imports
-import ResetPassword from "@/pages/ResetPassword";
+
 import Index from "./pages/Index";
 import SecurityTools from "./pages/SecurityTools";
 import Development from "./pages/Development";
@@ -69,8 +69,7 @@ const App = () => (
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/admin" element={<AdminDashboard />} />
         
-// Inside your Router
-<Route path="/reset-password" element={<ResetPassword />} />
+
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
