@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 export const useGoogleAuth = () => {
   const signInWithGoogle = async (): Promise<void> => {
     const { error } = await supabase.auth.signInWithOAuth({
-      provider: "google"
+      provider: "google",
     });
 
     if (error) {
