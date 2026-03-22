@@ -8,7 +8,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -80,6 +79,7 @@ export default function Auth() {
   const [loginOtpCode, setLoginOtpCode] = useState("");
   const [loginOtpStep, setLoginOtpStep] = useState<"email" | "verify">("email");
   const [loginOtpTimer, setLoginOtpTimer] = useState(0);
+  const [resetLoading, setResetLoading] = useState(false); // reused for OTP dialogs
 
   // --- Effects ---
   useEffect(() => {
@@ -173,7 +173,6 @@ export default function Auth() {
 
       setLoading(true);
       try {
-        // Store user data for later creation after OTP verification
         setPendingUser({
           email: email.trim(),
           password: password.trim(),
@@ -181,11 +180,10 @@ export default function Auth() {
           phone: phone.trim(),
         });
 
-        // Send OTP (will create user on OTP verification)
         const { error } = await supabase.auth.signInWithOtp({
           email: email.trim(),
           options: {
-            shouldCreateUser: true, // create user upon OTP verification
+            shouldCreateUser: true,
             data: {
               full_name: fullName.trim(),
               phone: phone.trim() || null,
@@ -224,16 +222,13 @@ export default function Auth() {
 
       setLoading(true);
       try {
-        // Verify OTP – this will create the user if not already created
         const { error: otpError } = await supabase.auth.verifyOtp({
           email: pendingUser.email,
           token: signupOtpCode,
           type: "email",
         });
-
         if (otpError) throw otpError;
 
-        // If password was provided, set it (the user is now authenticated)
         if (pendingUser.password) {
           const { error: updateError } = await supabase.auth.updateUser({
             password: pendingUser.password,
@@ -300,7 +295,6 @@ export default function Auth() {
   // --- Login OTP flow ---
   const sendLoginOtp = useCallback(async () => {
     const targetEmail = loginOtpEmail.trim();
-
     try {
       z.string().email().parse(targetEmail);
     } catch {
@@ -370,9 +364,6 @@ export default function Auth() {
     setPendingUser(null);
     setPassword("");
   }, []);
-
-  // --- Reset loading state for OTP dialogs (since we reuse variable) ---
-  const [resetLoading, setResetLoading] = useState(false);
 
   // --- Sign-up OTP view ---
   if (showSignupOtp && pendingUser) {
@@ -742,4 +733,4 @@ export default function Auth() {
       </Dialog>
     </Layout>
   );
-              }
+                    }
