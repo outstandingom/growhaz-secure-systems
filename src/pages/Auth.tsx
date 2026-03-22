@@ -26,7 +26,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { z } from "zod";
-import GoogleLogin from "@/components/GoogleLogin"; // adjust path as needed
+import GoogleLogin from "@/components/GoogleLogin";
+import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 
 // --- Validation schemas ---
 const loginSchema = z.object({
@@ -70,10 +71,8 @@ export default function Auth() {
   const [pendingUser, setPendingUser] = useState<PendingUser | null>(null);
   const [signupOtpTimer, setSignupOtpTimer] = useState(0);
 
-  // Forgot password dialog
-  const [forgotOpen, setForgotOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
+  // Reset password dialog
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
 
   // Login OTP dialog
   const [loginOtpOpen, setLoginOtpOpen] = useState(false);
@@ -298,43 +297,7 @@ export default function Auth() {
     }
   }, [pendingUser, signupOtpTimer, toast]);
 
-  // --- Forgot password (send reset link – optional, you can also use OTP flow) ---
-  const handleSendForgotLink = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const resetEmail = (forgotEmail || email).trim();
-      if (!resetEmail) {
-        toast({ title: "Email required", description: "Please enter your email.", variant: "destructive" });
-        return;
-      }
-
-      setResetLoading(true);
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
-
-        toast({
-          title: "Reset Link Sent",
-          description: "Check your email and open the password reset link.",
-        });
-        setForgotOpen(false);
-      } catch (error: any) {
-        if (!mounted.current) return;
-        toast({
-          title: "Reset Failed",
-          description: error?.message || "Unable to send reset link.",
-          variant: "destructive",
-        });
-      } finally {
-        if (mounted.current) setResetLoading(false);
-      }
-    },
-    [email, forgotEmail, toast],
-  );
-
-  // --- Login OTP flow (unchanged) ---
+  // --- Login OTP flow ---
   const sendLoginOtp = useCallback(async () => {
     const targetEmail = loginOtpEmail.trim();
 
@@ -408,7 +371,10 @@ export default function Auth() {
     setPassword("");
   }, []);
 
-  // --- Sign-up OTP view (similar to existing but with the updated flow) ---
+  // --- Reset loading state for OTP dialogs (since we reuse variable) ---
+  const [resetLoading, setResetLoading] = useState(false);
+
+  // --- Sign-up OTP view ---
   if (showSignupOtp && pendingUser) {
     return (
       <Layout>
@@ -487,8 +453,8 @@ export default function Auth() {
     );
   }
 
-  // --- Main Auth Form (Login / Sign-up) ---
-return (
+  // --- Main Auth Form ---
+  return (
     <Layout>
       <section className="section-container min-h-[80vh] flex items-center justify-center">
         <div className="w-full max-w-md">
@@ -628,10 +594,7 @@ return (
                 <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setForgotEmail(email.trim());
-                      setForgotOpen(true);
-                    }}
+                    onClick={() => setResetPasswordOpen(true)}
                     className="text-sm text-primary hover:underline font-medium"
                   >
                     Forgot Password?
@@ -696,44 +659,12 @@ return (
         </div>
       </section>
 
-      {/* Forgot Password Dialog */}
-      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-primary" />
-              Reset Password
-            </DialogTitle>
-            <DialogDescription>Enter your email and we'll send you a password reset link.</DialogDescription>
-          </DialogHeader>
-
-          <form onSubmit={handleSendForgotLink} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="forgotEmail">Email Address</Label>
-              <Input
-                id="forgotEmail"
-                type="email"
-                placeholder="you@example.com"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit" className="w-full" disabled={resetLoading}>
-                {resetLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Sending...
-                  </span>
-                ) : (
-                  "Send Reset Link"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      {/* Reset Password Dialog */}
+      <ResetPasswordDialog
+        open={resetPasswordOpen}
+        onOpenChange={setResetPasswordOpen}
+        initialEmail={email}
+      />
 
       {/* Login OTP Dialog */}
       <Dialog
@@ -811,4 +742,4 @@ return (
       </Dialog>
     </Layout>
   );
-                }
+              }
