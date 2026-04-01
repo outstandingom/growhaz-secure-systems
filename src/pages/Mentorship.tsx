@@ -435,6 +435,17 @@ export default function Mentorship() {
               <LearningRequestsList key={refreshKey} />
             </TabsContent>
 
+            {/* My Bookings Tab */}
+            <TabsContent value="my-bookings">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold">My Bookings</h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  View your mentorship sessions and incoming requests
+                </p>
+              </div>
+              <MyBookings />
+            </TabsContent>
+
             {/* My Requests Tab */}
             <TabsContent value="my-requests">
               <div className="text-center mb-6">
