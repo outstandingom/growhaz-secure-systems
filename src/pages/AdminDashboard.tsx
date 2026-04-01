@@ -421,7 +421,7 @@ export default function AdminDashboard() {
             </TabsContent>
 
             {/* Mentors Tab */}
-              <TabsContent value="mentors">
+                  <TabsContent value="mentors">
               <Card>
                 <CardHeader>
                   <CardTitle>Mentor Profiles</CardTitle>
@@ -431,7 +431,7 @@ export default function AdminDashboard() {
                   {mentorProfiles.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No mentor profiles yet</p>
+                      <p>No mentor profiles yet. Users need to enable "Available as Mentor" in their profile first.</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -440,10 +440,10 @@ export default function AdminDashboard() {
                           <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Skills</TableHead>
-                            <TableHead>Rate</TableHead>
+                            <TableHead>Rate (coins/hr)</TableHead>
                             <TableHead>Experience</TableHead>
-                            <TableHead>Links</TableHead>
-                            <TableHead>Verified</TableHead>
+                            <TableHead>Bio</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -459,47 +459,51 @@ export default function AdminDashboard() {
                                   {(profile.skills || []).length > 3 && (
                                     <Badge variant="secondary" className="text-xs">+{profile.skills.length - 3}</Badge>
                                   )}
+                                  {(!profile.skills || profile.skills.length === 0) && (
+                                    <span className="text-xs text-muted-foreground">No skills listed</span>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>
                                 {profile.hourly_rate ? (
-                                  <span className="flex items-center gap-1"><Coins className="w-3 h-3" />{profile.hourly_rate}/hr</span>
-                                ) : 'N/A'}
+                                  <span className="flex items-center gap-1">
+                                    <Coins className="w-3 h-3" />
+                                    {profile.hourly_rate}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">Not set</span>
+                                )}
                               </TableCell>
                               <TableCell>{profile.experience_years || 0} yrs</TableCell>
-                              <TableCell>
-                                <div className="flex gap-1">
-                                  {profile.linkedin_url && (
-                                    <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer">
-                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><ExternalLink className="w-3 h-3" /></Button>
-                                    </a>
-                                  )}
-                                  {profile.github_url && (
-                                    <a href={profile.github_url} target="_blank" rel="noopener noreferrer">
-                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><ExternalLink className="w-3 h-3" /></Button>
-                                    </a>
-                                  )}
-                                </div>
+                              <TableCell className="max-w-xs">
+                                <p className="text-sm truncate">{profile.bio || 'No bio provided'}</p>
                               </TableCell>
                               <TableCell>
-                                {profile.is_verified || profile.mentor_approved ? (
-                                  <Badge className="bg-green-500">Approved</Badge>
+                                {profile.mentor_approved ? (
+                                  <Badge className="bg-green-500 text-white">Approved ✓</Badge>
                                 ) : (
-                                  <Badge variant="secondary">Pending</Badge>
+                                  <Badge variant="secondary" className="bg-yellow-500 text-white">Pending Review</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
-                                {!profile.is_verified && !profile.mentor_approved ? (
+                                {!profile.mentor_approved ? (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApproveMentor(profile.id)}
                                     disabled={processingId === profile.id}
+                                    className="gap-1"
                                   >
-                                    {processingId === profile.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                                    {processingId === profile.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="w-3 h-3" />
+                                    )}
                                     Approve
                                   </Button>
                                 ) : (
-                                  <Badge variant="outline">Approved</Badge>
+                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                    Approved
+                                  </Badge>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -721,6 +725,4 @@ export default function AdminDashboard() {
       </Dialog>
     </Layout>
   );
-                              }
-                                    
-  
+                      }
