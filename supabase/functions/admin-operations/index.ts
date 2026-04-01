@@ -269,6 +269,14 @@ serve(async (req) => {
 
         if (insertError) throw insertError;
 
+        // Mark profile as mentor_approved
+        const { error: approveError } = await supabaseAdmin
+          .from('profiles')
+          .update({ mentor_approved: true })
+          .eq('id', profileId);
+
+        if (approveError) throw approveError;
+
         console.log('Mentor approved:', profile.full_name);
 
         return new Response(

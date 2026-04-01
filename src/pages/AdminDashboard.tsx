@@ -489,7 +489,7 @@ export default function AdminDashboard() {
                                 )}
                               </TableCell>
                               <TableCell>
-                                {!profile.is_verified ? (
+                                {!profile.is_verified && !profile.mentor_approved ? (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApproveMentor(profile.id)}
