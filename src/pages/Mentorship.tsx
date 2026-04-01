@@ -112,7 +112,7 @@ export default function Mentorship() {
         if (error) {
           toast({ title: "Booking Error", description: error.message, variant: "destructive" });
         } else {
-          toast({ title: "Session Booked!", description: `Your session with ${mentor.name} has been booked. They will contact you soon.` });
+          toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` });
         }
       }
     }
