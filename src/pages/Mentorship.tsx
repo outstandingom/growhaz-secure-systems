@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { LearningRequestForm } from "@/components/mentorship/LearningRequestForm";
 import { LearningRequestsList } from "@/components/mentorship/LearningRequestsList";
+import { MyBookings } from "@/components/mentorship/MyBookings";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -111,7 +112,7 @@ export default function Mentorship() {
         if (error) {
           toast({ title: "Booking Error", description: error.message, variant: "destructive" });
         } else {
-          toast({ title: "Session Booked!", description: `Your session with ${mentor.name} has been booked. They will contact you soon.` });
+          toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` });
         }
       }
     }
@@ -248,7 +249,7 @@ export default function Mentorship() {
       <section className="section-container bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="mentors" className="w-full">
-            <TabsList className="grid w-full max-w-2xl mx-auto grid-cols-4 mb-8">
+            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-5 mb-8">
               <TabsTrigger value="mentors" className="gap-1">
                 <Users className="w-4 h-4 hidden sm:block" />
                 Mentors
@@ -256,6 +257,10 @@ export default function Mentorship() {
               <TabsTrigger value="requests" className="gap-1">
                 <BookOpen className="w-4 h-4 hidden sm:block" />
                 Requests
+              </TabsTrigger>
+              <TabsTrigger value="my-bookings" className="gap-1">
+                <Calendar className="w-4 h-4 hidden sm:block" />
+                My Bookings
               </TabsTrigger>
               <TabsTrigger value="my-requests" className="gap-1">
                 <HelpCircle className="w-4 h-4 hidden sm:block" />
@@ -428,6 +433,17 @@ export default function Mentorship() {
                 </p>
               </div>
               <LearningRequestsList key={refreshKey} />
+            </TabsContent>
+
+            {/* My Bookings Tab */}
+            <TabsContent value="my-bookings">
+              <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold">My Bookings</h2>
+                <p className="text-muted-foreground text-sm mt-1">
+                  View your mentorship sessions and incoming requests
+                </p>
+              </div>
+              <MyBookings />
             </TabsContent>
 
             {/* My Requests Tab */}
