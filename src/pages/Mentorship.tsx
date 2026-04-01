@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { LearningRequestForm } from "@/components/mentorship/LearningRequestForm";
 import { LearningRequestsList } from "@/components/mentorship/LearningRequestsList";
+import { MyBookings } from "@/components/mentorship/MyBookings";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
