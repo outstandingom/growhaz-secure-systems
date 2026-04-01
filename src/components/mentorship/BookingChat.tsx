@@ -13,13 +13,13 @@ interface BookingChatProps {
   onOpenChange: (open: boolean) => void;
   booking: {
     id: string;
-    mentor_name: string;
-    learner_name: string;
+    mentor_name?: string;
+    learner_name?: string;
     status: string;
     meeting_link: string | null;
     total_price: number;
     scheduled_at: string;
-    topic_name: string;
+    topic_name?: string;
   } | null;
   currentUserId: string;
 }
