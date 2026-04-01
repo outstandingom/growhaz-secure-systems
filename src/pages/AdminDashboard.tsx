@@ -482,14 +482,14 @@ export default function AdminDashboard() {
                                 </div>
                               </TableCell>
                               <TableCell>
-                                {profile.is_verified ? (
-                                  <Badge className="bg-green-500">Verified</Badge>
+                                {profile.is_verified || profile.mentor_approved ? (
+                                  <Badge className="bg-green-500">Approved</Badge>
                                 ) : (
                                   <Badge variant="secondary">Pending</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
-                                {!profile.is_verified ? (
+                                {!profile.is_verified && !profile.mentor_approved ? (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApproveMentor(profile.id)}

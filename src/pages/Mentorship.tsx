@@ -132,7 +132,7 @@ export default function Mentorship() {
     const [topicsRes, mentorsRes, communityRes] = await Promise.all([
       supabase.from("mentorship_topics").select("*"),
       supabase.from("mentors").select("*"),
-      supabase.from("profiles").select("*").eq("is_available_as_mentor", true)
+      supabase.from("profiles").select("*").eq("is_available_as_mentor", true).eq("mentor_approved", true)
     ]);
 
     if (topicsRes.data) setTopics(topicsRes.data);

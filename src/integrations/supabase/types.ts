@@ -436,6 +436,7 @@ export type Database = {
           is_available_as_mentor: boolean | null
           leetcode_url: string | null
           linkedin_url: string | null
+          mentor_approved: boolean
           phone: string | null
           skills: string[] | null
           updated_at: string
@@ -453,6 +454,7 @@ export type Database = {
           is_available_as_mentor?: boolean | null
           leetcode_url?: string | null
           linkedin_url?: string | null
+          mentor_approved?: boolean
           phone?: string | null
           skills?: string[] | null
           updated_at?: string
@@ -470,6 +472,7 @@ export type Database = {
           is_available_as_mentor?: boolean | null
           leetcode_url?: string | null
           linkedin_url?: string | null
+          mentor_approved?: boolean
           phone?: string | null
           skills?: string[] | null
           updated_at?: string
