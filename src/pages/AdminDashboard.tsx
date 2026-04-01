@@ -66,15 +66,26 @@ export default function AdminDashboard() {
   const [mentorProfiles, setMentorProfiles] = useState<any[]>([]);
   const [securityReports, setSecurityReports] = useState<any[]>([]);
   const [reportDriveLink, setReportDriveLink] = useState("");
-  const [driveLinkReport, setDriveLinkReport] = useState<any>(null); // for which report we are sending a link
-  const [previewReport, setPreviewReport] = useState<any>(null); // for modal preview
+  const [driveLinkReport, setDriveLinkReport] = useState<any>(null);
+  const [previewReport, setPreviewReport] = useState<any>(null);
 
   const fetchMentorProfiles = async () => {
-    const { data, error } = await supabase.functions.invoke('admin-operations', {
-      body: { action: 'get_mentor_profiles' }
-    });
-    if (!error && data?.profiles) {
-      setMentorProfiles(data.profiles);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_available_as_mentor', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setMentorProfiles(data || []);
+    } catch (error: any) {
+      console.error('Error fetching mentor profiles:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to fetch mentor profiles", 
+        variant: "destructive" 
+      });
     }
   };
 
@@ -104,6 +115,93 @@ export default function AdminDashboard() {
     setProcessingId(null);
   };
 
+  const handleApproveMentor = async (profileId: string) => {
+    setProcessingId(profileId);
+    
+    try {
+      // First, get the profile data
+      const { data: profile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profileId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      console.log('Approving mentor:', profile);
+      
+      // Step 1: Update the profile to set mentor_approved = true
+      const updateData: any = {
+        mentor_approved: true
+      };
+      
+      // Set default values if missing
+      if (!profile.hourly_rate || profile.hourly_rate === 0) {
+        updateData.hourly_rate = 50;
+      }
+      
+      if (!profile.skills || profile.skills.length === 0) {
+        updateData.skills = ['Web Development', 'Programming', 'Mentorship'];
+      }
+      
+      if (!profile.bio) {
+        updateData.bio = 'Experienced professional ready to help you learn and grow in your career.';
+      }
+      
+      if (!profile.experience_years || profile.experience_years === 0) {
+        updateData.experience_years = 2;
+      }
+      
+      // Update the profile
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update(updateData)
+        .eq('id', profileId);
+      
+      if (updateError) throw updateError;
+      
+      // Step 2: Also insert into the mentors table for consistency
+      const { error: insertError } = await supabase
+        .from('mentors')
+        .insert({
+          name: profile.full_name,
+          title: profile.bio?.substring(0, 100) || 'Community Mentor',
+          bio: profile.bio || 'Available for mentorship sessions',
+          avatar_url: null,
+          expertise: profile.skills || ['Mentorship'],
+          experience_years: profile.experience_years || 2,
+          hourly_rate: profile.hourly_rate || 50,
+          is_verified: false,
+          is_active: true,
+          linkedin_url: profile.linkedin_url || null,
+          calendly_url: null
+        });
+      
+      if (insertError) {
+        console.error('Error inserting into mentors table:', insertError);
+        // Don't throw, as the profile update was successful
+      }
+      
+      toast({ 
+        title: "Mentor Approved", 
+        description: `${profile.full_name} has been approved and is now visible on the mentorship page.` 
+      });
+      
+      // Refresh the list
+      await fetchMentorProfiles();
+      
+    } catch (error: any) {
+      console.error('Error approving mentor:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to approve mentor", 
+        variant: "destructive" 
+      });
+    }
+    
+    setProcessingId(null);
+  };
+
   useEffect(() => {
     if (!loading && !isAdmin) {
       navigate('/');
@@ -119,17 +217,6 @@ export default function AdminDashboard() {
       fetchSecurityReports();
     }
   }, [isAdmin]);
-
-  const handleApproveMentor = async (profileId: string) => {
-    setProcessingId(profileId);
-    const { error } = await supabase.functions.invoke('admin-operations', {
-      body: { action: 'approve_mentor', data: { profileId } }
-    });
-    if (!error) {
-      await fetchMentorProfiles();
-    }
-    setProcessingId(null);
-  };
 
   const handleProcessWithdrawal = async (status: 'approved' | 'rejected' | 'completed') => {
     if (!selectedRequest) return;
@@ -363,7 +450,7 @@ export default function AdminDashboard() {
                         <TableHead>Name</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Coins</TableHead>
-                        <TableHead>Mentor</TableHead>
+                        <TableHead>Mentor Status</TableHead>
                         <TableHead>Roles</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Actions</TableHead>
@@ -382,9 +469,13 @@ export default function AdminDashboard() {
                           </TableCell>
                           <TableCell>
                             {user.is_available_as_mentor ? (
-                              <Badge className="bg-green-500">Active</Badge>
+                              user.mentor_approved ? (
+                                <Badge className="bg-green-500">Approved ✓</Badge>
+                              ) : (
+                                <Badge className="bg-yellow-500">Pending Approval</Badge>
+                              )
                             ) : (
-                              <Badge variant="secondary">No</Badge>
+                              <Badge variant="secondary">Not a Mentor</Badge>
                             )}
                           </TableCell>
                           <TableCell>
@@ -420,12 +511,12 @@ export default function AdminDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Mentors Tab */}
-                  <TabsContent value="mentors">
+                 {/* Mentors Tab - Updated */}
+            <TabsContent value="mentors">
               <Card>
                 <CardHeader>
                   <CardTitle>Mentor Profiles</CardTitle>
-                  <CardDescription>Users who have enabled "Available as Mentor" on their profile</CardDescription>
+                  <CardDescription>Users who have enabled "Available as Mentor" on their profile. Click approve to make them visible on the mentorship page.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {mentorProfiles.length === 0 ? (
@@ -725,4 +816,4 @@ export default function AdminDashboard() {
       </Dialog>
     </Layout>
   );
-                      }
+}
