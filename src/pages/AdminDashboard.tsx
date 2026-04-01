@@ -81,11 +81,6 @@ export default function AdminDashboard() {
       setMentorProfiles(data || []);
     } catch (error: any) {
       console.error('Error fetching mentor profiles:', error);
-      toast({ 
-        title: "Error", 
-        description: error.message || "Failed to fetch mentor profiles", 
-        variant: "destructive" 
-      });
     }
   };
 
@@ -119,7 +114,7 @@ export default function AdminDashboard() {
     setProcessingId(profileId);
     
     try {
-      // First, get the profile data
+      // Step 1: Get the profile data
       const { data: profile, error: fetchError } = await supabase
         .from('profiles')
         .select('*')
@@ -130,61 +125,91 @@ export default function AdminDashboard() {
       
       console.log('Approving mentor:', profile);
       
-      // Step 1: Update the profile to set mentor_approved = true
-      const updateData: any = {
-        mentor_approved: true
-      };
+      // Step 2: Prepare data with defaults
+      const hourlyRate = profile.hourly_rate || 50;
+      const skills = profile.skills && profile.skills.length > 0 ? profile.skills : ['Web Development', 'Programming', 'Mentorship'];
+      const bio = profile.bio || 'Experienced professional ready to help you learn and grow in your career.';
+      const experienceYears = profile.experience_years || 2;
       
-      // Set default values if missing
-      if (!profile.hourly_rate || profile.hourly_rate === 0) {
-        updateData.hourly_rate = 50;
+      // Step 3: Check if mentor already exists in mentors table
+      const { data: existingMentor, error: checkError } = await supabase
+        .from('mentors')
+        .select('id')
+        .eq('name', profile.full_name)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking existing mentor:', checkError);
       }
       
-      if (!profile.skills || profile.skills.length === 0) {
-        updateData.skills = ['Web Development', 'Programming', 'Mentorship'];
+      // Step 4: Create or update mentor record
+      if (!existingMentor) {
+        // Insert new mentor
+        const { error: insertError } = await supabase
+          .from('mentors')
+          .insert({
+            name: profile.full_name,
+            title: bio.substring(0, 100),
+            bio: bio,
+            avatar_url: null,
+            expertise: skills,
+            experience_years: experienceYears,
+            hourly_rate: hourlyRate,
+            is_verified: false,
+            is_active: true,
+            linkedin_url: profile.linkedin_url || null,
+            calendly_url: null
+          });
+        
+        if (insertError) {
+          console.error('Error inserting into mentors table:', insertError);
+          toast({ 
+            title: "Warning", 
+            description: "Mentor approved but could not create mentor record. Please check the mentors table.", 
+            variant: "destructive" 
+          });
+        } else {
+          console.log('Successfully created mentor record');
+        }
+      } else {
+        // Update existing mentor
+        const { error: updateError } = await supabase
+          .from('mentors')
+          .update({
+            title: bio.substring(0, 100),
+            bio: bio,
+            expertise: skills,
+            experience_years: experienceYears,
+            hourly_rate: hourlyRate,
+            is_active: true,
+            linkedin_url: profile.linkedin_url || null
+          })
+          .eq('id', existingMentor.id);
+        
+        if (updateError) {
+          console.error('Error updating mentor:', updateError);
+        } else {
+          console.log('Successfully updated existing mentor');
+        }
       }
       
-      if (!profile.bio) {
-        updateData.bio = 'Experienced professional ready to help you learn and grow in your career.';
-      }
-      
-      if (!profile.experience_years || profile.experience_years === 0) {
-        updateData.experience_years = 2;
-      }
-      
-      // Update the profile
-      const { error: updateError } = await supabase
+      // Step 5: Update profile to approved
+      const { error: updateProfileError } = await supabase
         .from('profiles')
-        .update(updateData)
+        .update({
+          mentor_approved: true,
+          hourly_rate: hourlyRate,
+          skills: skills,
+          bio: bio,
+          experience_years: experienceYears
+        })
         .eq('id', profileId);
       
-      if (updateError) throw updateError;
-      
-      // Step 2: Also insert into the mentors table for consistency
-      const { error: insertError } = await supabase
-        .from('mentors')
-        .insert({
-          name: profile.full_name,
-          title: profile.bio?.substring(0, 100) || 'Community Mentor',
-          bio: profile.bio || 'Available for mentorship sessions',
-          avatar_url: null,
-          expertise: profile.skills || ['Mentorship'],
-          experience_years: profile.experience_years || 2,
-          hourly_rate: profile.hourly_rate || 50,
-          is_verified: false,
-          is_active: true,
-          linkedin_url: profile.linkedin_url || null,
-          calendly_url: null
-        });
-      
-      if (insertError) {
-        console.error('Error inserting into mentors table:', insertError);
-        // Don't throw, as the profile update was successful
-      }
+      if (updateProfileError) throw updateProfileError;
       
       toast({ 
         title: "Mentor Approved", 
-        description: `${profile.full_name} has been approved and is now visible on the mentorship page.` 
+        description: `${profile.full_name} has been approved and added to the mentors list. They are now visible on the mentorship page.` 
       });
       
       // Refresh the list
@@ -511,12 +536,12 @@ export default function AdminDashboard() {
               </Card>
             </TabsContent>
 
-                 {/* Mentors Tab - Updated */}
+            {/* Mentors Tab - Updated */}
             <TabsContent value="mentors">
               <Card>
                 <CardHeader>
                   <CardTitle>Mentor Profiles</CardTitle>
-                  <CardDescription>Users who have enabled "Available as Mentor" on their profile. Click approve to make them visible on the mentorship page.</CardDescription>
+                  <CardDescription>Users who have enabled "Available as Mentor" on their profile. Click approve to create them as official mentors.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {mentorProfiles.length === 0 ? (
@@ -816,4 +841,4 @@ export default function AdminDashboard() {
       </Dialog>
     </Layout>
   );
-}
+        }
