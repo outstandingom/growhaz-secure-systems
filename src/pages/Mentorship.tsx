@@ -192,6 +192,7 @@ export default function Mentorship() {
       .filter(p => !officialMentorNames.has(p.full_name?.toLowerCase()))
       .map(p => ({
         id: p.id,
+        user_id: p.user_id,
         name: p.full_name,
         title: p.bio?.substring(0, 80) || 'Community Mentor',
         bio: p.bio || 'Available for mentorship sessions',
