@@ -92,17 +92,27 @@ export default function Mentorship() {
   const { spendCoins, balance } = useSpendCoins();
   const { toast } = useToast();
 
-  const handleBookWithCoins = async (mentor: Mentor) => {
+  const handleBookWithCoins = async (mentor: any) => {
     setBookingMentorId(mentor.id);
     const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
     if (success) {
-      // Create a booking record
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
+        // For community mentors, use user_id (auth id); for official mentors, use their id
+        const mentorId = mentor._isCommunity ? mentor.user_id : mentor.id;
+        
+        // Get a valid topic_id
+        const topicId = topics[0]?.id;
+        if (!topicId) {
+          toast({ title: "Booking Error", description: "No mentorship topics available. Please try again later.", variant: "destructive" });
+          setBookingMentorId(null);
+          return;
+        }
+
         const { error } = await supabase.from("mentorship_bookings").insert({
           user_id: user.id,
-          mentor_id: mentor.id,
-          topic_id: topics[0]?.id || mentor.id, // fallback
+          mentor_id: mentorId,
+          topic_id: topicId,
           scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
           total_price: mentor.hourly_rate,
           status: "pending",
