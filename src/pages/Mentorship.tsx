@@ -57,6 +57,8 @@ interface Mentor {
   is_verified: boolean;
   linkedin_url: string | null;
   calendly_url: string | null;
+  _isCommunity?: boolean;
+  _profileId?: string;
 }
 
 interface MyRequest {
@@ -93,7 +95,7 @@ export default function Mentorship() {
   const { toast } = useToast();
 
   const handleBookWithCoins = async (mentor: any) => {
-    setBookingMentorId(mentor.id);
+    setBookingMentorId(mentor.id)
     const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
     if (success) {
       const { data: { user } } = await supabase.auth.getUser();
@@ -122,10 +124,126 @@ export default function Mentorship() {
         if (error) {
           toast({ title: "Booking Error", description: error.message, variant: "destructive" });
         } else {
-          toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` });
+          toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` }
+    
+    try {
+      let mentorIdToUse = mentor.id;
+      
+      // If this is a community mentor, we need to ensure they exist in the mentors table
+      if (mentor._isCommunity) {
+        // Check if this community mentor already exists in mentors table
+        const { data: existingMentor, error: checkError } = await supabase
+          .from('mentors')
+          .select('id')
+          .eq('name', mentor.name)
+          .maybeSingle();
+        
+        if (checkError) {
+          console.error('Error checking existing mentor:', checkError);
+        }
+        
+        if (existingMentor) {
+          mentorIdToUse = existingMentor.id;
+        } else {
+          // Create a mentor entry for this community mentor
+          const { data: newMentor, error: createError } = await supabase
+            .from('mentors')
+            .insert({
+              name: mentor.name,
+              title: mentor.title,
+              bio: mentor.bio,
+              expertise: mentor.expertise,
+              experience_years: mentor.experience_years,
+              hourly_rate: mentor.hourly_rate,
+              is_verified: mentor.is_verified,
+              is_active: true,
+              linkedin_url: mentor.linkedin_url,
+              calendly_url: mentor.calendly_url
+            })
+            .select()
+            .single();
+          
+          if (createError) {
+            console.error('Error creating mentor record:', createError);
+            toast({ 
+              title: "Booking Error", 
+              description: "Could not create mentor record. Please try again.", 
+              variant: "destructive" 
+            });
+            setBookingMentorId(null);
+            return;
+          }
+          
+          mentorIdToUse = newMentor.id;
         }
       }
+      
+      // Spend coins
+      const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
+      
+      if (success) {
+        // Create a booking record
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          // Get a valid topic ID
+          let topicId = topics[0]?.id;
+          
+          // If no topics exist, create a default one
+          if (!topicId) {
+            const { data: defaultTopic, error: topicError } = await supabase
+              .from('mentorship_topics')
+              .insert({
+                name: 'General Mentorship',
+                slug: 'general-mentorship',
+                description: 'General mentorship session',
+                icon: 'Users',
+                is_active: true
+              })
+              .select()
+              .single();
+            
+            if (!topicError && defaultTopic) {
+              topicId = defaultTopic.id;
+              // Update topics state
+              setTopics([defaultTopic, ...topics]);
+            }
+          }
+          
+          const { error } = await supabase.from("mentorship_bookings").insert({
+            user_id: user.id,
+            mentor_id: mentorIdToUse,
+            topic_id: topicId || mentor.id,
+            scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+            total_price: mentor.hourly_rate,
+            status: "pending",
+            notes: `Booked via coin payment (${mentor.hourly_rate} coins)`,
+          });
+
+          if (error) {
+            console.error('Booking error:', error);
+            toast({ 
+              title: "Booking Error", 
+              description: error.message, 
+              variant: "destructive" 
+            });
+          } else {
+            toast({ 
+              title: "Booking Request Sent!", 
+              description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` 
+            });
+            // Refresh bookings
+            setRefreshKey((k) => k + 1);
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error('Booking error:', error);
+      toast({ 
+        title: "Booking Error", 
+        description: error.message || "An error occurred while booking", 
+        varia
     }
+    
     setBookingMentorId(null);
   };
 
@@ -136,12 +254,18 @@ export default function Mentorship() {
   }, [refreshKey]);
 
   const fetchData = async () => {
+    setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     setIsLoggedIn(!!user);
 
     const [topicsRes, mentorsRes, communityRes] = await Promise.all([
+
       supabase.from("mentorship_topics").select("*"),
       supabase.from("mentors").select("*"),
+
+      supabase.from("mentorship_topics").select("*").eq("is_active", true),
+      supabase.from("mentors").select("*").eq("is_active", true),
+
       supabase.from("profiles").select("*").eq("is_available_as_mentor", true).eq("mentor_approved", true)
     ]);
 
@@ -204,6 +328,7 @@ export default function Mentorship() {
         linkedin_url: p.linkedin_url,
         calendly_url: null,
         _isCommunity: true,
+        _profileId: p.id,
       }))
   ];
 
@@ -316,7 +441,7 @@ export default function Mentorship() {
               </div>
 
               {/* Mentors Grid */}
-              <div className="text-center mb-6">
+            <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold">
                   {selectedTopic ? `${topics.find(t => t.slug === selectedTopic)?.name} Mentors` : "All Mentors"}
                 </h2>
@@ -699,4 +824,4 @@ export default function Mentorship() {
       </section>
     </Layout>
   );
-}
+            }

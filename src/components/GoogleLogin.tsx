@@ -1,9 +1,8 @@
-import { FC } from "react"
-import { useGoogleAuth } from "../hooks/useGoogleAuth"
+import { FC } from "react";
+import { useGoogleAuth } from "../hooks/useGoogleAuth";
 
 const GoogleLogin: FC = () => {
-
-  const { signInWithGoogle } = useGoogleAuth()
+  const { signInWithGoogle } = useGoogleAuth();
 
   return (
     <button
@@ -12,12 +11,12 @@ const GoogleLogin: FC = () => {
         padding: "10px 16px",
         borderRadius: "6px",
         border: "1px solid #ddd",
-        cursor: "pointer"
+        cursor: "pointer",
       }}
     >
       Continue with Google
     </button>
-  )
-}
+  );
+};
 
-export default GoogleLogin
+export default GoogleLogin;

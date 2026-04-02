@@ -66,15 +66,21 @@ export default function AdminDashboard() {
   const [mentorProfiles, setMentorProfiles] = useState<any[]>([]);
   const [securityReports, setSecurityReports] = useState<any[]>([]);
   const [reportDriveLink, setReportDriveLink] = useState("");
-  const [driveLinkReport, setDriveLinkReport] = useState<any>(null); // for which report we are sending a link
-  const [previewReport, setPreviewReport] = useState<any>(null); // for modal preview
+  const [driveLinkReport, setDriveLinkReport] = useState<any>(null);
+  const [previewReport, setPreviewReport] = useState<any>(null);
 
   const fetchMentorProfiles = async () => {
-    const { data, error } = await supabase.functions.invoke('admin-operations', {
-      body: { action: 'get_mentor_profiles' }
-    });
-    if (!error && data?.profiles) {
-      setMentorProfiles(data.profiles);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('is_available_as_mentor', true)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setMentorProfiles(data || []);
+    } catch (error: any) {
+      console.error('Error fetching mentor profiles:', error);
     }
   };
 
@@ -104,6 +110,123 @@ export default function AdminDashboard() {
     setProcessingId(null);
   };
 
+  const handleApproveMentor = async (profileId: string) => {
+    setProcessingId(profileId);
+    
+    try {
+      // Step 1: Get the profile data
+      const { data: profile, error: fetchError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', profileId)
+        .single();
+      
+      if (fetchError) throw fetchError;
+      
+      console.log('Approving mentor:', profile);
+      
+      // Step 2: Prepare data with defaults
+      const hourlyRate = profile.hourly_rate || 50;
+      const skills = profile.skills && profile.skills.length > 0 ? profile.skills : ['Web Development', 'Programming', 'Mentorship'];
+      const bio = profile.bio || 'Experienced professional ready to help you learn and grow in your career.';
+      const experienceYears = profile.experience_years || 2;
+      
+      // Step 3: Check if mentor already exists in mentors table
+      const { data: existingMentor, error: checkError } = await supabase
+        .from('mentors')
+        .select('id')
+        .eq('name', profile.full_name)
+        .maybeSingle();
+      
+      if (checkError) {
+        console.error('Error checking existing mentor:', checkError);
+      }
+      
+      // Step 4: Create or update mentor record
+      if (!existingMentor) {
+        // Insert new mentor
+        const { error: insertError } = await supabase
+          .from('mentors')
+          .insert({
+            name: profile.full_name,
+            title: bio.substring(0, 100),
+            bio: bio,
+            avatar_url: null,
+            expertise: skills,
+            experience_years: experienceYears,
+            hourly_rate: hourlyRate,
+            is_verified: false,
+            is_active: true,
+            linkedin_url: profile.linkedin_url || null,
+            calendly_url: null
+          });
+        
+        if (insertError) {
+          console.error('Error inserting into mentors table:', insertError);
+          toast({ 
+            title: "Warning", 
+            description: "Mentor approved but could not create mentor record. Please check the mentors table.", 
+            variant: "destructive" 
+          });
+        } else {
+          console.log('Successfully created mentor record');
+        }
+      } else {
+        // Update existing mentor
+        const { error: updateError } = await supabase
+          .from('mentors')
+          .update({
+            title: bio.substring(0, 100),
+            bio: bio,
+            expertise: skills,
+            experience_years: experienceYears,
+            hourly_rate: hourlyRate,
+            is_active: true,
+            linkedin_url: profile.linkedin_url || null
+          })
+          .eq('id', existingMentor.id);
+        
+        if (updateError) {
+          console.error('Error updating mentor:', updateError);
+        } else {
+          console.log('Successfully updated existing mentor');
+        }
+      }
+      
+      // Step 5: Update profile to approved
+      const { error: updateProfileError } = await supabase
+        .from('profiles')
+        .update({
+          mentor_approved: true,
+          hourly_rate: hourlyRate,
+          skills: skills,
+          bio: bio,
+          experience_years: experienceYears
+        })
+        .eq('id', profileId);
+      
+      if (updateProfileError) throw updateProfileError;
+      
+      toast({ 
+        title: "Mentor Approved", 
+        description: `${profile.full_name} has been approved and added to the mentors list. They are now visible on the mentorship page.` 
+      });
+      
+      // Refresh the list
+      await fetchMentorProfiles();
+      
+    } catch (error: any) {
+      console.error('Error approving mentor:', error);
+      toast({ 
+        title: "Error", 
+        description: error.message || "Failed to approve mentor", 
+        variant: "destructive" 
+      });
+    }
+    
+    setProcessingId(null);
+  };
+
   useEffect(() => {
     if (!loading && !isAdmin) {
       navigate('/');
@@ -119,17 +242,6 @@ export default function AdminDashboard() {
       fetchSecurityReports();
     }
   }, [isAdmin]);
-
-  const handleApproveMentor = async (profileId: string) => {
-    setProcessingId(profileId);
-    const { error } = await supabase.functions.invoke('admin-operations', {
-      body: { action: 'approve_mentor', data: { profileId } }
-    });
-    if (!error) {
-      await fetchMentorProfiles();
-    }
-    setProcessingId(null);
-  };
 
   const handleProcessWithdrawal = async (status: 'approved' | 'rejected' | 'completed') => {
     if (!selectedRequest) return;
@@ -363,7 +475,7 @@ export default function AdminDashboard() {
                         <TableHead>Name</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Coins</TableHead>
-                        <TableHead>Mentor</TableHead>
+                        <TableHead>Mentor Status</TableHead>
                         <TableHead>Roles</TableHead>
                         <TableHead>Joined</TableHead>
                         <TableHead>Actions</TableHead>
@@ -382,9 +494,13 @@ export default function AdminDashboard() {
                           </TableCell>
                           <TableCell>
                             {user.is_available_as_mentor ? (
-                              <Badge className="bg-green-500">Active</Badge>
+                              user.mentor_approved ? (
+                                <Badge className="bg-green-500">Approved ✓</Badge>
+                              ) : (
+                                <Badge className="bg-yellow-500">Pending Approval</Badge>
+                              )
                             ) : (
-                              <Badge variant="secondary">No</Badge>
+                              <Badge variant="secondary">Not a Mentor</Badge>
                             )}
                           </TableCell>
                           <TableCell>
@@ -420,18 +536,18 @@ export default function AdminDashboard() {
               </Card>
             </TabsContent>
 
-            {/* Mentors Tab */}
-              <TabsContent value="mentors">
+            {/* Mentors Tab - Updated */}
+            <TabsContent value="mentors">
               <Card>
                 <CardHeader>
                   <CardTitle>Mentor Profiles</CardTitle>
-                  <CardDescription>Users who have enabled "Available as Mentor" on their profile</CardDescription>
+                  <CardDescription>Users who have enabled "Available as Mentor" on their profile. Click approve to create them as official mentors.</CardDescription>
                 </CardHeader>
                 <CardContent>
                   {mentorProfiles.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                      <p>No mentor profiles yet</p>
+                      <p>No mentor profiles yet. Users need to enable "Available as Mentor" in their profile first.</p>
                     </div>
                   ) : (
                     <div className="overflow-x-auto">
@@ -440,10 +556,10 @@ export default function AdminDashboard() {
                           <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead>Skills</TableHead>
-                            <TableHead>Rate</TableHead>
+                            <TableHead>Rate (coins/hr)</TableHead>
                             <TableHead>Experience</TableHead>
-                            <TableHead>Links</TableHead>
-                            <TableHead>Verified</TableHead>
+                            <TableHead>Bio</TableHead>
+                            <TableHead>Status</TableHead>
                             <TableHead>Actions</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -459,47 +575,56 @@ export default function AdminDashboard() {
                                   {(profile.skills || []).length > 3 && (
                                     <Badge variant="secondary" className="text-xs">+{profile.skills.length - 3}</Badge>
                                   )}
+                                  {(!profile.skills || profile.skills.length === 0) && (
+                                    <span className="text-xs text-muted-foreground">No skills listed</span>
+                                  )}
                                 </div>
                               </TableCell>
                               <TableCell>
                                 {profile.hourly_rate ? (
-                                  <span className="flex items-center gap-1"><Coins className="w-3 h-3" />{profile.hourly_rate}/hr</span>
-                                ) : 'N/A'}
+                                  <span className="flex items-center gap-1">
+                                    <Coins className="w-3 h-3" />
+                                    {profile.hourly_rate}
+                                  </span>
+                                ) : (
+                                  <span className="text-muted-foreground text-sm">Not set</span>
+                                )}
                               </TableCell>
                               <TableCell>{profile.experience_years || 0} yrs</TableCell>
-                              <TableCell>
-                                <div className="flex gap-1">
-                                  {profile.linkedin_url && (
-                                    <a href={profile.linkedin_url} target="_blank" rel="noopener noreferrer">
-                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><ExternalLink className="w-3 h-3" /></Button>
-                                    </a>
-                                  )}
-                                  {profile.github_url && (
-                                    <a href={profile.github_url} target="_blank" rel="noopener noreferrer">
-                                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0"><ExternalLink className="w-3 h-3" /></Button>
-                                    </a>
-                                  )}
-                                </div>
+                              <TableCell className="max-w-xs">
+                                <p className="text-sm truncate">{profile.bio || 'No bio provided'}</p>
                               </TableCell>
                               <TableCell>
+
                                 {profile.is_verified || profile.mentor_approved ? (
                                   <Badge className="bg-green-500">Approved</Badge>
+
+                                {profile.mentor_approved ? (
+                                  <Badge className="bg-green-500 text-white">Approved ✓</Badge>
+
                                 ) : (
-                                  <Badge variant="secondary">Pending</Badge>
+                                  <Badge variant="secondary" className="bg-yellow-500 text-white">Pending Review</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
-                                {!profile.is_verified && !profile.mentor_approved ? (
+                           
                                   <Button
                                     size="sm"
                                     onClick={() => handleApproveMentor(profile.id)}
                                     disabled={processingId === profile.id}
+                                    className="gap-1"
                                   >
-                                    {processingId === profile.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3 mr-1" />}
+                                    {processingId === profile.id ? (
+                                      <Loader2 className="w-3 h-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="w-3 h-3" />
+                                    )}
                                     Approve
                                   </Button>
                                 ) : (
-                                  <Badge variant="outline">Approved</Badge>
+                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                    Approved
+                                  </Badge>
                                 )}
                               </TableCell>
                             </TableRow>
@@ -721,6 +846,4 @@ export default function AdminDashboard() {
       </Dialog>
     </Layout>
   );
-                              }
-                                    
-  
+        }

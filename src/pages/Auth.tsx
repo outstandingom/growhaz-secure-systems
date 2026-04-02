@@ -3,12 +3,12 @@ import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -26,7 +26,10 @@ import {
   UserPlus,
 } from "lucide-react";
 import { z } from "zod";
+import GoogleLogin from "@/components/GoogleLogin";
+import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 
+// --- Validation schemas ---
 const loginSchema = z.object({
   email: z.string().trim().email({ message: "Invalid email address" }),
   password: z.string().min(6, { message: "Password must be at least 6 characters" }),
@@ -36,15 +39,12 @@ const registerSchema = z.object({
   fullName: z.string().trim().min(2, { message: "Name must be at least 2 characters" }).max(100),
   phone: z.string().trim().min(10, { message: "Please enter a valid phone number" }).max(15).optional().or(z.literal("")),
   email: z.string().trim().email({ message: "Invalid email address" }),
-  password: z
-    .string()
-    .optional()
-    .refine((value) => !value || value.length >= 6, { message: "Password must be at least 6 characters" }),
+  password: z.string().min(6, { message: "Password must be at least 6 characters" }),
 });
 
 interface PendingUser {
   email: string;
-  password?: string;
+  password: string;
   fullName: string;
   phone: string;
 }
@@ -65,24 +65,26 @@ export default function Auth() {
 
   const [showPassword, setShowPassword] = useState(false);
 
+  // Sign-up OTP state
   const [showSignupOtp, setShowSignupOtp] = useState(false);
   const [signupOtpCode, setSignupOtpCode] = useState("");
   const [pendingUser, setPendingUser] = useState<PendingUser | null>(null);
   const [signupOtpTimer, setSignupOtpTimer] = useState(0);
 
-  const [forgotOpen, setForgotOpen] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState("");
-  const [resetLoading, setResetLoading] = useState(false);
+  // Reset password dialog
+  const [resetPasswordOpen, setResetPasswordOpen] = useState(false);
 
+  // Login OTP dialog
   const [loginOtpOpen, setLoginOtpOpen] = useState(false);
   const [loginOtpEmail, setLoginOtpEmail] = useState("");
   const [loginOtpCode, setLoginOtpCode] = useState("");
   const [loginOtpStep, setLoginOtpStep] = useState<"email" | "verify">("email");
   const [loginOtpTimer, setLoginOtpTimer] = useState(0);
+  const [resetLoading, setResetLoading] = useState(false); // reused for OTP dialogs
 
+  // --- Effects ---
   useEffect(() => {
     mounted.current = true;
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -90,7 +92,6 @@ export default function Auth() {
         navigate("/");
       }
     });
-
     return () => {
       mounted.current = false;
       subscription.unsubscribe();
@@ -109,6 +110,7 @@ export default function Auth() {
     return () => clearTimeout(timer);
   }, [loginOtpTimer]);
 
+  // --- Helper functions ---
   const normalizeOtp = (value: string) => value.replace(/\D/g, "").slice(0, 6);
 
   const validateMainForm = useCallback(() => {
@@ -132,6 +134,7 @@ export default function Auth() {
     }
   }, [isLogin, email, password, fullName, phone]);
 
+  // --- Login with email/password ---
   const handleSignIn = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -163,6 +166,7 @@ export default function Auth() {
     [email, password, navigate, toast, validateMainForm],
   );
 
+  // --- Sign-up: send OTP ---
   const handleSignUp = useCallback(
     async (e: React.FormEvent) => {
       e.preventDefault();
@@ -170,8 +174,15 @@ export default function Auth() {
 
       setLoading(true);
       try {
+        setPendingUser({
+          email: email.trim(),
+          password: password.trim(),
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+        });
+
         const { error } = await supabase.auth.signInWithOtp({
-          email,
+          email: email.trim(),
           options: {
             shouldCreateUser: true,
             data: {
@@ -183,18 +194,12 @@ export default function Auth() {
 
         if (error) throw error;
 
-        setPendingUser({
-          email: email.trim(),
-          password: password.trim() || undefined,
-          fullName: fullName.trim(),
-          phone: phone.trim(),
-        });
         setSignupOtpCode("");
         setShowSignupOtp(true);
         setSignupOtpTimer(45);
         toast({
           title: "Verification Code Sent",
-          description: "Enter the 6-digit code from your email to create your account.",
+          description: `Enter the 6-digit code sent to ${email.trim()}`,
         });
       } catch (error: any) {
         if (!mounted.current) return;
@@ -210,6 +215,7 @@ export default function Auth() {
     [email, fullName, password, phone, toast, validateMainForm],
   );
 
+  // --- Verify sign-up OTP ---
   const handleVerifySignupOtp = useCallback(
     async (e?: React.FormEvent) => {
       e?.preventDefault();
@@ -222,22 +228,16 @@ export default function Auth() {
           token: signupOtpCode,
           type: "email",
         });
-
         if (otpError) throw otpError;
 
         if (pendingUser.password) {
           const { error: updateError } = await supabase.auth.updateUser({
             password: pendingUser.password,
-            data: {
-              full_name: pendingUser.fullName,
-              phone: pendingUser.phone || null,
-            },
           });
-
           if (updateError) {
             toast({
               title: "Account created",
-              description: "Account is verified. Password setup failed, but you can login with OTP.",
+              description: "Account verified but password setup failed. You can set password later.",
               variant: "destructive",
             });
           }
@@ -264,6 +264,7 @@ export default function Auth() {
     [navigate, pendingUser, signupOtpCode, toast],
   );
 
+  // --- Resend sign-up OTP ---
   const handleResendSignupOtp = useCallback(async () => {
     if (!pendingUser || signupOtpTimer > 0) return;
 
@@ -279,7 +280,6 @@ export default function Auth() {
           },
         },
       });
-
       if (error) throw error;
 
       setSignupOtpTimer(45);
@@ -293,45 +293,9 @@ export default function Auth() {
     }
   }, [pendingUser, signupOtpTimer, toast]);
 
-  const handleSendForgotLink = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault();
-      const resetEmail = (forgotEmail || email).trim();
-      if (!resetEmail) {
-        toast({ title: "Email required", description: "Please enter your email.", variant: "destructive" });
-        return;
-      }
-
-      setResetLoading(true);
-      try {
-        const { error } = await supabase.auth.resetPasswordForEmail(resetEmail, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Reset Link Sent",
-          description: "Check your email and open the password reset link.",
-        });
-        setForgotOpen(false);
-      } catch (error: any) {
-        if (!mounted.current) return;
-        toast({
-          title: "Reset Failed",
-          description: error?.message || "Unable to send reset link.",
-          variant: "destructive",
-        });
-      } finally {
-        if (mounted.current) setResetLoading(false);
-      }
-    },
-    [email, forgotEmail, toast],
-  );
-
+  // --- Login OTP flow ---
   const sendLoginOtp = useCallback(async () => {
     const targetEmail = loginOtpEmail.trim();
-
     try {
       z.string().email().parse(targetEmail);
     } catch {
@@ -345,7 +309,6 @@ export default function Auth() {
         email: targetEmail,
         options: { shouldCreateUser: false },
       });
-
       if (error) throw error;
 
       setLoginOtpStep("verify");
@@ -372,7 +335,6 @@ export default function Auth() {
         token: loginOtpCode,
         type: "email",
       });
-
       if (error) throw error;
 
       toast({ title: "Signed In", description: "OTP verification successful." });
@@ -388,6 +350,13 @@ export default function Auth() {
     }
   }, [loginOtpCode, loginOtpEmail, navigate, toast]);
 
+  const openLoginOtpDialog = () => {
+    setLoginOtpOpen(true);
+    setLoginOtpStep("email");
+    setLoginOtpEmail(email.trim());
+    setLoginOtpCode("");
+  };
+
   const switchMode = useCallback(() => {
     setIsLogin((prev) => !prev);
     setErrors({});
@@ -397,13 +366,7 @@ export default function Auth() {
     setPassword("");
   }, []);
 
-  const openLoginOtpDialog = () => {
-    setLoginOtpOpen(true);
-    setLoginOtpStep("email");
-    setLoginOtpEmail(email.trim());
-    setLoginOtpCode("");
-  };
-
+  // --- Sign-up OTP view ---
   if (showSignupOtp && pendingUser) {
     return (
       <Layout>
@@ -423,7 +386,7 @@ export default function Auth() {
               </p>
             </div>
 
-            <div className="p-8 rounded-2xl backdrop-blur-xl border bg-card/80 border-border space-y-6">
+            <div className="p-8 rounded-2xl backdrop-blur-2xl border border-white/15 bg-white/5 space-y-6">
               <form onSubmit={handleVerifySignupOtp} className="space-y-5">
                 <div className="space-y-2">
                   <Label htmlFor="signup-otp">Verification Code</Label>
@@ -482,6 +445,7 @@ export default function Auth() {
     );
   }
 
+  // --- Main Auth Form ---
   return (
     <Layout>
       <section className="section-container min-h-[80vh] flex items-center justify-center">
@@ -588,7 +552,7 @@ export default function Auth() {
               <div className="space-y-2">
                 <Label htmlFor="password" className="flex items-center gap-2">
                   <KeyRound className="w-4 h-4 text-muted-foreground" />
-                  {isLogin ? "Password" : "Password (Optional)"}
+                  Password {isLogin && <span className="text-destructive">*</span>}
                 </Label>
                 <div className="relative">
                   <Input
@@ -613,7 +577,7 @@ export default function Auth() {
                 {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
                 {!isLogin && (
                   <p className="text-xs text-muted-foreground">
-                    Optional: set password now, or login with OTP anytime.
+                    Password is required and will be set after email verification.
                   </p>
                 )}
               </div>
@@ -622,10 +586,7 @@ export default function Auth() {
                 <div className="flex items-center justify-between gap-2">
                   <button
                     type="button"
-                    onClick={() => {
-                      setForgotEmail(email.trim());
-                      setForgotOpen(true);
-                    }}
+                    onClick={() => setResetPasswordOpen(true)}
                     className="text-sm text-primary hover:underline font-medium"
                   >
                     Forgot Password?
@@ -655,6 +616,21 @@ export default function Auth() {
               </Button>
             </form>
 
+            {/* Google Login Button */}
+            <div className="mt-4">
+              <div className="relative">
+                <div className="absolute inset-0 flex items-center">
+                  <div className="w-full border-t border-border/30"></div>
+                </div>
+                <div className="relative flex justify-center text-xs uppercase">
+                  <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-center">
+                <GoogleLogin />
+              </div>
+            </div>
+
             <div className="mt-6 pt-6 border-t border-border/50 text-center">
               <p className="text-sm text-muted-foreground">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
@@ -672,51 +648,17 @@ export default function Auth() {
           <p className="text-center text-xs text-muted-foreground/60 mt-6">
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </p>
-
-          <p className="text-center text-xs text-muted-foreground/70 mt-3">
-            Reset password link opens <Link to="/reset-password" className="underline">/reset-password</Link>
-          </p>
         </div>
       </section>
 
-      <Dialog open={forgotOpen} onOpenChange={setForgotOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <KeyRound className="w-5 h-5 text-primary" />
-              Reset Password
-            </DialogTitle>
-            <DialogDescription>Enter your email and we'll send you a secure password reset link.</DialogDescription>
-          </DialogHeader>
+      {/* Reset Password Dialog */}
+      <ResetPasswordDialog
+        open={resetPasswordOpen}
+        onOpenChange={setResetPasswordOpen}
+        initialEmail={email}
+      />
 
-          <form onSubmit={handleSendForgotLink} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="forgotEmail">Email Address</Label>
-              <Input
-                id="forgotEmail"
-                type="email"
-                placeholder="you@example.com"
-                value={forgotEmail}
-                onChange={(e) => setForgotEmail(e.target.value)}
-                required
-              />
-            </div>
-            <DialogFooter>
-              <Button type="submit" className="w-full" disabled={resetLoading}>
-                {resetLoading ? (
-                  <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                    Sending...
-                  </span>
-                ) : (
-                  "Send Reset Link"
-                )}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
-
+      {/* Login OTP Dialog */}
       <Dialog
         open={loginOtpOpen}
         onOpenChange={(open) => {
@@ -792,4 +734,4 @@ export default function Auth() {
       </Dialog>
     </Layout>
   );
-}
+                    }
