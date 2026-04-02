@@ -596,18 +596,14 @@ export default function AdminDashboard() {
                               </TableCell>
                               <TableCell>
 
-                                {profile.is_verified || profile.mentor_approved ? (
-                                  <Badge className="bg-green-500">Approved</Badge>
-
                                 {profile.mentor_approved ? (
                                   <Badge className="bg-green-500 text-white">Approved ✓</Badge>
-
                                 ) : (
                                   <Badge variant="secondary" className="bg-yellow-500 text-white">Pending Review</Badge>
                                 )}
                               </TableCell>
                               <TableCell>
-                           
+                                {!profile.mentor_approved ? (
                                   <Button
                                     size="sm"
                                     onClick={() => handleApproveMentor(profile.id)}

@@ -10,6 +10,7 @@ interface User {
   bio: string | null;
   skills: string[] | null;
   is_available_as_mentor: boolean | null;
+  mentor_approved: boolean;
   created_at: string;
   coinBalance: number;
   roles: string[];

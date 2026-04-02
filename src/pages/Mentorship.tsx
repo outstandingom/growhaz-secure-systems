@@ -95,124 +95,27 @@ export default function Mentorship() {
   const { toast } = useToast();
 
   const handleBookWithCoins = async (mentor: any) => {
-    setBookingMentorId(mentor.id)
-    const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
-    if (success) {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        // For community mentors, use user_id (auth id); for official mentors, use their id
-        const mentorId = mentor._isCommunity ? mentor.user_id : mentor.id;
-        
-        // Get a valid topic_id
-        const topicId = topics[0]?.id;
-        if (!topicId) {
-          toast({ title: "Booking Error", description: "No mentorship topics available. Please try again later.", variant: "destructive" });
-          setBookingMentorId(null);
-          return;
-        }
-
-        const { error } = await supabase.from("mentorship_bookings").insert({
-          user_id: user.id,
-          mentor_id: mentorId,
-          topic_id: topicId,
-          scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          total_price: mentor.hourly_rate,
-          status: "pending",
-          notes: `Booked via coin payment (${mentor.hourly_rate} coins)`,
-        });
-
-        if (error) {
-          toast({ title: "Booking Error", description: error.message, variant: "destructive" });
-        } else {
-          toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` }
-    
+    setBookingMentorId(mentor.id);
     try {
-      let mentorIdToUse = mentor.id;
-      
-      // If this is a community mentor, we need to ensure they exist in the mentors table
-      if (mentor._isCommunity) {
-        // Check if this community mentor already exists in mentors table
-        const { data: existingMentor, error: checkError } = await supabase
-          .from('mentors')
-          .select('id')
-          .eq('name', mentor.name)
-          .maybeSingle();
-        
-        if (checkError) {
-          console.error('Error checking existing mentor:', checkError);
-        }
-        
-        if (existingMentor) {
-          mentorIdToUse = existingMentor.id;
-        } else {
-          // Create a mentor entry for this community mentor
-          const { data: newMentor, error: createError } = await supabase
-            .from('mentors')
-            .insert({
-              name: mentor.name,
-              title: mentor.title,
-              bio: mentor.bio,
-              expertise: mentor.expertise,
-              experience_years: mentor.experience_years,
-              hourly_rate: mentor.hourly_rate,
-              is_verified: mentor.is_verified,
-              is_active: true,
-              linkedin_url: mentor.linkedin_url,
-              calendly_url: mentor.calendly_url
-            })
-            .select()
-            .single();
-          
-          if (createError) {
-            console.error('Error creating mentor record:', createError);
-            toast({ 
-              title: "Booking Error", 
-              description: "Could not create mentor record. Please try again.", 
-              variant: "destructive" 
-            });
-            setBookingMentorId(null);
-            return;
-          }
-          
-          mentorIdToUse = newMentor.id;
-        }
+      // For community mentors, use user_id (auth id); for official mentors, use their id
+      const mentorId = mentor._isCommunity ? mentor.user_id : mentor.id;
+
+      // Get a valid topic_id
+      const topicId = topics[0]?.id;
+      if (!topicId) {
+        toast({ title: "Booking Error", description: "No mentorship topics available. Please try again later.", variant: "destructive" });
+        setBookingMentorId(null);
+        return;
       }
-      
-      // Spend coins
+
       const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
-      
       if (success) {
-        // Create a booking record
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
-          // Get a valid topic ID
-          let topicId = topics[0]?.id;
-          
-          // If no topics exist, create a default one
-          if (!topicId) {
-            const { data: defaultTopic, error: topicError } = await supabase
-              .from('mentorship_topics')
-              .insert({
-                name: 'General Mentorship',
-                slug: 'general-mentorship',
-                description: 'General mentorship session',
-                icon: 'Users',
-                is_active: true
-              })
-              .select()
-              .single();
-            
-            if (!topicError && defaultTopic) {
-              topicId = defaultTopic.id;
-              // Update topics state
-              setTopics([defaultTopic, ...topics]);
-            }
-          }
-          
           const { error } = await supabase.from("mentorship_bookings").insert({
             user_id: user.id,
-            mentor_id: mentorIdToUse,
-            topic_id: topicId || mentor.id,
+            mentor_id: mentorId,
+            topic_id: topicId,
             scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
             total_price: mentor.hourly_rate,
             status: "pending",
@@ -221,29 +124,17 @@ export default function Mentorship() {
 
           if (error) {
             console.error('Booking error:', error);
-            toast({ 
-              title: "Booking Error", 
-              description: error.message, 
-              variant: "destructive" 
-            });
+            toast({ title: "Booking Error", description: error.message, variant: "destructive" });
           } else {
-            toast({ 
-              title: "Booking Request Sent!", 
-              description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` 
-            });
-            // Refresh bookings
+            toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` });
             setRefreshKey((k) => k + 1);
           }
         }
       }
     } catch (error: any) {
       console.error('Booking error:', error);
-      toast({ 
-        title: "Booking Error", 
-        description: error.message || "An error occurred while booking", 
-        varia
+      toast({ title: "Booking Error", description: error.message || "An error occurred while booking", variant: "destructive" });
     }
-    
     setBookingMentorId(null);
   };
 
