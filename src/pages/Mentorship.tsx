@@ -94,8 +94,37 @@ export default function Mentorship() {
   const { spendCoins, balance } = useSpendCoins();
   const { toast } = useToast();
 
-  const handleBookWithCoins = async (mentor: Mentor) => {
-    setBookingMentorId(mentor.id);
+  const handleBookWithCoins = async (mentor: any) => {
+    setBookingMentorId(mentor.id)
+    const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
+    if (success) {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        // For community mentors, use user_id (auth id); for official mentors, use their id
+        const mentorId = mentor._isCommunity ? mentor.user_id : mentor.id;
+        
+        // Get a valid topic_id
+        const topicId = topics[0]?.id;
+        if (!topicId) {
+          toast({ title: "Booking Error", description: "No mentorship topics available. Please try again later.", variant: "destructive" });
+          setBookingMentorId(null);
+          return;
+        }
+
+        const { error } = await supabase.from("mentorship_bookings").insert({
+          user_id: user.id,
+          mentor_id: mentorId,
+          topic_id: topicId,
+          scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          total_price: mentor.hourly_rate,
+          status: "pending",
+          notes: `Booked via coin payment (${mentor.hourly_rate} coins)`,
+        });
+
+        if (error) {
+          toast({ title: "Booking Error", description: error.message, variant: "destructive" });
+        } else {
+          toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` }
     
     try {
       let mentorIdToUse = mentor.id;
@@ -212,8 +241,7 @@ export default function Mentorship() {
       toast({ 
         title: "Booking Error", 
         description: error.message || "An error occurred while booking", 
-        variant: "destructive" 
-      });
+        varia
     }
     
     setBookingMentorId(null);
@@ -231,8 +259,13 @@ export default function Mentorship() {
     setIsLoggedIn(!!user);
 
     const [topicsRes, mentorsRes, communityRes] = await Promise.all([
+
+      supabase.from("mentorship_topics").select("*"),
+      supabase.from("mentors").select("*"),
+
       supabase.from("mentorship_topics").select("*").eq("is_active", true),
       supabase.from("mentors").select("*").eq("is_active", true),
+
       supabase.from("profiles").select("*").eq("is_available_as_mentor", true).eq("mentor_approved", true)
     ]);
 
@@ -283,6 +316,7 @@ export default function Mentorship() {
       .filter(p => !officialMentorNames.has(p.full_name?.toLowerCase()))
       .map(p => ({
         id: p.id,
+        user_id: p.user_id,
         name: p.full_name,
         title: p.bio?.substring(0, 80) || 'Community Mentor',
         bio: p.bio || 'Available for mentorship sessions',
