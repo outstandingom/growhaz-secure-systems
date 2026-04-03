@@ -72,15 +72,15 @@ export function MyBookings() {
       supabase.from("mentorship_topics").select("id, name").in("id", topicIds),
     ]);
 
-    // Also check community mentors (profiles acting as mentors)
+    // Also check community mentors (profiles acting as mentors) - mentor_id is user_id
     const communityRes = await supabase
       .from("profiles")
-      .select("id, full_name")
-      .in("id", mentorIds);
+      .select("user_id, full_name")
+      .in("user_id", mentorIds);
 
     const mentorMap: Record<string, string> = {};
     mentorsRes.data?.forEach(m => { mentorMap[m.id] = m.name; });
-    communityRes.data?.forEach(p => { if (!mentorMap[p.id]) mentorMap[p.id] = p.full_name; });
+    communityRes.data?.forEach(p => { if (!mentorMap[p.user_id]) mentorMap[p.user_id] = p.full_name; });
 
     const profileMap: Record<string, string> = {};
     profilesRes.data?.forEach(p => { profileMap[p.user_id] = p.full_name; });
