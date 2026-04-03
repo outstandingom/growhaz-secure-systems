@@ -47,6 +47,7 @@ interface MentorshipTopic {
 
 interface Mentor {
   id: string;
+  user_id?: string;
   name: string;
   title: string;
   bio: string;
@@ -94,48 +95,69 @@ export default function Mentorship() {
   const { spendCoins, balance } = useSpendCoins();
   const { toast } = useToast();
 
-  const handleBookWithCoins = async (mentor: any) => {
+  const handleBookWithCoins = async (mentor: Mentor) => {
     setBookingMentorId(mentor.id);
     try {
-      // For community mentors, use user_id (auth id); for official mentors, use their id
-      const mentorId = mentor._isCommunity ? mentor.user_id : mentor.id;
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({ title: "Sign In Required", description: "Please sign in before booking a mentor.", variant: "destructive" });
+        return;
+      }
 
-      // Get a valid topic_id
-      const topicId = topics[0]?.id;
+      const topicId = selectedTopic
+        ? topics.find((topic) => topic.slug === selectedTopic)?.id
+        : topics[0]?.id;
+
       if (!topicId) {
         toast({ title: "Booking Error", description: "No mentorship topics available. Please try again later.", variant: "destructive" });
-        setBookingMentorId(null);
         return;
       }
 
       const success = await spendCoins(mentor.hourly_rate, `Mentorship session with ${mentor.name}`);
-      if (success) {
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user) {
-          const { error } = await supabase.from("mentorship_bookings").insert({
-            user_id: user.id,
-            mentor_id: mentorId,
-            topic_id: topicId,
-            scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-            total_price: mentor.hourly_rate,
-            status: "pending",
-            notes: `Booked via coin payment (${mentor.hourly_rate} coins)`,
-          });
+      if (!success) return;
 
-          if (error) {
-            console.error('Booking error:', error);
-            toast({ title: "Booking Error", description: error.message, variant: "destructive" });
-          } else {
-            toast({ title: "Booking Request Sent!", description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' tab for updates.` });
-            setRefreshKey((k) => k + 1);
-          }
-        }
+      const { error } = await supabase.from("mentorship_bookings").insert({
+        user_id: user.id,
+        mentor_id: mentor.id,
+        topic_id: topicId,
+        scheduled_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        total_price: mentor.hourly_rate,
+        status: "pending",
+        notes: `Booked via coin payment (${mentor.hourly_rate} coins)`,
+      });
+
+      if (error) {
+        console.error("Booking error:", error);
+
+        const { error: refundError } = await supabase.rpc("update_coin_balance", {
+          p_user_id: user.id,
+          p_amount: mentor.hourly_rate,
+          p_type: "refund" as any,
+          p_description: `Refund: failed mentorship booking with ${mentor.name}`,
+        });
+
+        toast({
+          title: "Booking Error",
+          description: refundError
+            ? "Booking failed and the automatic refund also needs attention. Please contact support."
+            : "Booking failed, and your coins were refunded automatically.",
+          variant: "destructive",
+        });
+
+        return;
       }
+
+      toast({
+        title: "Booking Request Sent!",
+        description: `Your request has been sent to ${mentor.name}. Check 'My Bookings' for updates.`,
+      });
+      setRefreshKey((k) => k + 1);
     } catch (error: any) {
-      console.error('Booking error:', error);
+      console.error("Booking error:", error);
       toast({ title: "Booking Error", description: error.message || "An error occurred while booking", variant: "destructive" });
+    } finally {
+      setBookingMentorId(null);
     }
-    setBookingMentorId(null);
   };
 
   const [communityMentors, setCommunityMentors] = useState<any[]>([]);
@@ -275,24 +297,24 @@ export default function Mentorship() {
       <section className="section-container bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="mentors" className="w-full">
-            <TabsList className="grid w-full max-w-3xl mx-auto grid-cols-5 mb-8">
-              <TabsTrigger value="mentors" className="gap-1">
+            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-3xl lg:grid-cols-5">
+              <TabsTrigger value="mentors" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <Users className="w-4 h-4 hidden sm:block" />
                 Mentors
               </TabsTrigger>
-              <TabsTrigger value="requests" className="gap-1">
+              <TabsTrigger value="requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <BookOpen className="w-4 h-4 hidden sm:block" />
                 Requests
               </TabsTrigger>
-              <TabsTrigger value="my-bookings" className="gap-1">
+              <TabsTrigger value="my-bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <Calendar className="w-4 h-4 hidden sm:block" />
                 My Bookings
               </TabsTrigger>
-              <TabsTrigger value="my-requests" className="gap-1">
+              <TabsTrigger value="my-requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <HelpCircle className="w-4 h-4 hidden sm:block" />
                 My Requests
               </TabsTrigger>
-              <TabsTrigger value="my-responses" className="gap-1">
+              <TabsTrigger value="my-responses" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <MessageSquare className="w-4 h-4 hidden sm:block" />
                 My Offers
               </TabsTrigger>
