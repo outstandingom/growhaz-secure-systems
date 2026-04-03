@@ -227,7 +227,7 @@ export default function Mentorship() {
     ...communityMentors
       .filter(p => !officialMentorNames.has(p.full_name?.toLowerCase()))
       .map(p => ({
-        id: p.id,
+        id: p.user_id,
         user_id: p.user_id,
         name: p.full_name,
         title: p.bio?.substring(0, 80) || 'Community Mentor',
