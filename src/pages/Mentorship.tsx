@@ -240,7 +240,7 @@ export default function Mentorship() {
         linkedin_url: p.linkedin_url,
         calendly_url: null,
         _isCommunity: true,
-        _profileId: p.id,
+        _profileId: p.user_id,
       }))
   ];
 
