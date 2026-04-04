@@ -35,7 +35,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!booking || !open) return;
@@ -57,7 +57,11 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "booking_messages", filter: `booking_id=eq.${booking.id}` },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          setMessages((prev) => {
+            // Avoid duplicates
+            if (prev.some(m => m.id === (payload.new as Message).id)) return prev;
+            return [...prev, payload.new as Message];
+          });
         }
       )
       .subscribe();
@@ -68,9 +72,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
   }, [booking?.id, open]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
