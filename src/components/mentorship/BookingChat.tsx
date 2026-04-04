@@ -3,7 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
+
 import { Badge } from "@/components/ui/badge";
 import { Send, Video, ExternalLink } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
@@ -35,7 +35,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!booking || !open) return;
@@ -57,7 +57,11 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "booking_messages", filter: `booking_id=eq.${booking.id}` },
         (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
+          setMessages((prev) => {
+            // Avoid duplicates
+            if (prev.some(m => m.id === (payload.new as Message).id)) return prev;
+            return [...prev, payload.new as Message];
+          });
         }
       )
       .subscribe();
@@ -68,9 +72,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
   }, [booking?.id, open]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    scrollEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = async () => {
@@ -110,7 +112,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
           )}
         </div>
 
-        <ScrollArea className="flex-1 pr-3" ref={scrollRef as any}>
+        <div className="flex-1 overflow-y-auto pr-3">
           <div className="space-y-3 py-2">
             {messages.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">No messages yet. Start the conversation!</p>
@@ -120,7 +122,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
               return (
                 <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${isMe ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                    <p>{msg.message}</p>
+                    <p className="break-words">{msg.message}</p>
                     <p className={`text-[10px] mt-1 ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                     </p>
@@ -128,8 +130,9 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
                 </div>
               );
             })}
+            <div ref={scrollEndRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         <div className="flex gap-2 pt-2 border-t border-border">
           <Input
