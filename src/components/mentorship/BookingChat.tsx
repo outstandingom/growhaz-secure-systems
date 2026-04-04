@@ -112,7 +112,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
           )}
         </div>
 
-        <ScrollArea className="flex-1 pr-3" ref={scrollRef as any}>
+        <div className="flex-1 overflow-y-auto pr-3">
           <div className="space-y-3 py-2">
             {messages.length === 0 && (
               <p className="text-sm text-muted-foreground text-center py-8">No messages yet. Start the conversation!</p>
@@ -122,7 +122,7 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
               return (
                 <div key={msg.id} className={`flex ${isMe ? "justify-end" : "justify-start"}`}>
                   <div className={`max-w-[80%] rounded-lg px-3 py-2 text-sm ${isMe ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                    <p>{msg.message}</p>
+                    <p className="break-words">{msg.message}</p>
                     <p className={`text-[10px] mt-1 ${isMe ? "text-primary-foreground/70" : "text-muted-foreground"}`}>
                       {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                     </p>
@@ -130,8 +130,9 @@ export function BookingChat({ open, onOpenChange, booking, currentUserId }: Book
                 </div>
               );
             })}
+            <div ref={scrollEndRef} />
           </div>
-        </ScrollArea>
+        </div>
 
         <div className="flex gap-2 pt-2 border-t border-border">
           <Input
