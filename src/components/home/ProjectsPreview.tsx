@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ExternalLink, ArrowRight } from "lucide-react";
+import { ExternalLink, ArrowRight, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const projects = [
@@ -8,21 +8,18 @@ const projects = [
     category: "Web App",
     description: "Complete student management with on-page SEO implementation.",
     url: "https://outstandingom.github.io/Stumanagement.github.io/",
-    image: "/placeholder.svg",
   },
   {
     title: "Agriculture Web App",
     category: "Web App",
     description: "SEO-optimized agriculture platform with smart UI structure.",
     url: "https://outstandingom.github.io/Agritech.github.io/",
-    image: "/placeholder.svg",
   },
   {
     title: "Khandelwal Borewells",
     category: "Business Website",
     description: "Ranking for multiple borewell service keywords in Bhopal.",
     url: "https://khandelwalborewells.in",
-    image: "/placeholder.svg",
   },
 ];
 
@@ -38,42 +35,27 @@ export function ProjectsPreview() {
         </p>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-12">
         {projects.map((project, index) => (
-          <article
+          <div
             key={project.title}
-            className="group rounded-2xl bg-card border border-border overflow-hidden card-hover animate-fade-in"
+            className="flex flex-col items-center gap-3 p-6 rounded-xl bg-card/50 border border-border hover:border-primary/40 transition-all duration-300 animate-fade-in"
             style={{ animationDelay: `${index * 0.1}s` }}
           >
-            {/* Image */}
-            <div className="aspect-video bg-secondary relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-accent/20" />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-4xl font-bold text-muted-foreground/30">
-                  {project.title.charAt(0)}
-                </span>
-              </div>
-            </div>
-
-            {/* Content */}
-            <div className="p-6">
-              <div className="text-xs font-medium text-primary mb-2">{project.category}</div>
-              <h3 className="text-lg font-semibold mb-2 group-hover:text-primary transition-colors">
-                {project.title}
-              </h3>
-              <p className="text-sm text-muted-foreground mb-4">{project.description}</p>
-              
-              <a
-                href={project.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
-              >
-                Visit Live Site
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
-          </article>
+            <Globe className="w-6 h-6 text-primary" />
+            <span className="text-xs font-medium text-primary">{project.category}</span>
+            <h3 className="text-base font-semibold text-center">{project.title}</h3>
+            <p className="text-sm text-muted-foreground text-center">{project.description}</p>
+            <a
+              href={project.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline mt-auto"
+            >
+              Visit Live Site
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          </div>
         ))}
       </div>
 

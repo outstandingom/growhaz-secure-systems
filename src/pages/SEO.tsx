@@ -101,34 +101,34 @@ export default function SEO() {
         <div className="grid md:grid-cols-2 gap-8">
           {/* On-Page SEO */}
           <div className="p-8 rounded-2xl bg-card border border-border">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-green-500 flex items-center justify-center mb-6">
-              <FileText className="w-6 h-6 text-white" />
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border mb-6">
+              <FileText className="w-6 h-6 text-primary" />
+              <span className="text-sm font-medium">On-Page SEO</span>
             </div>
-            <h2 className="text-2xl font-bold mb-4">On-Page SEO</h2>
-            <ul className="space-y-3">
+            <div className="grid grid-cols-1 gap-3">
               {onPageSEO.map((item) => (
-                <li key={item} className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 flex-shrink-0" />
-                  <span className="text-muted-foreground">{item}</span>
-                </li>
+                <div key={item} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card/50 border border-border">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                  <span className="text-sm font-medium text-center">{item}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
 
           {/* Off-Page SEO */}
           <div className="p-8 rounded-2xl bg-card border border-border">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center mb-6">
-              <LinkIcon className="w-6 h-6 text-white" />
+            <div className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border mb-6">
+              <LinkIcon className="w-6 h-6 text-primary" />
+              <span className="text-sm font-medium">Off-Page SEO</span>
             </div>
-            <h2 className="text-2xl font-bold mb-4">Off-Page SEO</h2>
-            <ul className="space-y-3">
+            <div className="grid grid-cols-1 gap-3">
               {offPageSEO.map((item) => (
-                <li key={item} className="flex items-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-blue-400 flex-shrink-0" />
-                  <span className="text-muted-foreground">{item}</span>
-                </li>
+                <div key={item} className="flex flex-col items-center gap-2 p-3 rounded-xl bg-card/50 border border-border">
+                  <CheckCircle2 className="w-5 h-5 text-primary" />
+                  <span className="text-sm font-medium text-center">{item}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
         </div>
       </section>
@@ -144,32 +144,26 @@ export default function SEO() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {projects.map((project, index) => (
             <div
               key={project.title}
-              className="p-6 rounded-2xl bg-card border border-border card-hover animate-fade-in"
+              className="flex flex-col items-center gap-3 p-4 rounded-xl bg-card/50 border border-border animate-fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className="flex items-center gap-2 mb-3">
-                <Globe className="w-4 h-4 text-primary" />
-                <span className="text-xs font-medium text-primary">{project.status}</span>
-              </div>
-              
-              <h3 className="text-lg font-semibold mb-2">{project.title}</h3>
-              <p className="text-sm text-muted-foreground mb-4">{project.description}</p>
+              <Globe className="w-6 h-6 text-primary" />
+              <span className="text-xs font-medium text-primary">{project.status}</span>
+              <h3 className="text-sm font-semibold text-center">{project.title}</h3>
+              <p className="text-xs text-muted-foreground text-center">{project.description}</p>
               
               {project.keywords && (
-                <div className="mb-4">
-                  <div className="text-xs font-medium text-foreground mb-2">Ranking Keywords:</div>
-                  <ul className="space-y-1">
-                    {project.keywords.map((keyword) => (
-                      <li key={keyword} className="flex items-center gap-2 text-xs text-muted-foreground">
-                        <TrendingUp className="w-3 h-3 text-emerald-400" />
-                        {keyword}
-                      </li>
-                    ))}
-                  </ul>
+                <div className="w-full">
+                  {project.keywords.map((keyword) => (
+                    <div key={keyword} className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <TrendingUp className="w-3 h-3 text-primary flex-shrink-0" />
+                      <span className="truncate">{keyword}</span>
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -177,10 +171,10 @@ export default function SEO() {
                 href={project.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline"
+                className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline mt-auto"
               >
                 Visit Site
-                <ExternalLink className="w-4 h-4" />
+                <ExternalLink className="w-3 h-3" />
               </a>
             </div>
           ))}

@@ -11,21 +11,16 @@ import {
 import { Link } from "react-router-dom";
 
 const services = [
-  {
-    icon: TrendingUp,
-    title: "Startup Digital Marketing",
-    description: "Tailored marketing strategies designed specifically for startups and growing businesses.",
-  },
-  {
-    icon: Target,
-    title: "SEO-Supported Marketing",
-    description: "Marketing campaigns backed by solid SEO foundations for long-term growth.",
-  },
-  {
-    icon: BarChart3,
-    title: "Website Traffic Optimization",
-    description: "Data-driven strategies to increase and convert your website traffic.",
-  },
+  { icon: TrendingUp, title: "Startup Digital Marketing" },
+  { icon: Target, title: "SEO-Supported Marketing" },
+  { icon: BarChart3, title: "Website Traffic Optimization" },
+];
+
+const approach = [
+  "Measurable results, not vanity metrics",
+  "Every effort backed by SEO for sustainable growth",
+  "Transparent reporting and honest communication",
+  "Budget-conscious strategies for startups",
 ];
 
 export default function Marketing() {
@@ -53,18 +48,15 @@ export default function Marketing() {
 
       {/* Services */}
       <section className="section-container pt-0">
-        <div className="grid md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           {services.map((service, index) => (
             <div
               key={service.title}
-              className="group p-6 rounded-2xl bg-card border border-border card-hover animate-fade-in"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border animate-fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-pink-500 to-rose-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <service.icon className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">{service.title}</h3>
-              <p className="text-muted-foreground text-sm">{service.description}</p>
+              <service.icon className="w-6 h-6 text-primary" />
+              <span className="text-sm font-medium text-center">{service.title}</span>
             </div>
           ))}
         </div>
@@ -76,31 +68,13 @@ export default function Marketing() {
           <h2 className="text-2xl md:text-3xl font-bold mb-6">
             Our <span className="gradient-text">Approach</span>
           </h2>
-          <div className="space-y-4 text-left">
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-              <span className="text-muted-foreground">
-                We focus on measurable results, not vanity metrics
-              </span>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-              <span className="text-muted-foreground">
-                Every marketing effort is backed by SEO for sustainable growth
-              </span>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-              <span className="text-muted-foreground">
-                Transparent reporting and honest communication
-              </span>
-            </div>
-            <div className="flex items-start gap-3">
-              <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-              <span className="text-muted-foreground">
-                Budget-conscious strategies for startups
-              </span>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {approach.map((item) => (
+              <div key={item} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                <CheckCircle2 className="w-6 h-6 text-primary" />
+                <span className="text-sm font-medium text-center">{item}</span>
+              </div>
+            ))}
           </div>
         </div>
       </section>

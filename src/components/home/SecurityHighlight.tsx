@@ -3,11 +3,11 @@ import { Shield, CheckCircle2, AlertTriangle, Lock, ArrowRight } from "lucide-re
 import { Button } from "@/components/ui/button";
 
 const features = [
-  "Basic SQL Injection testing",
-  "XSS (Cross-Site Scripting) detection",
-  "X-Header & X-Forwarded-For exposure",
-  "Security Headers validation",
-  "Authentication & login flow analysis",
+  { icon: CheckCircle2, label: "SQL Injection Testing" },
+  { icon: CheckCircle2, label: "XSS Detection" },
+  { icon: CheckCircle2, label: "Security Headers Check" },
+  { icon: CheckCircle2, label: "Auth Flow Analysis" },
+  { icon: CheckCircle2, label: "X-Header Exposure" },
 ];
 
 export function SecurityHighlight() {
@@ -31,14 +31,14 @@ export function SecurityHighlight() {
             identify vulnerabilities before attackers do.
           </p>
 
-          <ul className="space-y-3 mb-8">
+          <div className="grid grid-cols-2 gap-3 mb-8">
             {features.map((feature) => (
-              <li key={feature} className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-muted-foreground">{feature}</span>
-              </li>
+              <div key={feature.label} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                <feature.icon className="w-6 h-6 text-primary" />
+                <span className="text-sm font-medium text-center">{feature.label}</span>
+              </div>
             ))}
-          </ul>
+          </div>
 
           <div className="flex flex-col sm:flex-row gap-4">
             <Link to="/security-tools">
@@ -58,7 +58,6 @@ export function SecurityHighlight() {
         {/* Visual */}
         <div className="relative">
           <div className="relative p-8 rounded-2xl bg-card border border-border">
-            {/* Mock Security Scanner UI */}
             <div className="flex items-center gap-3 mb-6 pb-6 border-b border-border">
               <div className="w-3 h-3 rounded-full bg-destructive" />
               <div className="w-3 h-3 rounded-full bg-amber-500" />
@@ -87,14 +86,13 @@ export function SecurityHighlight() {
                 <Lock className="w-4 h-4" />
                 <span>HTTPS: Enabled</span>
               </div>
-              <div className="mt-6 p-4 rounded-lg bg-secondary">
+              <div className="mt-6 p-4 rounded-xl bg-card/50 border border-border">
                 <div className="text-muted-foreground mb-2">Risk Level:</div>
                 <div className="text-2xl font-bold text-amber-400">MEDIUM</div>
               </div>
             </div>
           </div>
 
-          {/* Glow effect */}
           <div className="absolute -inset-4 bg-gradient-to-r from-primary/20 to-accent/20 rounded-3xl blur-2xl -z-10 opacity-50" />
         </div>
       </div>
