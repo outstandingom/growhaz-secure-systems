@@ -7,35 +7,30 @@ const services = [
     title: "Security Tools",
     description: "Real, usable website security testing tools to identify vulnerabilities before attackers do.",
     href: "/security-tools",
-    color: "from-cyan-500 to-blue-500",
   },
   {
     icon: Code2,
     title: "Website Development",
     description: "Secure & scalable website development for business websites, dashboards, and SaaS platforms.",
     href: "/development",
-    color: "from-violet-500 to-purple-500",
   },
   {
     icon: Search,
     title: "SEO Optimization",
     description: "On-page & off-page SEO optimization to help your business rank higher on Google.",
     href: "/seo",
-    color: "from-emerald-500 to-green-500",
   },
   {
     icon: Zap,
     title: "Automation Tools",
     description: "Automation tools for repetitive startup tasks like posting, data processing, and workflows.",
     href: "/automation",
-    color: "from-amber-500 to-orange-500",
   },
   {
     icon: Megaphone,
     title: "Digital Marketing",
     description: "Performance-focused digital marketing services with SEO-supported strategies.",
     href: "/marketing",
-    color: "from-pink-500 to-rose-500",
   },
 ];
 
@@ -51,32 +46,17 @@ export function ServicesOverview() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
         {services.map((service, index) => (
           <Link
             key={service.title}
             to={service.href}
-            className="group relative p-6 rounded-2xl bg-card border border-border card-hover animate-fade-in"
+            className="group flex flex-col items-center gap-3 p-4 rounded-xl bg-card/50 border border-border hover:border-primary/40 transition-all duration-300 animate-fade-in"
             style={{ animationDelay: `${index * 0.1}s` }}
           >
-            {/* Icon */}
-            <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${service.color} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
-              <service.icon className="w-6 h-6 text-white" />
-            </div>
-
-            {/* Content */}
-            <h3 className="text-xl font-semibold mb-2 group-hover:text-primary transition-colors">
-              {service.title}
-            </h3>
-            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
-              {service.description}
-            </p>
-
-            {/* Arrow */}
-            <div className="flex items-center gap-2 text-primary text-sm font-medium">
-              Learn more
-              <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
-            </div>
+            <service.icon className="w-6 h-6 text-primary" />
+            <span className="text-sm font-medium text-center">{service.title}</span>
+            <ArrowRight className="w-4 h-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
           </Link>
         ))}
       </div>

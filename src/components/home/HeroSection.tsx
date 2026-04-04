@@ -49,18 +49,16 @@ export function HeroSection() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 pt-16 border-t border-border animate-fade-in" style={{ animationDelay: "0.4s" }}>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-16 pt-16 border-t border-border animate-fade-in" style={{ animationDelay: "0.4s" }}>
             {[
               { value: "50+", label: "Projects Delivered" },
               { value: "100%", label: "Security Focus" },
               { value: "10+", label: "Active Tools" },
               { value: "24/7", label: "Support" },
             ].map((stat) => (
-              <div key={stat.label} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold gradient-text mb-2">
-                  {stat.value}
-                </div>
-                <div className="text-sm text-muted-foreground">{stat.label}</div>
+              <div key={stat.label} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                <span className="text-2xl md:text-3xl font-bold gradient-text">{stat.value}</span>
+                <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
               </div>
             ))}
           </div>

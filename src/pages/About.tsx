@@ -13,26 +13,10 @@ import {
 import { Link } from "react-router-dom";
 
 const values = [
-  {
-    icon: Shield,
-    title: "Security First",
-    description: "Security is not an afterthought — it's the foundation of everything we build.",
-  },
-  {
-    icon: Code2,
-    title: "Real Development",
-    description: "We build real, working systems that solve actual business problems.",
-  },
-  {
-    icon: Search,
-    title: "SEO Results",
-    description: "Our SEO strategies deliver measurable ranking improvements.",
-  },
-  {
-    icon: Zap,
-    title: "Automation Focus",
-    description: "We automate repetitive tasks so you can focus on growth.",
-  },
+  { icon: Shield, title: "Security First" },
+  { icon: Code2, title: "Real Development" },
+  { icon: Search, title: "SEO Results" },
+  { icon: Zap, title: "Automation Focus" },
 ];
 
 const stats = [
@@ -40,6 +24,13 @@ const stats = [
   { value: "100%", label: "Security Focus" },
   { value: "10+", label: "Active Tools" },
   { value: "5+", label: "Years Experience" },
+];
+
+const mission = [
+  "Security testing tools that identify real vulnerabilities",
+  "Real startup systems that solve actual problems",
+  "SEO-optimized websites that rank and convert",
+  "Automation tools that save time and reduce errors",
 ];
 
 export default function About() {
@@ -69,8 +60,8 @@ export default function About() {
         <div className="max-w-3xl mx-auto">
           <div className="p-8 rounded-2xl bg-card border border-border">
             <div className="flex items-center gap-3 mb-6">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
-                <Target className="w-6 h-6 text-primary-foreground" />
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Target className="w-6 h-6 text-primary" />
               </div>
               <h2 className="text-2xl font-bold">Our Mission</h2>
             </div>
@@ -78,24 +69,14 @@ export default function About() {
               We believe that every startup and business deserves access to secure, well-built technology.
               Our mission is to provide real, tangible solutions that help businesses grow securely and efficiently.
             </p>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-muted-foreground">Security testing tools that identify real vulnerabilities</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-muted-foreground">Real startup systems that solve actual problems</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-muted-foreground">SEO-optimized websites that rank and convert</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                <span className="text-muted-foreground">Automation tools that save time and reduce errors</span>
-              </li>
-            </ul>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {mission.map((item) => (
+                <div key={item} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                  <CheckCircle2 className="w-6 h-6 text-primary" />
+                  <span className="text-sm font-medium text-center">{item}</span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
@@ -108,18 +89,15 @@ export default function About() {
           </h2>
         </div>
 
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {values.map((value, index) => (
             <div
               key={value.title}
-              className="text-center p-6 rounded-2xl bg-card border border-border animate-fade-in"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border animate-fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                <value.icon className="w-6 h-6 text-primary" />
-              </div>
-              <h3 className="font-semibold mb-2">{value.title}</h3>
-              <p className="text-sm text-muted-foreground">{value.description}</p>
+              <value.icon className="w-6 h-6 text-primary" />
+              <span className="text-sm font-medium">{value.title}</span>
             </div>
           ))}
         </div>
@@ -127,13 +105,11 @@ export default function About() {
 
       {/* Stats */}
       <section className="section-container">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {stats.map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="text-4xl md:text-5xl font-bold gradient-text mb-2">
-                {stat.value}
-              </div>
-              <div className="text-sm text-muted-foreground">{stat.label}</div>
+            <div key={stat.label} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border">
+              <span className="text-2xl md:text-3xl font-bold gradient-text">{stat.value}</span>
+              <span className="text-sm font-medium text-muted-foreground">{stat.label}</span>
             </div>
           ))}
         </div>

@@ -12,26 +12,10 @@ import {
 import { Link } from "react-router-dom";
 
 const automationTypes = [
-  {
-    icon: Send,
-    title: "Daily Posting Automation",
-    description: "Automate your social media posting, email campaigns, and content distribution.",
-  },
-  {
-    icon: Database,
-    title: "Data Processing Automation",
-    description: "Automatically process, clean, and analyze data from multiple sources.",
-  },
-  {
-    icon: GitBranch,
-    title: "Workflow Automation",
-    description: "Streamline business processes with automated workflows and triggers.",
-  },
-  {
-    icon: Settings,
-    title: "Custom Automation Tools",
-    description: "Tailored automation solutions built specifically for your business needs.",
-  },
+  { icon: Send, title: "Daily Posting Automation" },
+  { icon: Database, title: "Data Processing Automation" },
+  { icon: GitBranch, title: "Workflow Automation" },
+  { icon: Settings, title: "Custom Automation Tools" },
 ];
 
 const benefits = [
@@ -67,18 +51,15 @@ export default function Automation() {
 
       {/* Automation Types */}
       <section className="section-container pt-0">
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {automationTypes.map((item, index) => (
             <div
               key={item.title}
-              className="group p-6 rounded-2xl bg-card border border-border card-hover animate-fade-in"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border animate-fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <item.icon className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">{item.title}</h3>
-              <p className="text-muted-foreground">{item.description}</p>
+              <item.icon className="w-6 h-6 text-primary" />
+              <span className="text-sm font-medium text-center">{item.title}</span>
             </div>
           ))}
         </div>
@@ -91,14 +72,14 @@ export default function Automation() {
             <h2 className="text-2xl md:text-3xl font-bold mb-6">
               Why <span className="gradient-text">Automate</span>?
             </h2>
-            <ul className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {benefits.map((benefit) => (
-                <li key={benefit} className="flex items-start gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-                  <span className="text-muted-foreground">{benefit}</span>
-                </li>
+                <div key={benefit} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                  <CheckCircle2 className="w-6 h-6 text-primary" />
+                  <span className="text-sm font-medium text-center">{benefit}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
 
           <div className="relative p-8 rounded-2xl bg-card border border-border">
@@ -111,7 +92,7 @@ export default function Automation() {
               <div className="pl-4 text-foreground">status: <span className="text-emerald-400">"running"</span></div>
               <div className="text-primary">{"}"}</div>
               
-              <div className="mt-6 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+              <div className="mt-6 p-4 rounded-xl bg-card/50 border border-border">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <CheckCircle2 className="w-4 h-4" />
                   <span>3,847 tasks automated this month</span>

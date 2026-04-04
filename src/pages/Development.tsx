@@ -15,31 +15,11 @@ import {
 import { Link } from "react-router-dom";
 
 const services = [
-  {
-    icon: Globe,
-    title: "Business Websites",
-    description: "Professional, conversion-focused websites that represent your brand.",
-  },
-  {
-    icon: Layers,
-    title: "Student & Management Systems",
-    description: "Complete management solutions for educational institutions.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Web Dashboards",
-    description: "Interactive dashboards with real-time data visualization.",
-  },
-  {
-    icon: Rocket,
-    title: "SaaS Platforms",
-    description: "Scalable software-as-a-service applications built for growth.",
-  },
-  {
-    icon: Code2,
-    title: "Custom Startup Web Apps",
-    description: "Tailored solutions to meet unique business requirements.",
-  },
+  { icon: Globe, title: "Business Websites" },
+  { icon: Layers, title: "Student & Management Systems" },
+  { icon: LayoutDashboard, title: "Web Dashboards" },
+  { icon: Rocket, title: "SaaS Platforms" },
+  { icon: Code2, title: "Custom Startup Web Apps" },
 ];
 
 const keyFocus = [
@@ -75,18 +55,15 @@ export default function Development() {
 
       {/* Services Grid */}
       <section className="section-container pt-0">
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
           {services.map((service, index) => (
             <div
               key={service.title}
-              className="group p-6 rounded-2xl bg-card border border-border card-hover animate-fade-in"
+              className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border animate-fade-in"
               style={{ animationDelay: `${index * 0.1}s` }}
             >
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-violet-500 to-purple-500 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
-                <service.icon className="w-6 h-6 text-white" />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">{service.title}</h3>
-              <p className="text-muted-foreground text-sm">{service.description}</p>
+              <service.icon className="w-6 h-6 text-primary" />
+              <span className="text-sm font-medium text-center">{service.title}</span>
             </div>
           ))}
         </div>
@@ -103,41 +80,31 @@ export default function Development() {
               Every project we build follows strict standards for security, performance, 
               and maintainability. Here's what sets our development apart:
             </p>
-            <ul className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
               {keyFocus.map((item) => (
-                <li key={item.text} className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <item.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <span className="font-medium">{item.text}</span>
-                </li>
+                <div key={item.text} className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                  <item.icon className="w-6 h-6 text-primary" />
+                  <span className="text-sm font-medium text-center">{item.text}</span>
+                </div>
               ))}
-            </ul>
+            </div>
           </div>
 
           <div className="relative p-8 rounded-2xl bg-card border border-border">
             <div className="space-y-6">
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                <div>
-                  <div className="font-medium">Secure Authentication</div>
-                  <div className="text-sm text-muted-foreground">Implemented</div>
+              {[
+                { label: "Secure Authentication", sub: "Implemented" },
+                { label: "Input Validation", sub: "All endpoints secured" },
+                { label: "Performance Score", sub: "98/100" },
+              ].map((item) => (
+                <div key={item.label} className="flex items-center gap-4 p-4 rounded-xl bg-card/50 border border-border">
+                  <CheckCircle2 className="w-6 h-6 text-primary flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">{item.label}</div>
+                    <div className="text-sm text-muted-foreground">{item.sub}</div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                <div>
-                  <div className="font-medium">Input Validation</div>
-                  <div className="text-sm text-muted-foreground">All endpoints secured</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-secondary">
-                <CheckCircle2 className="w-6 h-6 text-emerald-400" />
-                <div>
-                  <div className="font-medium">Performance Score</div>
-                  <div className="text-sm text-muted-foreground">98/100</div>
-                </div>
-              </div>
+              ))}
             </div>
             <div className="absolute -inset-4 bg-gradient-to-r from-violet-500/20 to-purple-500/20 rounded-3xl blur-2xl -z-10 opacity-50" />
           </div>
