@@ -172,19 +172,6 @@ export default function Mentorship() {
     setLoading(false);
   };
 
-  const handleCloseRequest = async (requestId: string) => {
-    const { error } = await supabase
-      .from("learning_requests")
-      .update({ status: "cancelled" })
-      .eq("id", requestId);
-
-    if (!error) {
-      toast({ title: "Request closed", description: "Your learning request has been closed." });
-      setRefreshKey((k) => k + 1);
-    } else {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
   // Combine official mentors + community mentors (avoid duplicates by name)
   const officialMentorNames = new Set(mentors.map(m => m.name.toLowerCase()));
