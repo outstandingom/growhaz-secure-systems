@@ -475,16 +475,17 @@ export default function Mentorship() {
               <LearningRequestsList key={refreshKey} />
             </TabsContent>
 
-            {/* My Bookings Tab */}
+            {/* My Sessions Tab (unified) */}
             <TabsContent value="my-bookings">
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">My Bookings</h2>
+                <h2 className="text-2xl font-bold">My Sessions</h2>
                 <p className="text-muted-foreground text-sm mt-1">
-                  View your mentorship sessions and incoming requests
+                  All your bookings, requests, and offers in one place
                 </p>
               </div>
-              <MyBookings />
+              <MySessions />
             </TabsContent>
+          </Tabs>
 
             {/* My Requests Tab */}
             <TabsContent value="my-requests">
