@@ -72,8 +72,6 @@ export default function Mentorship() {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [myRequests, setMyRequests] = useState<any[]>([]);
-  const [myResponses, setMyResponses] = useState<any[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [bookingMentorId, setBookingMentorId] = useState<string | null>(null);
