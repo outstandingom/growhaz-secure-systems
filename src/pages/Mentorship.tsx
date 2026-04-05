@@ -62,21 +62,6 @@ interface Mentor {
   _profileId?: string;
 }
 
-interface MyRequest {
-  id: string;
-  title: string;
-  status: string;
-  created_at: string;
-  skills: string[];
-}
-
-interface MyResponse {
-  id: string;
-  message: string;
-  status: string;
-  created_at: string;
-  request_id: string;
-}
 
 const iconMap: Record<string, React.ElementType> = {
   Shield, Lock, Brain, TrendingUp, Code, Zap, Terminal
