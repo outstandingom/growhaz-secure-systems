@@ -297,7 +297,7 @@ export default function Mentorship() {
       <section className="section-container bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="mentors" className="w-full">
-            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-3xl lg:grid-cols-5">
+            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-2xl">
               <TabsTrigger value="mentors" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <Users className="w-4 h-4 hidden sm:block" />
                 Mentors
@@ -308,15 +308,7 @@ export default function Mentorship() {
               </TabsTrigger>
               <TabsTrigger value="my-bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <Calendar className="w-4 h-4 hidden sm:block" />
-                My Bookings
-              </TabsTrigger>
-              <TabsTrigger value="my-requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <HelpCircle className="w-4 h-4 hidden sm:block" />
-                My Requests
-              </TabsTrigger>
-              <TabsTrigger value="my-responses" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <MessageSquare className="w-4 h-4 hidden sm:block" />
-                My Offers
+                My Sessions
               </TabsTrigger>
             </TabsList>
 
