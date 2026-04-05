@@ -168,23 +168,6 @@ export default function Mentorship() {
     if (mentorsRes.data) setMentors(mentorsRes.data);
     if (communityRes.data) setCommunityMentors(communityRes.data);
 
-    if (user) {
-      const [requestsRes, responsesRes] = await Promise.all([
-        supabase
-          .from("learning_requests")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("learning_request_responses")
-          .select("*")
-          .eq("responder_id", user.id)
-          .order("created_at", { ascending: false }),
-      ]);
-
-      if (requestsRes.data) setMyRequests(requestsRes.data);
-      if (responsesRes.data) setMyResponses(responsesRes.data);
-    }
 
     setLoading(false);
   };
