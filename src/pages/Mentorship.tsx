@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { LearningRequestForm } from "@/components/mentorship/LearningRequestForm";
 import { LearningRequestsList } from "@/components/mentorship/LearningRequestsList";
-import { MyBookings } from "@/components/mentorship/MyBookings";
+import { MySessions } from "@/components/mentorship/MySessions";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
@@ -62,21 +62,6 @@ interface Mentor {
   _profileId?: string;
 }
 
-interface MyRequest {
-  id: string;
-  title: string;
-  status: string;
-  created_at: string;
-  skills: string[];
-}
-
-interface MyResponse {
-  id: string;
-  message: string;
-  status: string;
-  created_at: string;
-  request_id: string;
-}
 
 const iconMap: Record<string, React.ElementType> = {
   Shield, Lock, Brain, TrendingUp, Code, Zap, Terminal
@@ -87,8 +72,6 @@ export default function Mentorship() {
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [myRequests, setMyRequests] = useState<MyRequest[]>([]);
-  const [myResponses, setMyResponses] = useState<MyResponse[]>([]);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [bookingMentorId, setBookingMentorId] = useState<string | null>(null);
@@ -185,40 +168,10 @@ export default function Mentorship() {
     if (mentorsRes.data) setMentors(mentorsRes.data);
     if (communityRes.data) setCommunityMentors(communityRes.data);
 
-    if (user) {
-      const [requestsRes, responsesRes] = await Promise.all([
-        supabase
-          .from("learning_requests")
-          .select("*")
-          .eq("user_id", user.id)
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("learning_request_responses")
-          .select("*")
-          .eq("responder_id", user.id)
-          .order("created_at", { ascending: false }),
-      ]);
-
-      if (requestsRes.data) setMyRequests(requestsRes.data);
-      if (responsesRes.data) setMyResponses(responsesRes.data);
-    }
 
     setLoading(false);
   };
 
-  const handleCloseRequest = async (requestId: string) => {
-    const { error } = await supabase
-      .from("learning_requests")
-      .update({ status: "cancelled" })
-      .eq("id", requestId);
-
-    if (!error) {
-      toast({ title: "Request closed", description: "Your learning request has been closed." });
-      setRefreshKey((k) => k + 1);
-    } else {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    }
-  };
 
   // Combine official mentors + community mentors (avoid duplicates by name)
   const officialMentorNames = new Set(mentors.map(m => m.name.toLowerCase()));
@@ -297,7 +250,7 @@ export default function Mentorship() {
       <section className="section-container bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="mentors" className="w-full">
-            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-3xl lg:grid-cols-5">
+            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-2xl">
               <TabsTrigger value="mentors" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <Users className="w-4 h-4 hidden sm:block" />
                 Mentors
@@ -308,15 +261,7 @@ export default function Mentorship() {
               </TabsTrigger>
               <TabsTrigger value="my-bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <Calendar className="w-4 h-4 hidden sm:block" />
-                My Bookings
-              </TabsTrigger>
-              <TabsTrigger value="my-requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <HelpCircle className="w-4 h-4 hidden sm:block" />
-                My Requests
-              </TabsTrigger>
-              <TabsTrigger value="my-responses" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <MessageSquare className="w-4 h-4 hidden sm:block" />
-                My Offers
+                My Sessions
               </TabsTrigger>
             </TabsList>
 
@@ -483,151 +428,15 @@ export default function Mentorship() {
               <LearningRequestsList key={refreshKey} />
             </TabsContent>
 
-            {/* My Bookings Tab */}
+            {/* My Sessions Tab (unified) */}
             <TabsContent value="my-bookings">
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">My Bookings</h2>
+                <h2 className="text-2xl font-bold">My Sessions</h2>
                 <p className="text-muted-foreground text-sm mt-1">
-                  View your mentorship sessions and incoming requests
+                  All your bookings, requests, and offers in one place
                 </p>
               </div>
-              <MyBookings />
-            </TabsContent>
-
-            {/* My Requests Tab */}
-            <TabsContent value="my-requests">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">My Learning Requests</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Track your posted requests and responses
-                </p>
-              </div>
-
-              {!isLoggedIn ? (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Sign In Required</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Please sign in to view your learning requests
-                    </p>
-                    <Button asChild>
-                      <Link to="/auth">Sign In</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : myRequests.length === 0 ? (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Requests Yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Post your first learning request to get started!
-                    </p>
-                    <LearningRequestForm onSuccess={() => setRefreshKey((k) => k + 1)} />
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {myRequests.map((req) => (
-                    <Card key={req.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg">{req.title}</CardTitle>
-                          <Badge
-                            variant={req.status === "open" ? "default" : "secondary"}
-                            className="gap-1"
-                          >
-                            {req.status === "open" ? (
-                              <Clock className="w-3 h-3" />
-                            ) : (
-                              <CheckCircle2 className="w-3 h-3" />
-                            )}
-                            {req.status}
-                          </Badge>
-                        </div>
-                        <CardDescription>
-                          Posted {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-                        </CardDescription>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="flex items-center justify-between">
-                          <div className="flex flex-wrap gap-1.5">
-                            {req.skills.map((skill) => (
-                              <Badge key={skill} variant="outline" className="text-xs">
-                                {skill}
-                              </Badge>
-                            ))}
-                          </div>
-                          {req.status === "open" && (
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleCloseRequest(req.id)}
-                            >
-                              <XCircle className="w-3 h-3 mr-1" />
-                              Close
-                            </Button>
-                          )}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  ))}
-                </div>
-              )}
-            </TabsContent>
-
-            {/* My Responses Tab */}
-            <TabsContent value="my-responses">
-              <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">My Help Offers</h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Track your offers to help other learners
-                </p>
-              </div>
-
-              {!isLoggedIn ? (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">Sign In Required</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Please sign in to view your responses
-                    </p>
-                    <Button asChild>
-                      <Link to="/auth">Sign In</Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : myResponses.length === 0 ? (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Responses Yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      Browse learning requests and offer to help others!
-                    </p>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="space-y-4">
-                  {myResponses.map((res) => (
-                    <Card key={res.id}>
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg line-clamp-1">
-                            {res.message.substring(0, 50)}...
-                          </CardTitle>
-                          <Badge variant="secondary">{res.status}</Badge>
-                        </div>
-                        <CardDescription>
-                          Sent {formatDistanceToNow(new Date(res.created_at), { addSuffix: true })}
-                        </CardDescription>
-                      </CardHeader>
-                    </Card>
-                  ))}
-                </div>
-              )}
+              <MySessions />
             </TabsContent>
           </Tabs>
         </div>
