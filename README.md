@@ -1,73 +1,83 @@
-# Welcome to your Lovable project
+# GROWHAZ Security Testing Platform
 
-## Project info
+> **Test your website security • Book expert mentors • Monetize your security tools**
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+![Version](https://img.shields.io/badge/version-3.0-blue)
+![License](https://img.shields.io/badge/license-educational-red)
+![Python](https://img.shields.io/badge/python-3.8+-green)
 
-## How can I edit this code?
+## 🚀 Overview
 
-There are several ways of editing your application.
+GROWHAZ is a complete ecosystem for web application security:
 
-**Use Lovable**
+- **Automated Security Scanner** – Professional-grade vulnerability detection (SQLi, XSS, IDOR, CORS, etc.)
+- **Mentor Marketplace** – Connect with security experts for paid consultations
+- **Student Tool Bazaar** – Students can build and sell their own security tools to businesses
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+This repository contains the core scanning engine (two versions) and the blueprint for the full platform.
 
-Changes made via Lovable will be committed automatically to this repo.
+---
 
-**Use your preferred IDE**
+## 🔧 Security Scanning Tools
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Version 2.4 – Optimized & Threaded
+Lightweight, fast scanner for CI/CD pipelines and quick assessments.
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+**Features:**
+- Static + JavaScript crawling (Playwright optional)
+- WAF circuit breaker (stops testing after repeated blocks)
+- Multithreaded XSS testing (10 workers)
+- Actual parameter discovery (no blind guessing)
+- Supabase integration for report storage
+- Always returns exit code 0 (build never fails)
 
-Follow these steps:
+### Version 3.0 – Professional Deep Scan
+Enterprise-ready scanner with stealth techniques and compliance mapping.
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+**New in v3.0:**
+- **Deep site mapping** – 100+ endpoints, network request capture
+- **Stealth mode** – Header rotation, IP spoofing, adaptive throttling (1.5–4s Gaussian delays)
+- **Payload obfuscation** – Bypass simple WAFs for SQLi and XSS
+- **CVSS v3.1 scoring** – Industry-standard severity metrics
+- **OWASP Top 10 mapping** – Align findings with A01–A10
+- **High‑fidelity evidence** – Raw requests/responses, unique test IDs
+- **Enhanced circuit breaker** – Per-endpoint block tracking
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Supported Vulnerability Tests
 
-# Step 3: Install the necessary dependencies.
-npm i
+| Test | Severity | OWASP Mapping |
+|------|----------|----------------|
+| SQL Injection (Boolean, Time, Error) | Critical | A03:2021 – Injection |
+| Cross-Site Scripting (XSS) | Medium | A03:2021 – Injection |
+| IDOR (Insecure Direct Object Reference) | High | A01:2021 – Broken Access Control |
+| Directory Traversal | High | A01:2021 – Broken Access Control |
+| CORS Misconfiguration | High | A05:2021 – Security Misconfiguration |
+| Missing Rate Limiting | Medium | A04:2021 – Insecure Design |
+| Weak Password Policy | Medium | A07:2021 – Identification Failures |
+| User Enumeration | Low | A07:2021 – Identification Failures |
+| Missing Security Headers | Low | A05:2021 – Security Misconfiguration |
+| SSL/TLS Issues (Expired, Weak Cipher, Outdated TLS) | Medium-High | A05:2021 – Security Misconfiguration |
+| CSRF / Missing Authentication | High | A07:2021 – Identification Failures |
+| Open Redirect | Medium | A08:2021 – Integrity Failures |
+| Sensitive Data Exposure | High | A02:2021 – Cryptographic Failures |
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
-```
+---
 
-**Edit a file directly in GitHub**
+## 📦 Installation
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### Prerequisites
+- Python 3.8+
+- pip
+- (Optional) Playwright for JS crawling: `playwright install chromium`
 
-**Use GitHub Codespaces**
+### Clone & Setup
+```bash
+git clone https://github.com/yourusername/growhaz-security.git
+cd growhaz-security
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+# Install dependencies
+pip install -r requirements.txt
 
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
-
-## How can I deploy this project?
-
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
-
-## Can I connect a custom domain to my Lovable project?
-
-Yes, you can!
-
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
-
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# For JavaScript crawling (v2.4 & v3.0)
+pip install playwright
+playwright install chromium
