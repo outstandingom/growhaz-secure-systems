@@ -58,7 +58,11 @@ interface Response {
   created_at: string;
 }
 
-export function MySessions() {
+interface MySessionsProps {
+  view?: "bookings" | "requests" | "responses";
+}
+
+export function MySessions({ view }: MySessionsProps) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [myRequests, setMyRequests] = useState<LearningRequest[]>([]);
   const [myResponses, setMyResponses] = useState<Response[]>([]);
