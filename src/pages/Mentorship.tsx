@@ -249,194 +249,217 @@ export default function Mentorship() {
       {/* Main Tabs Section */}
       <section className="section-container bg-muted/30">
         <div className="max-w-6xl mx-auto">
-          <Tabs defaultValue="mentors" className="w-full">
-            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-2xl">
-              <TabsTrigger value="mentors" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <Users className="w-4 h-4 hidden sm:block" />
-                Mentors
-              </TabsTrigger>
-              <TabsTrigger value="requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <BookOpen className="w-4 h-4 hidden sm:block" />
-                Requests
-              </TabsTrigger>
-              <TabsTrigger value="my-bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
+          <Tabs defaultValue="bookings" className="w-full">
+            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-3 gap-2 rounded-xl bg-muted/60 p-2 lg:max-w-2xl">
+              <TabsTrigger value="bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
                 <Calendar className="w-4 h-4 hidden sm:block" />
-                My Sessions
+                Bookings
+              </TabsTrigger>
+              <TabsTrigger value="my-requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
+                <BookOpen className="w-4 h-4 hidden sm:block" />
+                My Requests
+              </TabsTrigger>
+              <TabsTrigger value="my-offers" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
+                <MessageSquare className="w-4 h-4 hidden sm:block" />
+                My Offers
               </TabsTrigger>
             </TabsList>
 
-            {/* Mentors Tab */}
-            <TabsContent value="mentors" id="mentors-section">
-              {/* Topics Filter */}
-              <div className="mb-8">
-                <h3 className="text-lg font-semibold mb-4 text-center">Filter by Learning Path</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {topics.map((topic) => {
-                    const IconComponent = iconMap[topic.icon] || Code;
-                    const isSelected = selectedTopic === topic.slug;
-                    
-                    return (
-                      <button
-                        key={topic.id}
-                        onClick={() => setSelectedTopic(isSelected ? null : topic.slug)}
-                        className={cn(
-                          "p-4 rounded-xl text-left transition-all duration-300 border",
-                          isSelected
-                            ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
-                            : "bg-card hover:bg-secondary border-border hover:border-primary/50"
-                        )}
-                      >
-                        <IconComponent className={cn(
-                          "w-6 h-6 mb-2",
-                          isSelected ? "text-primary-foreground" : "text-primary"
-                        )} />
-                        <h4 className="font-medium text-sm">{topic.name}</h4>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Mentors Grid */}
-            <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">
-                  {selectedTopic ? `${topics.find(t => t.slug === selectedTopic)?.name} Mentors` : "All Mentors"}
-                </h2>
-                <p className="text-muted-foreground text-sm mt-1">
-                  Verified professionals with real-world industry experience
-                </p>
-              </div>
-
-              {loading ? (
-                <div className="flex items-center justify-center py-20">
-                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                </div>
-              ) : filteredMentors.length === 0 ? (
-                <Card className="text-center py-12">
-                  <CardContent>
-                    <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-lg font-semibold mb-2">No Mentors Available Yet</h3>
-                    <p className="text-muted-foreground mb-4">
-                      We're onboarding verified professionals. Check back soon or post a learning request!
+            {/* Bookings Tab - Browse Mentors + My Bookings */}
+            <TabsContent value="bookings" id="mentors-section">
+              <div className="space-y-12">
+                {/* Browse Mentors Section */}
+                <div>
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold">Browse Mentors</h2>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      Book 1-on-1 sessions with verified professionals
                     </p>
-                    <div className="flex gap-3 justify-center">
-                      <Button variant="outline" onClick={() => setSelectedTopic(null)}>
-                        View All Topics
-                      </Button>
-                      <LearningRequestForm onSuccess={() => setRefreshKey((k) => k + 1)} />
+                  </div>
+                  
+                  {/* Topics Filter */}
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold mb-4 text-center">Filter by Learning Path</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {topics.map((topic) => {
+                        const IconComponent = iconMap[topic.icon] || Code;
+                        const isSelected = selectedTopic === topic.slug;
+                        
+                        return (
+                          <button
+                            key={topic.id}
+                            onClick={() => setSelectedTopic(isSelected ? null : topic.slug)}
+                            className={cn(
+                              "p-4 rounded-xl text-left transition-all duration-300 border",
+                              isSelected
+                                ? "bg-primary text-primary-foreground border-primary shadow-lg shadow-primary/25"
+                                : "bg-card hover:bg-secondary border-border hover:border-primary/50"
+                            )}
+                          >
+                            <IconComponent className={cn(
+                              "w-6 h-6 mb-2",
+                              isSelected ? "text-primary-foreground" : "text-primary"
+                            )} />
+                            <h4 className="font-medium text-sm">{topic.name}</h4>
+                          </button>
+                        );
+                      })}
                     </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filteredMentors.map((mentor) => (
-                    <Card key={mentor.id} className="overflow-hidden group hover:shadow-xl transition-shadow">
-                      <CardHeader className="pb-4">
-                        <div className="flex items-start gap-4">
-                          <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-2xl font-bold text-primary overflow-hidden">
-                            {mentor.avatar_url ? (
-                              <img src={mentor.avatar_url} alt={mentor.name} className="w-full h-full object-cover" />
-                            ) : (
-                              mentor.name.charAt(0)
-                            )}
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                              <CardTitle className="text-lg">{mentor.name}</CardTitle>
-                              {mentor.is_verified && (
-                                <CheckCircle2 className="w-5 h-5 text-primary fill-primary/20" />
-                              )}
-                            </div>
-                            <CardDescription>{mentor.title}</CardDescription>
-                            <div className="flex items-center gap-2 mt-1">
-                              <Badge variant="secondary" className="text-xs">
-                                {mentor.experience_years}+ years
-                              </Badge>
-                              {mentor.linkedin_url && (
-                                <a 
-                                  href={mentor.linkedin_url} 
-                                  target="_blank" 
-                                  rel="noopener noreferrer"
-                                  className="text-muted-foreground hover:text-primary"
-                                >
-                                  <Linkedin className="w-4 h-4" />
-                                </a>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      </CardHeader>
+                  </div>
+
+                  {/* Mentors Grid */}
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold">
+                      {selectedTopic ? `${topics.find(t => t.slug === selectedTopic)?.name} Mentors` : "All Mentors"}
+                    </h2>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      Verified professionals with real-world industry experience
+                    </p>
+                  </div>
+
+                  {loading ? (
+                    <div className="flex items-center justify-center py-20">
+                      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : filteredMentors.length === 0 ? (
+                    <Card className="text-center py-12">
                       <CardContent>
-                        <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
-                          {mentor.bio}
+                        <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Mentors Available Yet</h3>
+                        <p className="text-muted-foreground mb-4">
+                          We're onboarding verified professionals. Check back soon or post a learning request!
                         </p>
-                        <div className="flex flex-wrap gap-1.5 mb-4">
-                          {mentor.expertise.slice(0, 4).map((skill) => (
-                            <Badge key={skill} variant="outline" className="text-xs">
-                              {skill}
-                            </Badge>
-                          ))}
+                        <div className="flex gap-3 justify-center">
+                          <Button variant="outline" onClick={() => setSelectedTopic(null)}>
+                            View All Topics
+                          </Button>
+                          <LearningRequestForm onSuccess={() => setRefreshKey((k) => k + 1)} />
                         </div>
-                        <div className="flex items-center justify-between pt-4 border-t border-border">
-                          <div>
-                            <div className="flex items-center gap-1">
-                              <Coins className="w-4 h-4 text-primary" />
-                              <span className="text-2xl font-bold text-primary">{mentor.hourly_rate}</span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">coins/hour</span>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button 
-                              size="sm" 
-                              className="gap-1"
-                              onClick={() => handleBookWithCoins(mentor)}
-                              disabled={bookingMentorId === mentor.id || (balance ? balance.balance < mentor.hourly_rate : true)}
-                            >
-                              <Coins className="w-3 h-3" />
-                              {bookingMentorId === mentor.id ? "Booking..." : "Book"}
-                            </Button>
-                            {mentor.calendly_url && (
-                              <a href={mentor.calendly_url} target="_blank" rel="noopener noreferrer">
-                                <Button variant="outline" size="sm" className="gap-1">
-                                  <Calendar className="w-3 h-3" />
-                                  Calendly
-                                </Button>
-                              </a>
-                            )}
-                          </div>
-                        </div>
-                        {balance && balance.balance < mentor.hourly_rate && (
-                          <p className="text-xs text-destructive mt-2">
-                            Insufficient balance — <Link to="/wallet" className="underline">Buy Coins</Link>
-                          </p>
-                        )}
                       </CardContent>
                     </Card>
-                  ))}
+                  ) : (
+                    <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                      {filteredMentors.map((mentor) => (
+                        <Card key={mentor.id} className="overflow-hidden group hover:shadow-xl transition-shadow">
+                          <CardHeader className="pb-4">
+                            <div className="flex items-start gap-4">
+                              <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center text-2xl font-bold text-primary overflow-hidden">
+                                {mentor.avatar_url ? (
+                                  <img src={mentor.avatar_url} alt={mentor.name} className="w-full h-full object-cover" />
+                                ) : (
+                                  mentor.name.charAt(0)
+                                )}
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <CardTitle className="text-lg">{mentor.name}</CardTitle>
+                                  {mentor.is_verified && (
+                                    <CheckCircle2 className="w-5 h-5 text-primary fill-primary/20" />
+                                  )}
+                                </div>
+                                <CardDescription>{mentor.title}</CardDescription>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <Badge variant="secondary" className="text-xs">
+                                    {mentor.experience_years}+ years
+                                  </Badge>
+                                  {mentor.linkedin_url && (
+                                    <a 
+                                      href={mentor.linkedin_url} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer"
+                                      className="text-muted-foreground hover:text-primary"
+                                    >
+                                      <Linkedin className="w-4 h-4" />
+                                    </a>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            <p className="text-sm text-muted-foreground mb-4 line-clamp-3">
+                              {mentor.bio}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5 mb-4">
+                              {mentor.expertise.slice(0, 4).map((skill) => (
+                                <Badge key={skill} variant="outline" className="text-xs">
+                                  {skill}
+                                </Badge>
+                              ))}
+                            </div>
+                            <div className="flex items-center justify-between pt-4 border-t border-border">
+                              <div>
+                                <div className="flex items-center gap-1">
+                                  <Coins className="w-4 h-4 text-primary" />
+                                  <span className="text-2xl font-bold text-primary">{mentor.hourly_rate}</span>
+                                </div>
+                                <span className="text-xs text-muted-foreground">coins/hour</span>
+                              </div>
+                              <div className="flex gap-2">
+                                <Button 
+                                  size="sm" 
+                                  className="gap-1"
+                                  onClick={() => handleBookWithCoins(mentor)}
+                                  disabled={bookingMentorId === mentor.id || (balance ? balance.balance < mentor.hourly_rate : true)}
+                                >
+                                  <Coins className="w-3 h-3" />
+                                  {bookingMentorId === mentor.id ? "Booking..." : "Book"}
+                                </Button>
+                                {mentor.calendly_url && (
+                                  <a href={mentor.calendly_url} target="_blank" rel="noopener noreferrer">
+                                    <Button variant="outline" size="sm" className="gap-1">
+                                      <Calendar className="w-3 h-3" />
+                                      Calendly
+                                    </Button>
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                            {balance && balance.balance < mentor.hourly_rate && (
+                              <p className="text-xs text-destructive mt-2">
+                                Insufficient balance — <Link to="/wallet" className="underline">Buy Coins</Link>
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* Divider */}
+                <div className="border-t border-border pt-8">
+                  <div className="text-center mb-6">
+                    <h2 className="text-2xl font-bold">My Bookings</h2>
+                    <p className="text-muted-foreground text-sm mt-1">
+                      Manage your scheduled sessions
+                    </p>
+                  </div>
+                  <MySessions view="bookings" />
+                </div>
+              </div>
             </TabsContent>
 
-            {/* Browse Requests Tab */}
-            <TabsContent value="requests">
+            {/* My Requests Tab */}
+            <TabsContent value="my-requests">
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">Learning Requests</h2>
+                <h2 className="text-2xl font-bold">My Learning Requests</h2>
                 <p className="text-muted-foreground text-sm mt-1">
-                  Help others learn by offering your expertise
+                  Track your posted learning requests
                 </p>
               </div>
-              <LearningRequestsList key={refreshKey} />
+              <MySessions view="requests" />
             </TabsContent>
 
-            {/* My Sessions Tab (unified) */}
-            <TabsContent value="my-bookings">
+            {/* My Offers Tab */}
+            <TabsContent value="my-offers">
               <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold">My Sessions</h2>
+                <h2 className="text-2xl font-bold">My Offers</h2>
                 <p className="text-muted-foreground text-sm mt-1">
-                  All your bookings, requests, and offers in one place
+                  Responses you've made to help others learn
                 </p>
               </div>
-              <MySessions />
+              <MySessions view="responses" />
             </TabsContent>
           </Tabs>
         </div>
