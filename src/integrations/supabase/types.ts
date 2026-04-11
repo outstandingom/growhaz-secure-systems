@@ -564,6 +564,39 @@ export type Database = {
         }
         Relationships: []
       }
+      session_reviews: {
+        Row: {
+          booking_id: string
+          created_at: string
+          id: string
+          mentor_id: string
+          rating: number
+          review_text: string | null
+          reviewer_id: string
+          session_completed: boolean
+        }
+        Insert: {
+          booking_id: string
+          created_at?: string
+          id?: string
+          mentor_id: string
+          rating: number
+          review_text?: string | null
+          reviewer_id: string
+          session_completed?: boolean
+        }
+        Update: {
+          booking_id?: string
+          created_at?: string
+          id?: string
+          mentor_id?: string
+          rating?: number
+          review_text?: string | null
+          reviewer_id?: string
+          session_completed?: boolean
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
