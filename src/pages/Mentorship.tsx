@@ -259,7 +259,7 @@ export default function Mentorship() {
 
   <TabsTrigger value="requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
     <BookOpen className="w-4 h-4 hidden sm:block" />
-    My Requests
+    Requests
   </TabsTrigger>
 
   <TabsTrigger value="my-bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
@@ -268,7 +268,6 @@ export default function Mentorship() {
   </TabsTrigger>
 
 </TabsList>
-  
   
 
             {/* Bookings Tab - Browse Mentors + My Bookings */}
