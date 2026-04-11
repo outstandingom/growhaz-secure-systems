@@ -251,19 +251,23 @@ export default function Mentorship() {
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="bookings" className="w-full">
             <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-3 gap-2 rounded-xl bg-muted/60 p-2 lg:max-w-2xl">
-              <TabsTrigger value="bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <Calendar className="w-4 h-4 hidden sm:block" />
-                Bookings
-              </TabsTrigger>
-              <TabsTrigger value="my-requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <BookOpen className="w-4 h-4 hidden sm:block" />
-                My Requests
-              </TabsTrigger>
-              <TabsTrigger value="my-offers" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-                <MessageSquare className="w-4 h-4 hidden sm:block" />
-                My Offers
-              </TabsTrigger>
-            </TabsList>
+  
+  <TabsTrigger value="mentors" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
+    <Calendar className="w-4 h-4 hidden sm:block" />
+    Bookings
+  </TabsTrigger>
+
+  <TabsTrigger value="requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
+    <BookOpen className="w-4 h-4 hidden sm:block" />
+    My Requests
+  </TabsTrigger>
+
+  <TabsTrigger value="my-bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
+    <MessageSquare className="w-4 h-4 hidden sm:block" />
+    My Offers
+  </TabsTrigger>
+
+</TabsList>
 
             {/* Bookings Tab - Browse Mentors + My Bookings */}
             <TabsContent value="bookings" id="mentors-section">
