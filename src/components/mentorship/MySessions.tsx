@@ -483,11 +483,6 @@ export function MySessions({ view }: MySessionsProps) {
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm mb-3">{resp.message}</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {resp.responder_skills?.map((skill) => (
-                      <Badge key={skill} variant="outline" className="text-xs">{skill}</Badge>
-                    ))}
-                  </div>
                 </CardContent>
               </Card>
             ))}
