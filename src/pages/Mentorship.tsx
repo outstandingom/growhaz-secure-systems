@@ -250,11 +250,11 @@ export default function Mentorship() {
       <section className="section-container bg-muted/30">
         <div className="max-w-6xl mx-auto">
           <Tabs defaultValue="bookings" className="w-full">
-            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-3 gap-2 rounded-xl bg-muted/60 p-2 lg:max-w-2xl">
+            <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-2xl">
   
   <TabsTrigger value="mentors" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-    <Calendar className="w-4 h-4 hidden sm:block" />
-    Bookings
+    <Users className="w-4 h-4 hidden sm:block" />
+    Mentors
   </TabsTrigger>
 
   <TabsTrigger value="requests" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
@@ -263,11 +263,13 @@ export default function Mentorship() {
   </TabsTrigger>
 
   <TabsTrigger value="my-bookings" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
-    <MessageSquare className="w-4 h-4 hidden sm:block" />
-    My Offers
+    <Calendar className="w-4 h-4 hidden sm:block" />
+    My Sessions
   </TabsTrigger>
 
 </TabsList>
+  
+  
 
             {/* Bookings Tab - Browse Mentors + My Bookings */}
             <TabsContent value="bookings" id="mentors-section">
