@@ -4,16 +4,20 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { BookingChat } from "./BookingChat";
 import { ProfileViewer } from "./ProfileViewer";
 import { useToast } from "@/hooks/use-toast";
 import { formatDistanceToNow } from "date-fns";
 import {
   Calendar, CheckCircle2, XCircle, MessageSquare, Video,
-  Clock, BookOpen, User, Coins
+  Clock, BookOpen, User, Coins, Star, ThumbsUp
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription
+} from "@/components/ui/dialog";
 
 interface Booking {
   id: string;
@@ -41,7 +45,6 @@ interface LearningRequest {
   created_at: string;
   budget_min: number | null;
   budget_max: number | null;
-  requester_name?: string;
 }
 
 interface Response {
@@ -63,13 +66,23 @@ export function MySessions() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [meetingLinkInput, setMeetingLinkInput] = useState<Record<string, string>>({});
 
-  // Chat state
+  // Chat
   const [chatBooking, setChatBooking] = useState<any>(null);
   const [chatOpen, setChatOpen] = useState(false);
 
-  // Profile viewer state
+  // Profile viewer
   const [profileUserId, setProfileUserId] = useState<string | null>(null);
   const [profileOpen, setProfileOpen] = useState(false);
+
+  // Review dialog
+  const [reviewBookingId, setReviewBookingId] = useState<string | null>(null);
+  const [reviewMentorId, setReviewMentorId] = useState<string | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewText, setReviewText] = useState("");
+  const [reviewSubmitting, setReviewSubmitting] = useState(false);
+
+  // Track which bookings already have reviews
+  const [reviewedBookings, setReviewedBookings] = useState<Set<string>>(new Set());
 
   const { toast } = useToast();
 
@@ -80,12 +93,17 @@ export function MySessions() {
     if (!user) { setLoading(false); return; }
     setCurrentUserId(user.id);
 
-    // Fetch bookings, requests, responses in parallel
-    const [bookingsRes, requestsRes, responsesRes] = await Promise.all([
+    const [bookingsRes, requestsRes, responsesRes, reviewsRes] = await Promise.all([
       supabase.from("mentorship_bookings").select("*").order("created_at", { ascending: false }),
       supabase.from("learning_requests").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
       supabase.from("learning_request_responses").select("*").eq("responder_id", user.id).order("created_at", { ascending: false }),
+      supabase.from("session_reviews").select("booking_id").eq("reviewer_id", user.id),
     ]);
+
+    // Track reviewed bookings
+    if (reviewsRes.data) {
+      setReviewedBookings(new Set(reviewsRes.data.map((r: any) => r.booking_id)));
+    }
 
     // Enrich bookings
     if (bookingsRes.data && bookingsRes.data.length > 0) {
@@ -127,16 +145,12 @@ export function MySessions() {
   const handleAccept = async (bookingId: string) => {
     const link = meetingLinkInput[bookingId]?.trim();
     if (!link) {
-      toast({ title: "Meeting link required", description: "Please paste a meeting link before accepting.", variant: "destructive" });
+      toast({ title: "Meeting link required", description: "Paste a meeting link before accepting.", variant: "destructive" });
       return;
     }
     const { error } = await supabase.from("mentorship_bookings").update({ status: "confirmed", meeting_link: link }).eq("id", bookingId);
-    if (error) {
-      toast({ title: "Error", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Booking accepted!" });
-      fetchAll();
-    }
+    if (error) toast({ title: "Error", description: error.message, variant: "destructive" });
+    else { toast({ title: "Booking accepted!" }); fetchAll(); }
   };
 
   const handleDecline = async (bookingId: string, learnerId: string, amount: number) => {
@@ -146,7 +160,7 @@ export function MySessions() {
       p_user_id: learnerId, p_amount: amount, p_type: "refund" as any,
       p_description: "Refund: mentor declined booking",
     });
-    toast({ title: "Booking declined", description: "Coins refunded to the learner." });
+    toast({ title: "Booking declined", description: "Coins refunded." });
     fetchAll();
   };
 
@@ -156,15 +170,33 @@ export function MySessions() {
     else toast({ title: "Error", description: error.message, variant: "destructive" });
   };
 
-  const openChat = (booking: Booking) => {
-    setChatBooking(booking);
-    setChatOpen(true);
+  const handleSubmitReview = async () => {
+    if (!reviewBookingId || !reviewMentorId || !currentUserId) return;
+    setReviewSubmitting(true);
+
+    const { error } = await supabase.from("session_reviews").insert({
+      booking_id: reviewBookingId,
+      reviewer_id: currentUserId,
+      mentor_id: reviewMentorId,
+      rating: reviewRating,
+      review_text: reviewText.trim() || null,
+      session_completed: true,
+    } as any);
+
+    if (error) {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Review submitted!", description: "Coins transferred to the mentor. Thank you!" });
+      setReviewBookingId(null);
+      setReviewText("");
+      setReviewRating(5);
+      fetchAll();
+    }
+    setReviewSubmitting(false);
   };
 
-  const viewProfile = (userId: string) => {
-    setProfileUserId(userId);
-    setProfileOpen(true);
-  };
+  const openChat = (booking: Booking) => { setChatBooking(booking); setChatOpen(true); };
+  const viewProfile = (userId: string) => { setProfileUserId(userId); setProfileOpen(true); };
 
   if (loading) {
     return (
@@ -192,11 +224,13 @@ export function MySessions() {
 
   const statusIcon = (status: string) => {
     if (status === "confirmed") return <CheckCircle2 className="w-3 h-3" />;
+    if (status === "completed") return <ThumbsUp className="w-3 h-3" />;
     if (status === "cancelled") return <XCircle className="w-3 h-3" />;
     return <Clock className="w-3 h-3" />;
   };
   const statusVariant = (status: string) => {
     if (status === "confirmed") return "default" as const;
+    if (status === "completed") return "default" as const;
     if (status === "cancelled") return "destructive" as const;
     return "secondary" as const;
   };
@@ -204,6 +238,104 @@ export function MySessions() {
   const hasBookings = bookingsAsLearner.length > 0 || bookingsAsMentor.length > 0;
   const hasRequests = myRequests.length > 0;
   const hasResponses = myResponses.length > 0;
+
+  const renderBookingCard = (b: Booking, role: "learner" | "mentor") => {
+    const isMentor = role === "mentor";
+    const otherName = isMentor ? b.learner_name : b.mentor_name;
+    const otherUserId = isMentor ? b.user_id : b.mentor_id;
+    const canReview = !isMentor && b.status === "confirmed" && !reviewedBookings.has(b.id);
+
+    return (
+      <Card key={b.id} className="overflow-hidden">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between gap-2">
+            <CardTitle className="text-base">
+              {isMentor ? (
+                <><button onClick={() => viewProfile(otherUserId)} className="hover:text-primary hover:underline transition-colors">{otherName}</button> wants a session</>
+              ) : (
+                <>Session with <button onClick={() => viewProfile(otherUserId)} className="hover:text-primary hover:underline transition-colors">{otherName}</button></>
+              )}
+            </CardTitle>
+            <Badge variant={statusVariant(b.status)} className="gap-1 shrink-0">
+              {statusIcon(b.status)} {b.status}
+            </Badge>
+          </div>
+          <CardDescription>
+            {b.topic_name} • {b.total_price} coins • {formatDistanceToNow(new Date(b.created_at), { addSuffix: true })}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {b.notes && <p className="text-sm text-muted-foreground mb-3">{b.notes}</p>}
+
+          {/* Mentor: pending actions */}
+          {isMentor && b.status === "pending" && (
+            <div className="space-y-3">
+              <Input
+                placeholder="Paste meeting link (Google Meet, Zoom...)"
+                value={meetingLinkInput[b.id] || ""}
+                onChange={(e) => setMeetingLinkInput(prev => ({ ...prev, [b.id]: e.target.value }))}
+              />
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => handleAccept(b.id)} className="gap-1">
+                  <CheckCircle2 className="w-3 h-3" /> Accept
+                </Button>
+                <Button size="sm" variant="destructive" onClick={() => handleDecline(b.id, b.user_id, b.total_price)} className="gap-1">
+                  <XCircle className="w-3 h-3" /> Decline
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => openChat(b)} className="gap-1">
+                  <MessageSquare className="w-3 h-3" /> Chat
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Learner: pending */}
+          {!isMentor && b.status === "pending" && (
+            <p className="text-sm text-muted-foreground mb-3">Waiting for mentor to accept...</p>
+          )}
+
+          {/* Cancelled */}
+          {b.status === "cancelled" && (
+            <p className="text-sm text-destructive mb-3">Booking declined. Coins refunded.</p>
+          )}
+
+          {/* Completed */}
+          {b.status === "completed" && (
+            <p className="text-sm text-primary mb-3">✅ Session completed. Coins transferred to mentor.</p>
+          )}
+
+          {/* Action buttons */}
+          <div className="flex flex-wrap gap-2">
+            {b.meeting_link && (
+              <a href={b.meeting_link} target="_blank" rel="noopener noreferrer">
+                <Button size="sm" variant={b.status === "confirmed" ? "default" : "outline"} className="gap-1">
+                  <Video className="w-3 h-3" /> {b.status === "confirmed" ? "Join Meeting" : "Meeting"}
+                </Button>
+              </a>
+            )}
+            {b.status !== "cancelled" && (
+              <Button size="sm" variant="outline" onClick={() => openChat(b)} className="gap-1">
+                <MessageSquare className="w-3 h-3" /> Chat
+              </Button>
+            )}
+            <Button size="sm" variant="ghost" onClick={() => viewProfile(otherUserId)} className="gap-1">
+              <User className="w-3 h-3" /> Profile
+            </Button>
+            {canReview && (
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1 border-primary text-primary"
+                onClick={() => { setReviewBookingId(b.id); setReviewMentorId(b.mentor_id); }}
+              >
+                <Star className="w-3 h-3" /> Complete & Review
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
     <>
@@ -235,120 +367,23 @@ export function MySessions() {
             </Card>
           ) : (
             <div className="space-y-6">
-              {/* Incoming as Mentor */}
               {bookingsAsMentor.length > 0 && (
                 <div>
                   <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
                     <Video className="w-5 h-5 text-primary" /> Incoming Requests (as Mentor)
                   </h3>
                   <div className="space-y-3">
-                    {bookingsAsMentor.map((b) => (
-                      <Card key={b.id}>
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base">
-                              <button onClick={() => viewProfile(b.user_id)} className="hover:text-primary hover:underline transition-colors">
-                                {b.learner_name}
-                              </button>
-                              {" "}wants a session
-                            </CardTitle>
-                            <Badge variant={statusVariant(b.status)} className="gap-1">
-                              {statusIcon(b.status)} {b.status}
-                            </Badge>
-                          </div>
-                          <CardDescription>
-                            {b.topic_name} • {b.total_price} coins • {formatDistanceToNow(new Date(b.created_at), { addSuffix: true })}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          {b.notes && <p className="text-sm text-muted-foreground mb-3">{b.notes}</p>}
-                          {b.status === "pending" && (
-                            <div className="space-y-3">
-                              <Input
-                                placeholder="Paste meeting link (Google Meet, Zoom...)"
-                                value={meetingLinkInput[b.id] || ""}
-                                onChange={(e) => setMeetingLinkInput(prev => ({ ...prev, [b.id]: e.target.value }))}
-                              />
-                              <div className="flex flex-wrap gap-2">
-                                <Button size="sm" onClick={() => handleAccept(b.id)} className="gap-1">
-                                  <CheckCircle2 className="w-3 h-3" /> Accept
-                                </Button>
-                                <Button size="sm" variant="destructive" onClick={() => handleDecline(b.id, b.user_id, b.total_price)} className="gap-1">
-                                  <XCircle className="w-3 h-3" /> Decline
-                                </Button>
-                                <Button size="sm" variant="outline" onClick={() => openChat(b)} className="gap-1">
-                                  <MessageSquare className="w-3 h-3" /> Chat
-                                </Button>
-                              </div>
-                            </div>
-                          )}
-                          {b.status !== "pending" && (
-                            <div className="flex flex-wrap gap-2">
-                              {b.meeting_link && (
-                                <a href={b.meeting_link} target="_blank" rel="noopener noreferrer">
-                                  <Button size="sm" variant="outline" className="gap-1"><Video className="w-3 h-3" /> Meeting</Button>
-                                </a>
-                              )}
-                              <Button size="sm" variant="outline" onClick={() => openChat(b)} className="gap-1">
-                                <MessageSquare className="w-3 h-3" /> Chat
-                              </Button>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    ))}
+                    {bookingsAsMentor.map(b => renderBookingCard(b, "mentor"))}
                   </div>
                 </div>
               )}
-
-              {/* My Sessions as Learner */}
               {bookingsAsLearner.length > 0 && (
                 <div>
                   <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
                     <BookOpen className="w-5 h-5 text-primary" /> My Booked Sessions
                   </h3>
                   <div className="space-y-3">
-                    {bookingsAsLearner.map((b) => (
-                      <Card key={b.id}>
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-base">
-                              Session with{" "}
-                              <button onClick={() => viewProfile(b.mentor_id)} className="hover:text-primary hover:underline transition-colors">
-                                {b.mentor_name}
-                              </button>
-                            </CardTitle>
-                            <Badge variant={statusVariant(b.status)} className="gap-1">
-                              {statusIcon(b.status)} {b.status}
-                            </Badge>
-                          </div>
-                          <CardDescription>
-                            {b.topic_name} • {b.total_price} coins • {formatDistanceToNow(new Date(b.created_at), { addSuffix: true })}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                          {b.status === "pending" && (
-                            <p className="text-sm text-muted-foreground mb-3">Waiting for mentor to accept...</p>
-                          )}
-                          {b.status === "cancelled" && (
-                            <p className="text-sm text-destructive mb-3">Booking declined. Coins refunded.</p>
-                          )}
-                          <div className="flex flex-wrap gap-2">
-                            {b.meeting_link && (
-                              <a href={b.meeting_link} target="_blank" rel="noopener noreferrer">
-                                <Button size="sm" className="gap-1"><Video className="w-3 h-3" /> Join Meeting</Button>
-                              </a>
-                            )}
-                            <Button size="sm" variant="outline" onClick={() => openChat(b)} className="gap-1">
-                              <MessageSquare className="w-3 h-3" /> Chat
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => viewProfile(b.mentor_id)} className="gap-1">
-                              <User className="w-3 h-3" /> Profile
-                            </Button>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
+                    {bookingsAsLearner.map(b => renderBookingCard(b, "learner"))}
                   </div>
                 </div>
               )}
@@ -434,6 +469,43 @@ export function MySessions() {
           )}
         </TabsContent>
       </Tabs>
+
+      {/* Review Dialog */}
+      <Dialog open={!!reviewBookingId} onOpenChange={(open) => { if (!open) setReviewBookingId(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Complete Session & Review</DialogTitle>
+            <DialogDescription>
+              Confirm the session is complete. Coins will be transferred to the mentor.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Rating</label>
+              <div className="flex gap-1">
+                {[1, 2, 3, 4, 5].map(s => (
+                  <button key={s} onClick={() => setReviewRating(s)} className="p-1">
+                    <Star className={`w-6 h-6 transition-colors ${s <= reviewRating ? "text-primary fill-primary" : "text-muted-foreground"}`} />
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Review (optional)</label>
+              <Textarea
+                placeholder="How was your session?"
+                value={reviewText}
+                onChange={(e) => setReviewText(e.target.value)}
+                rows={3}
+              />
+            </div>
+            <Button onClick={handleSubmitReview} disabled={reviewSubmitting} className="w-full gap-2">
+              <ThumbsUp className="w-4 h-4" />
+              {reviewSubmitting ? "Submitting..." : "Confirm Completion & Transfer Coins"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <BookingChat
         open={chatOpen}
