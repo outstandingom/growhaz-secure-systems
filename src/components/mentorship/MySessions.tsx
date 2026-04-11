@@ -341,6 +341,168 @@ export function MySessions({ view }: MySessionsProps) {
     );
   };
 
+  // If view prop is provided, render only that section without tabs
+  if (view === "bookings") {
+    return (
+      <>
+        {!hasBookings ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Bookings Yet</h3>
+              <p className="text-muted-foreground">Book a mentor or wait for learners to book you.</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {bookingsAsMentor.length > 0 && (
+              <div>
+                <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                  <Video className="w-5 h-5 text-primary" /> Incoming Requests (as Mentor)
+                </h3>
+                <div className="space-y-3">
+                  {bookingsAsMentor.map(b => renderBookingCard(b, "mentor"))}
+                </div>
+              </div>
+            )}
+            {bookingsAsLearner.length > 0 && (
+              <div>
+                <h3 className="text-base font-semibold mb-3 flex items-center gap-2">
+                  <BookOpen className="w-5 h-5 text-primary" /> My Booked Sessions
+                </h3>
+                <div className="space-y-3">
+                  {bookingsAsLearner.map(b => renderBookingCard(b, "learner"))}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+        {/* Profile Viewer */}
+        <ProfileViewer 
+          open={profileOpen} 
+          onOpenChange={setProfileOpen} 
+          userId={profileUserId}
+        />
+        {/* Chat Dialog */}
+        {chatBooking && (
+          <BookingChat 
+            open={chatOpen} 
+            onOpenChange={setChatOpen} 
+            booking={chatBooking}
+            currentUserId={currentUserId}
+          />
+        )}
+      </>
+    );
+  }
+
+  if (view === "requests") {
+    return (
+      <>
+        {!hasRequests ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Requests Yet</h3>
+              <p className="text-muted-foreground">Post a learning request to get started!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {myRequests.map((req) => (
+              <Card key={req.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">{req.title}</CardTitle>
+                    <Badge variant={req.status === "open" ? "default" : "secondary"} className="gap-1">
+                      {req.status === "open" ? <Clock className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
+                      {req.status}
+                    </Badge>
+                  </div>
+                  <CardDescription>
+                    Posted {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                    {req.budget_min != null && ` • ${req.budget_min}${req.budget_max ? `-${req.budget_max}` : ""} coins`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground mb-3 line-clamp-2">{req.description}</p>
+                  <div className="flex flex-wrap gap-1.5 mb-3">
+                    {req.skills.map((skill) => (
+                      <Badge key={skill} variant="outline" className="text-xs">{skill}</Badge>
+                    ))}
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {req.status === "open" && (
+                      <Button size="sm" variant="destructive" onClick={() => handleCloseRequest(req.id)} className="gap-1">
+                        <XCircle className="w-3 h-3" /> Close
+                      </Button>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        {/* Profile Viewer */}
+        <ProfileViewer 
+          open={profileOpen} 
+          onOpenChange={setProfileOpen} 
+          userId={profileUserId}
+        />
+      </>
+    );
+  }
+
+  if (view === "responses") {
+    return (
+      <>
+        {!hasResponses ? (
+          <Card className="text-center py-12">
+            <CardContent>
+              <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">No Offers Yet</h3>
+              <p className="text-muted-foreground">Browse requests and offer to help others!</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            {myResponses.map((resp) => (
+              <Card key={resp.id}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base">Offer sent</CardTitle>
+                    <Badge variant={resp.status === "pending" ? "secondary" : resp.status === "accepted" ? "default" : "outline"} className="gap-1">
+                      {resp.status === "pending" ? <Clock className="w-3 h-3" /> : resp.status === "accepted" ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                      {resp.status}
+                    </Badge>
+                  </div>
+                  <CardDescription>
+                    {formatDistanceToNow(new Date(resp.created_at), { addSuffix: true })}
+                    {resp.proposed_rate != null && ` • ${resp.proposed_rate} coins/hr`}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm mb-3">{resp.message}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {resp.responder_skills?.map((skill) => (
+                      <Badge key={skill} variant="outline" className="text-xs">{skill}</Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+        {/* Profile Viewer */}
+        <ProfileViewer 
+          open={profileOpen} 
+          onOpenChange={setProfileOpen} 
+          userId={profileUserId}
+        />
+      </>
+    );
+  }
+
   return (
     <>
       <Tabs defaultValue="bookings" className="w-full">
