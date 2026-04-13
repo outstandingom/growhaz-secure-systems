@@ -85,6 +85,14 @@ export default function Auth() {
   // --- Effects ---
   useEffect(() => {
     mounted.current = true;
+
+    // Redirect if user already has a valid session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user && mounted.current) {
+        navigate("/");
+      }
+    });
+
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
