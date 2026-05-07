@@ -597,6 +597,21 @@ export type Database = {
         }
         Relationships: []
       }
+      trigger_error_log: {
+        Row: {
+          created_at: string | null
+          error_message: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          error_message?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          error_message?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
