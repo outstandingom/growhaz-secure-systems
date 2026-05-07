@@ -633,6 +633,60 @@ export type Database = {
         }
         Relationships: []
       }
+      verified_documents: {
+        Row: {
+          ai_validation: Json | null
+          blockchain_tx: string | null
+          content_hash: string
+          created_at: string
+          document_name: string
+          document_type: string | null
+          extracted_data: Json | null
+          file_hash: string
+          id: string
+          issuer_name: string | null
+          knowledge_graph: Json | null
+          status: string
+          storage_path: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_validation?: Json | null
+          blockchain_tx?: string | null
+          content_hash: string
+          created_at?: string
+          document_name: string
+          document_type?: string | null
+          extracted_data?: Json | null
+          file_hash: string
+          id?: string
+          issuer_name?: string | null
+          knowledge_graph?: Json | null
+          status?: string
+          storage_path: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_validation?: Json | null
+          blockchain_tx?: string | null
+          content_hash?: string
+          created_at?: string
+          document_name?: string
+          document_type?: string | null
+          extracted_data?: Json | null
+          file_hash?: string
+          id?: string
+          issuer_name?: string | null
+          knowledge_graph?: Json | null
+          status?: string
+          storage_path?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       withdrawal_requests: {
         Row: {
           admin_notes: string | null

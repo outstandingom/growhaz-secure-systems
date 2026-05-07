@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Shield, ArrowRight, Sparkles } from "lucide-react";
+import { Shield, ArrowRight, Sparkles, FileCheck2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export function HeroSection() {
@@ -41,9 +41,10 @@ export function HeroSection() {
                 <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-1" />
               </Button>
             </Link>
-            <Link to="/projects">
+            <Link to="/blockchain">
               <Button variant="heroOutline" size="xl">
-                View Our Projects
+                <FileCheck2 className="w-5 h-5" />
+                Verify Document
               </Button>
             </Link>
           </div>
