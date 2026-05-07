@@ -8,10 +8,8 @@ import { User as SupabaseUser } from "@supabase/supabase-js";
 
 const navItems = [
   { label: "Security Tools", href: "/security-tools" },
-  { label: "Development", href: "/development" },
-  { label: "SEO", href: "/seo" },
+  { label: "Blockchain", href: "/blockchain" },
   { label: "Automation", href: "/automation" },
-  { label: "Digital Marketing", href: "/marketing" },
   { label: "Learn & Mentorship", href: "/mentorship" },
   { label: "Blog", href: "/blog" },
   { label: "Pricing", href: "/pricing" },

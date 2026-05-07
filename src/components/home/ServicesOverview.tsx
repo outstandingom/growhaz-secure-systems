@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Shield, Code2, Search, Zap, Megaphone, ArrowRight } from "lucide-react";
+import { Shield, Zap, ArrowRight, FileCheck2 } from "lucide-react";
 
 const services = [
   {
@@ -9,28 +9,16 @@ const services = [
     href: "/security-tools",
   },
   {
-    icon: Code2,
-    title: "Website Development",
-    description: "Secure & scalable website development for business websites, dashboards, and SaaS platforms.",
-    href: "/development",
-  },
-  {
-    icon: Search,
-    title: "SEO Optimization",
-    description: "On-page & off-page SEO optimization to help your business rank higher on Google.",
-    href: "/seo",
+    icon: FileCheck2,
+    title: "Blockchain Verification",
+    description: "AI + blockchain document authentication with knowledge-graph reasoning.",
+    href: "/blockchain",
   },
   {
     icon: Zap,
     title: "Automation Tools",
     description: "Automation tools for repetitive startup tasks like posting, data processing, and workflows.",
     href: "/automation",
-  },
-  {
-    icon: Megaphone,
-    title: "Digital Marketing",
-    description: "Performance-focused digital marketing services with SEO-supported strategies.",
-    href: "/marketing",
   },
 ];
 

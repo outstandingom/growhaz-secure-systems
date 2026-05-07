@@ -20,6 +20,7 @@ import Profile from "./pages/Profile";
 import Blog from "./pages/Blog";
 import BlogPost from "./pages/BlogPost";
 import Mentorship from "./pages/Mentorship";
+import Blockchain from "./pages/Blockchain";
 import LearningRequests from "./pages/LearningRequests";
 import Terms from "./pages/Terms";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
@@ -54,6 +55,7 @@ const App = () => (
           <Route path="/blog" element={<Blog />} />
           <Route path="/blog/:slug" element={<BlogPost />} />
           <Route path="/mentorship" element={<Mentorship />} />
+          <Route path="/blockchain" element={<Blockchain />} />
           <Route path="/learning-requests" element={<LearningRequests />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
