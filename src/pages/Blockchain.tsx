@@ -231,26 +231,26 @@ export default function Blockchain() {
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-primary/10 border border-primary/20 mb-4 sm:mb-6">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">AI + Blockchain</span>
+            <span className="text-xs sm:text-sm font-medium text-primary">AI + Blockchain</span>
           </div>
-          <h1 className="section-title mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6">
             Intelligent <span className="gradient-text">Document Verification</span>
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 px-2">
             Decentralized authentication that combines blockchain trust, AI reasoning, and a knowledge
             graph to verify the meaning — not just the bytes — of any credential.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
             {features.map((item, idx) => (
               <div
                 key={idx}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border"
+                className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-card/50 border border-border"
               >
-                <item.icon className="w-6 h-6 text-primary" />
-                <span className="text-sm font-medium text-center">{item.label}</span>
+                <item.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                <span className="text-xs sm:text-sm font-medium text-center">{item.label}</span>
               </div>
             ))}
           </div>
@@ -259,34 +259,34 @@ export default function Blockchain() {
 
       {/* Verify / Issue Tool */}
       <section className="section-container pt-0">
-        <Card className="max-w-3xl mx-auto p-6 md:p-8">
-          <div className="grid grid-cols-3 gap-3 mb-6">
+        <Card className="max-w-3xl mx-auto p-4 sm:p-6 md:p-8">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
             <button
               onClick={() => { setMode("issue"); setResult(null); }}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "issue" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
-              <FileText className="w-6 h-6" />
-              <span className="text-xs md:text-sm font-medium">Issue</span>
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium">Issue</span>
             </button>
             <button
               onClick={() => { setMode("bulk"); setResult(null); }}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "bulk" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
-              <Upload className="w-6 h-6" />
-              <span className="text-xs md:text-sm font-medium">Bulk Issue</span>
+              <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium">Bulk</span>
             </button>
             <button
               onClick={() => { setMode("verify"); setResult(null); }}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "verify" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
-              <Search className="w-6 h-6" />
-              <span className="text-xs md:text-sm font-medium">Verify</span>
+              <Search className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium">Verify</span>
             </button>
           </div>
 
@@ -294,10 +294,10 @@ export default function Blockchain() {
             <>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4"
+                className="flex flex-col items-center gap-2 sm:gap-3 p-5 sm:p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4 text-center"
               >
-                <Upload className="w-8 h-8 text-primary" />
-                <span className="text-sm font-medium">{file ? file.name : "Click to upload PDF / JPG / PNG"}</span>
+                <Upload className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
+                <span className="text-sm font-medium break-all px-2">{file ? file.name : "Tap to upload PDF / JPG / PNG"}</span>
                 <span className="text-xs text-muted-foreground">Image-based extraction works best</span>
                 <Input
                   ref={fileInputRef}
@@ -318,13 +318,13 @@ export default function Blockchain() {
             <>
               <div
                 onClick={() => bulkInputRef.current?.click()}
-                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4"
+                className="flex flex-col items-center gap-2 sm:gap-3 p-5 sm:p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4 text-center"
               >
-                <Upload className="w-8 h-8 text-primary" />
+                <Upload className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
                 <span className="text-sm font-medium">
-                  {bulkFiles.length > 0 ? `${bulkFiles.length} files selected` : "Click to upload multiple documents"}
+                  {bulkFiles.length > 0 ? `${bulkFiles.length} files selected` : "Tap to upload multiple documents"}
                 </span>
-                <span className="text-xs text-muted-foreground">
+                <span className="text-xs text-muted-foreground px-2">
                   For schools, colleges, enterprises — upload up to 300 files at once
                 </span>
                 <Input
