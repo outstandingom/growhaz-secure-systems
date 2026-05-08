@@ -31,6 +31,7 @@ import { MentorProfileSection } from "@/components/profile/MentorProfileSection"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ReportViewer } from "@/components/reports/ReportViewer";
 import AlphaG2Report from "@/components/reports/Alphag2report";
+import { MyDocuments } from "@/components/profile/MyDocuments";
 
 interface Certificate {
   name: string;
@@ -82,7 +83,8 @@ export default function Profile() {
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents">("profile");
+  const [userId, setUserId] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
   const [editPhone, setEditPhone] = useState("");
@@ -115,6 +117,7 @@ export default function Profile() {
     }
 
     setUserEmail(session.user.email || "");
+    setUserId(session.user.id);
 
     await Promise.all([
       fetchProfile(session.user.id),
