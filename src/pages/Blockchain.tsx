@@ -23,7 +23,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-type Mode = "issue" | "verify";
+type Mode = "issue" | "verify" | "bulk";
 
 interface VerifyResult {
   document_type: string;
@@ -77,10 +77,14 @@ async function fileSha256(file: File): Promise<string> {
 export default function Blockchain() {
   const [mode, setMode] = useState<Mode>("issue");
   const [file, setFile] = useState<File | null>(null);
+  const [bulkFiles, setBulkFiles] = useState<File[]>([]);
+  const [bulkProgress, setBulkProgress] = useState<{ done: number; total: number; current: string }>({ done: 0, total: 0, current: "" });
+  const [bulkResults, setBulkResults] = useState<{ name: string; status: "ok" | "error"; message?: string; id?: string }[]>([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<VerifyResult | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bulkInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
