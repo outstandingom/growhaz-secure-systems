@@ -161,6 +161,62 @@ export default function Blockchain() {
     }
   };
 
+  const handleBulkProcess = async () => {
+    if (!userId) return toast.error("Please sign in first");
+    if (bulkFiles.length === 0) return toast.error("Please select documents");
+
+    setLoading(true);
+    setBulkResults([]);
+    setBulkProgress({ done: 0, total: bulkFiles.length, current: "" });
+
+    const results: typeof bulkResults = [];
+    for (let i = 0; i < bulkFiles.length; i++) {
+      const f = bulkFiles[i];
+      setBulkProgress({ done: i, total: bulkFiles.length, current: f.name });
+      try {
+        const [fileHash, base64] = await Promise.all([fileSha256(f), fileToBase64(f)]);
+        const { data, error } = await supabase.functions.invoke("verify-document", {
+          body: { imageBase64: base64, mimeType: f.type },
+        });
+        if (error) throw error;
+        if (data?.error) throw new Error(data.error);
+
+        const path = `${userId}/${Date.now()}-${i}-${f.name}`;
+        const { error: upErr } = await supabase.storage
+          .from("verified-documents")
+          .upload(path, f, { upsert: false });
+        if (upErr) throw upErr;
+
+        const { data: inserted, error: insErr } = await supabase
+          .from("verified_documents")
+          .insert({
+            user_id: userId,
+            document_name: f.name,
+            document_type: data.document_type,
+            file_hash: fileHash,
+            content_hash: data.content_hash,
+            storage_path: path,
+            extracted_data: data.extracted_data,
+            knowledge_graph: data.knowledge_graph,
+            ai_validation: data.validation,
+            status: data.validation?.status || "authentic",
+            blockchain_tx: `0x${fileHash.slice(0, 40)}`,
+          })
+          .select("id")
+          .single();
+        if (insErr) throw insErr;
+        results.push({ name: f.name, status: "ok", id: inserted?.id });
+      } catch (e: any) {
+        console.error(e);
+        results.push({ name: f.name, status: "error", message: e.message || "Failed" });
+      }
+      setBulkResults([...results]);
+    }
+    setBulkProgress({ done: bulkFiles.length, total: bulkFiles.length, current: "" });
+    setLoading(false);
+    toast.success(`Bulk complete: ${results.filter(r => r.status === "ok").length}/${bulkFiles.length} issued`);
+  };
+
   const StatusIcon =
     result?.validation.status === "authentic"
       ? CheckCircle2
