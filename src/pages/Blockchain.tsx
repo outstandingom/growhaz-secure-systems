@@ -260,75 +260,129 @@ export default function Blockchain() {
       {/* Verify / Issue Tool */}
       <section className="section-container pt-0">
         <Card className="max-w-3xl mx-auto p-6 md:p-8">
-          <div className="grid grid-cols-2 gap-3 mb-6">
+          <div className="grid grid-cols-3 gap-3 mb-6">
             <button
-              onClick={() => {
-                setMode("issue");
-                setResult(null);
-              }}
+              onClick={() => { setMode("issue"); setResult(null); }}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
-                mode === "issue"
-                  ? "bg-primary/10 border-primary text-primary"
-                  : "bg-card/50 border-border hover:border-primary/40"
+                mode === "issue" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
               <FileText className="w-6 h-6" />
-              <span className="text-sm font-medium">Issue Document</span>
+              <span className="text-xs md:text-sm font-medium">Issue</span>
             </button>
             <button
-              onClick={() => {
-                setMode("verify");
-                setResult(null);
-              }}
+              onClick={() => { setMode("bulk"); setResult(null); }}
               className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
-                mode === "verify"
-                  ? "bg-primary/10 border-primary text-primary"
-                  : "bg-card/50 border-border hover:border-primary/40"
+                mode === "bulk" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
+              }`}
+            >
+              <Upload className="w-6 h-6" />
+              <span className="text-xs md:text-sm font-medium">Bulk Issue</span>
+            </button>
+            <button
+              onClick={() => { setMode("verify"); setResult(null); }}
+              className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
+                mode === "verify" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
               <Search className="w-6 h-6" />
-              <span className="text-sm font-medium">Verify Document</span>
+              <span className="text-xs md:text-sm font-medium">Verify</span>
             </button>
           </div>
 
-          <div
-            onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center gap-3 p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4"
-          >
-            <Upload className="w-8 h-8 text-primary" />
-            <span className="text-sm font-medium">
-              {file ? file.name : "Click to upload PDF / JPG / PNG"}
-            </span>
-            <span className="text-xs text-muted-foreground">
-              Image-based extraction works best
-            </span>
-            <Input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,application/pdf"
-              className="hidden"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            />
-          </div>
+          {mode !== "bulk" ? (
+            <>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4"
+              >
+                <Upload className="w-8 h-8 text-primary" />
+                <span className="text-sm font-medium">{file ? file.name : "Click to upload PDF / JPG / PNG"}</span>
+                <span className="text-xs text-muted-foreground">Image-based extraction works best</span>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
 
-          <Button
-            onClick={handleProcess}
-            disabled={loading || !file}
-            variant="hero"
-            size="lg"
-            className="w-full"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Processing with AI...
-              </>
-            ) : mode === "issue" ? (
-              "Issue & Record on Ledger"
-            ) : (
-              "Verify Document"
-            )}
-          </Button>
+              <Button onClick={handleProcess} disabled={loading || !file} variant="hero" size="lg" className="w-full">
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Processing with AI...</>
+                ) : mode === "issue" ? "Issue & Record on Ledger" : "Verify Document"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <div
+                onClick={() => bulkInputRef.current?.click()}
+                className="flex flex-col items-center gap-3 p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4"
+              >
+                <Upload className="w-8 h-8 text-primary" />
+                <span className="text-sm font-medium">
+                  {bulkFiles.length > 0 ? `${bulkFiles.length} files selected` : "Click to upload multiple documents"}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  For schools, colleges, enterprises — upload up to 300 files at once
+                </span>
+                <Input
+                  ref={bulkInputRef}
+                  type="file"
+                  accept="image/*,application/pdf"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => setBulkFiles(Array.from(e.target.files || []))}
+                />
+              </div>
+
+              <Button onClick={handleBulkProcess} disabled={loading || bulkFiles.length === 0} variant="hero" size="lg" className="w-full">
+                {loading ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" />Processing {bulkProgress.done}/{bulkProgress.total}...</>
+                ) : (
+                  `Issue ${bulkFiles.length || ""} Documents on Ledger`
+                )}
+              </Button>
+
+              {bulkProgress.total > 0 && (
+                <div className="mt-4 space-y-2">
+                  <div className="h-2 rounded-full bg-card/50 border border-border overflow-hidden">
+                    <div
+                      className="h-full bg-primary transition-all"
+                      style={{ width: `${(bulkProgress.done / bulkProgress.total) * 100}%` }}
+                    />
+                  </div>
+                  {bulkProgress.current && (
+                    <p className="text-xs text-muted-foreground truncate">Current: {bulkProgress.current}</p>
+                  )}
+                </div>
+              )}
+
+              {bulkResults.length > 0 && (
+                <div className="mt-6 max-h-72 overflow-y-auto space-y-2">
+                  {bulkResults.map((r, i) => (
+                    <div
+                      key={i}
+                      className={`flex items-center gap-2 p-3 rounded-lg border text-sm ${
+                        r.status === "ok"
+                          ? "bg-primary/5 border-primary/30"
+                          : "bg-destructive/10 border-destructive/40"
+                      }`}
+                    >
+                      {r.status === "ok" ? (
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                      ) : (
+                        <XCircle className="w-4 h-4 text-destructive shrink-0" />
+                      )}
+                      <span className="truncate flex-1">{r.name}</span>
+                      {r.message && <span className="text-xs text-muted-foreground">{r.message}</span>}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
 
           {!userId && (
             <p className="text-xs text-center text-muted-foreground mt-3">
