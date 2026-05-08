@@ -231,26 +231,26 @@ export default function Blockchain() {
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 mb-6">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full bg-primary/10 border border-primary/20 mb-4 sm:mb-6">
             <Sparkles className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium text-primary">AI + Blockchain</span>
+            <span className="text-xs sm:text-sm font-medium text-primary">AI + Blockchain</span>
           </div>
-          <h1 className="section-title mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight mb-4 sm:mb-6">
             Intelligent <span className="gradient-text">Document Verification</span>
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
+          <p className="text-sm sm:text-base md:text-lg text-muted-foreground max-w-2xl mx-auto mb-6 sm:mb-8 px-2">
             Decentralized authentication that combines blockchain trust, AI reasoning, and a knowledge
             graph to verify the meaning — not just the bytes — of any credential.
           </p>
 
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-8">
             {features.map((item, idx) => (
               <div
                 key={idx}
-                className="flex flex-col items-center gap-2 p-4 rounded-xl bg-card/50 border border-border"
+                className="flex flex-col items-center gap-2 p-3 sm:p-4 rounded-xl bg-card/50 border border-border"
               >
-                <item.icon className="w-6 h-6 text-primary" />
-                <span className="text-sm font-medium text-center">{item.label}</span>
+                <item.icon className="w-5 h-5 sm:w-6 sm:h-6 text-primary" />
+                <span className="text-xs sm:text-sm font-medium text-center">{item.label}</span>
               </div>
             ))}
           </div>
