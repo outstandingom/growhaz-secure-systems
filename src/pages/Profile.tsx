@@ -369,6 +369,17 @@ export default function Profile() {
               My Services
             </button>
             <button
+              onClick={() => setActiveTab("documents")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "documents"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <FileText className="w-4 h-4" />
+              My Documents
+            </button>
+            <button
               onClick={() => setActiveTab("reports")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "reports"
@@ -380,6 +391,8 @@ export default function Profile() {
               Security Reports
             </button>
           </div>
+
+          {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
 
           {/* Profile Tab */}
           {activeTab === "profile" && (
