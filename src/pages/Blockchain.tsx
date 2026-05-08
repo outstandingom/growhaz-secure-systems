@@ -259,34 +259,34 @@ export default function Blockchain() {
 
       {/* Verify / Issue Tool */}
       <section className="section-container pt-0">
-        <Card className="max-w-3xl mx-auto p-6 md:p-8">
-          <div className="grid grid-cols-3 gap-3 mb-6">
+        <Card className="max-w-3xl mx-auto p-4 sm:p-6 md:p-8">
+          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
             <button
               onClick={() => { setMode("issue"); setResult(null); }}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "issue" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
-              <FileText className="w-6 h-6" />
-              <span className="text-xs md:text-sm font-medium">Issue</span>
+              <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium">Issue</span>
             </button>
             <button
               onClick={() => { setMode("bulk"); setResult(null); }}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "bulk" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
-              <Upload className="w-6 h-6" />
-              <span className="text-xs md:text-sm font-medium">Bulk Issue</span>
+              <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium">Bulk</span>
             </button>
             <button
               onClick={() => { setMode("verify"); setResult(null); }}
-              className={`flex flex-col items-center gap-2 p-4 rounded-xl border transition ${
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "verify" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
             >
-              <Search className="w-6 h-6" />
-              <span className="text-xs md:text-sm font-medium">Verify</span>
+              <Search className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium">Verify</span>
             </button>
           </div>
 
