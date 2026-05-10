@@ -433,20 +433,136 @@ export default function Blockchain() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2 p-4 rounded-xl bg-card/50 border border-border">
-                  <span className="text-xs font-medium text-primary">File Hash</span>
-                  <code className="text-xs break-all">{result.file_hash}</code>
+              {/* Key info highlights — owner, dates, etc. */}
+              {result.extracted_data && Object.keys(result.extracted_data).length > 0 && (
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                  {[
+                    { key: "student_name", label: "Owner", icon: User, fallback: result.extracted_data.name },
+                    { key: "issue_date", label: "Issue Date", icon: Calendar, fallback: result.extracted_data.date },
+                    { key: "institution", label: "Issuer", icon: Building2 },
+                    { key: "degree", label: "Title", icon: Award, fallback: result.extracted_data.course },
+                  ].map(({ key, label, icon: Icon, fallback }) => {
+                    const value = result.extracted_data[key] || fallback;
+                    if (!value) return null;
+                    return (
+                      <div key={key} className="flex flex-col gap-1 p-3 rounded-xl bg-primary/5 border border-primary/20">
+                        <span className="text-[10px] uppercase tracking-wide text-primary flex items-center gap-1">
+                          <Icon className="w-3 h-3" /> {label}
+                        </span>
+                        <span className="text-sm font-semibold break-words">{String(value)}</span>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="flex flex-col gap-2 p-4 rounded-xl bg-card/50 border border-border">
-                  <span className="text-xs font-medium text-primary">Content Hash</span>
-                  <code className="text-xs break-all">{result.content_hash}</code>
+              )}
+
+              {/* Dual hash comparison — visual side-by-side with match indicators */}
+              {mode === "verify" && result.matched ? (
+                <div className="rounded-xl border border-border overflow-hidden">
+                  <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] gap-0">
+                    {/* Uploaded */}
+                    <div className="p-4 bg-card/50">
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">UPLOADED FILE</div>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> File Hash
+                          </div>
+                          <code className="text-[10px] break-all">{result.file_hash}</code>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> Content Hash
+                          </div>
+                          <code className="text-[10px] break-all">{result.content_hash}</code>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Match indicators */}
+                    <div className="flex md:flex-col items-center justify-around gap-4 p-4 bg-primary/5 border-y md:border-y-0 md:border-x border-border">
+                      <div className="flex flex-col items-center gap-1">
+                        {result.fileHashMatch ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-yellow-500" />
+                        )}
+                        <span className="text-[10px] text-center">File {result.fileHashMatch ? "100%" : "differs"}</span>
+                      </div>
+                      <div className="flex flex-col items-center gap-1">
+                        {result.contentHashMatch ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-destructive" />
+                        )}
+                        <span className="text-[10px] text-center">Content {result.contentHashMatch ? "100%" : "differs"}</span>
+                      </div>
+                    </div>
+
+                    {/* Original */}
+                    <div className="p-4 bg-card/50">
+                      <div className="text-xs font-semibold text-muted-foreground mb-2">ORIGINAL ON LEDGER</div>
+                      <div className="space-y-3">
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> File Hash
+                          </div>
+                          <code className="text-[10px] break-all">{result.matched.file_hash}</code>
+                        </div>
+                        <div>
+                          <div className="text-[10px] uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                            <Hash className="w-3 h-3" /> Content Hash
+                          </div>
+                          <code className="text-[10px] break-all">{result.matched.content_hash}</code>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Side-by-side image preview */}
+                  {(result.uploadedPreview || result.originalPreview) && (
+                    <div className="grid grid-cols-2 gap-2 p-2 bg-background border-t border-border">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-center text-muted-foreground">Uploaded</span>
+                        {result.uploadedPreview && (
+                          <img src={result.uploadedPreview} alt="Uploaded document" className="w-full h-48 object-contain rounded-lg bg-card/50 border border-border" />
+                        )}
+                      </div>
+                      <div className="flex flex-col gap-1">
+                        <span className="text-[10px] text-center text-muted-foreground">Original</span>
+                        {result.originalPreview ? (
+                          <img src={result.originalPreview} alt="Original document" className="w-full h-48 object-contain rounded-lg bg-card/50 border border-border" />
+                        ) : (
+                          <div className="w-full h-48 flex items-center justify-center rounded-lg bg-card/50 border border-border text-xs text-muted-foreground">
+                            Preview unavailable
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="flex flex-col gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                    <span className="text-xs font-medium text-primary flex items-center gap-1">
+                      <Hash className="w-3 h-3" /> File Hash
+                    </span>
+                    <code className="text-xs break-all">{result.file_hash}</code>
+                    <span className="text-[10px] text-muted-foreground">Detects any byte-level change (resize, re-save, format).</span>
+                  </div>
+                  <div className="flex flex-col gap-2 p-4 rounded-xl bg-card/50 border border-border">
+                    <span className="text-xs font-medium text-primary flex items-center gap-1">
+                      <Hash className="w-3 h-3" /> Content Hash
+                    </span>
+                    <code className="text-xs break-all">{result.content_hash}</code>
+                    <span className="text-[10px] text-muted-foreground">Hash of extracted information — survives format changes.</span>
+                  </div>
+                </div>
+              )}
 
               <div className="p-4 rounded-xl bg-card/50 border border-border">
                 <div className="text-sm font-semibold mb-3 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" /> Extracted Data
+                  <FileText className="w-4 h-4 text-primary" /> Full Extracted Data
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                   {Object.entries(result.extracted_data).map(([k, v]) => (
@@ -459,6 +575,7 @@ export default function Blockchain() {
                   ))}
                 </div>
               </div>
+
 
               {result.knowledge_graph?.edges && result.knowledge_graph.edges.length > 0 && (
                 <div className="p-4 rounded-xl bg-card/50 border border-border">
