@@ -32,6 +32,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ReportViewer } from "@/components/reports/ReportViewer";
 import AlphaG2Report from "@/components/reports/Alphag2report";
 import { MyDocuments } from "@/components/profile/MyDocuments";
+import { VerificationHistory } from "@/components/profile/VerificationHistory";
 
 interface Certificate {
   name: string;
@@ -83,7 +84,7 @@ export default function Profile() {
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history">("profile");
   const [userId, setUserId] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -380,6 +381,17 @@ export default function Profile() {
               My Documents
             </button>
             <button
+              onClick={() => setActiveTab("history")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "history"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Clock className="w-4 h-4" />
+              Verification History
+            </button>
+            <button
               onClick={() => setActiveTab("reports")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "reports"
@@ -393,6 +405,7 @@ export default function Profile() {
           </div>
 
           {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
+          {activeTab === "history" && userId && <VerificationHistory userId={userId} />}
 
           {/* Profile Tab */}
           {activeTab === "profile" && (
