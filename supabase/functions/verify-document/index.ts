@@ -144,14 +144,27 @@ Deno.serve(async (req) => {
     if (!toolCall) throw new Error("No structured output from AI");
     const parsed = JSON.parse(toolCall.function.arguments);
 
-    // Content hash from normalized extracted data (semantic, format-independent)
-    const normalized = JSON.stringify(parsed.extracted_data, Object.keys(parsed.extracted_data).sort());
-    const contentHash = await sha256(normalized.toLowerCase().replace(/\s+/g, " ").trim());
+    // Stable content hash: only the key identifying facts, aggressively normalized.
+    // This survives compression, resize, format changes, and minor OCR jitter on noise fields.
+    const ed = parsed.extracted_data || {};
+    const norm = (v: unknown) =>
+      String(v ?? "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "");
+    const canonical = [
+      norm(ed.student_name || ed.name),
+      norm(ed.certificate_id || ed.id),
+      norm(ed.issue_date || ed.date),
+      norm(ed.institution || ed.issuer),
+      norm(ed.degree || ed.course || ed.title),
+    ].join("|");
+    const contentHash = await sha256(canonical);
 
     return new Response(
       JSON.stringify({
         ...parsed,
         content_hash: contentHash,
+        canonical_text: canonical,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

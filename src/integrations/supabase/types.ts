@@ -633,6 +633,48 @@ export type Database = {
         }
         Relationships: []
       }
+      verification_logs: {
+        Row: {
+          content_hash: string
+          content_hash_match: boolean
+          created_at: string
+          document_name: string
+          extracted_data: Json | null
+          file_hash: string
+          file_hash_match: boolean
+          id: string
+          matched_document_id: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          content_hash: string
+          content_hash_match?: boolean
+          created_at?: string
+          document_name: string
+          extracted_data?: Json | null
+          file_hash: string
+          file_hash_match?: boolean
+          id?: string
+          matched_document_id?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          content_hash?: string
+          content_hash_match?: boolean
+          created_at?: string
+          document_name?: string
+          extracted_data?: Json | null
+          file_hash?: string
+          file_hash_match?: boolean
+          id?: string
+          matched_document_id?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       verified_documents: {
         Row: {
           ai_validation: Json | null
