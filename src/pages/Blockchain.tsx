@@ -126,14 +126,25 @@ export default function Blockchain() {
         if (matches && matches.length > 0) {
           const m = matches[0];
           aiResult.matched = m;
-          aiResult.validation.status = m.file_hash === fileHash ? "authentic" : "valid";
-          aiResult.validation.explanation =
-            m.file_hash === fileHash
-              ? "Exact file match found on blockchain ledger."
-              : "Format changed but document content matches a verified record (content hash match).";
+          aiResult.fileHashMatch = m.file_hash === fileHash;
+          aiResult.contentHashMatch = m.content_hash === data.content_hash;
+          aiResult.validation.status = aiResult.fileHashMatch ? "authentic" : "valid";
+          aiResult.validation.explanation = aiResult.fileHashMatch
+            ? "Exact file match — document is byte-for-byte identical to the original on the ledger."
+            : "Content matches the original on the ledger, but the file has been re-encoded (compressed, resized, or format changed). The information is authentic.";
+
+          // Side-by-side previews
+          aiResult.uploadedPreview = URL.createObjectURL(file);
+          const { data: signed } = await supabase.storage
+            .from("verified-documents")
+            .createSignedUrl(m.storage_path, 300);
+          aiResult.originalPreview = signed?.signedUrl;
         } else {
+          aiResult.fileHashMatch = false;
+          aiResult.contentHashMatch = false;
           aiResult.validation.status = "tampered";
           aiResult.validation.explanation = "No matching record found in the verification ledger.";
+          aiResult.uploadedPreview = URL.createObjectURL(file);
         }
       } else {
         // Issue mode: store
