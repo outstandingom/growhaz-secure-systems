@@ -40,6 +40,10 @@ interface VerifyResult {
   content_hash: string;
   file_hash?: string;
   matched?: any;
+  fileHashMatch?: boolean;
+  contentHashMatch?: boolean;
+  uploadedPreview?: string;
+  originalPreview?: string;
 }
 
 const features = [
