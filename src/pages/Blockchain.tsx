@@ -19,6 +19,10 @@ import {
   Hash,
   Search,
   Sparkles,
+  User,
+  Calendar,
+  Building2,
+  Award,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
