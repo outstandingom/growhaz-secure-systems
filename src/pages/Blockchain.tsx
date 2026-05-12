@@ -116,14 +116,16 @@ export default function Blockchain() {
       const aiResult: VerifyResult = { ...data, file_hash: fileHash };
 
       if (mode === "verify") {
-        // 1) Try exact match on either hash
+        // 1) Try exact match on either hash. Content authenticity is only accepted
+        // when the computed content hash exactly equals the stored content hash.
         let { data: matches } = await supabase
           .from("verified_documents")
           .select("*")
           .or(`file_hash.eq.${fileHash},content_hash.eq.${data.content_hash}`)
           .limit(1);
 
-        // 2) Fallback: fuzzy match on certificate_id or student_name + issue_date
+        // 2) Fallback lookup only helps show the likely original side-by-side.
+        // It must never mark the document valid/authentic without exact content hash.
         if (!matches || matches.length === 0) {
           const ed = data.extracted_data || {};
           const certId = ed.certificate_id || ed.id;
@@ -154,13 +156,18 @@ export default function Blockchain() {
           const m = matches[0];
           aiResult.matched = m;
           aiResult.fileHashMatch = m.file_hash === fileHash;
-          // Treat as content match if hashes equal OR fallback found the same record by key fields
-          aiResult.contentHashMatch =
-            m.content_hash === data.content_hash || !aiResult.fileHashMatch;
-          aiResult.validation.status = aiResult.fileHashMatch ? "authentic" : "valid";
-          aiResult.validation.explanation = aiResult.fileHashMatch
-            ? "Exact file match — document is byte-for-byte identical to the original on the ledger."
-            : "Content matches 100% — the information is authentic. The file itself was re-encoded (compressed, resized, or converted), so the file hash differs from the original.";
+          aiResult.contentHashMatch = m.content_hash === data.content_hash;
+
+          if (aiResult.contentHashMatch && aiResult.fileHashMatch) {
+            aiResult.validation.status = "authentic";
+            aiResult.validation.explanation = "Content hash matches 100% and file hash matches — this document is byte-for-byte identical to the original on the ledger.";
+          } else if (aiResult.contentHashMatch) {
+            aiResult.validation.status = "valid";
+            aiResult.validation.explanation = "Content hash matches 100% — the information is authentic. The file hash differs, so the file was likely compressed, resized, or converted.";
+          } else {
+            aiResult.validation.status = "tampered";
+            aiResult.validation.explanation = "Content hash does not match exactly. This document cannot be marked valid or authentic, even if some extracted fields look similar.";
+          }
 
           const { data: signed } = await supabase.storage
             .from("verified-documents")
