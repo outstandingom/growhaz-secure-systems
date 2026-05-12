@@ -160,11 +160,76 @@ Deno.serve(async (req) => {
     ].join("|");
     const contentHash = await sha256(canonical);
 
+    // Push extracted entities into the external Knowledge Graph model and
+    // merge the resulting relationships into the response. Best-effort — never
+    // fail the verification if the KG service is unreachable.
+    let kgIngest: unknown = null;
+    try {
+      const KG_BASE = "https://outstandingom-knowledge-graph-env.hf.space";
+      const owner = ed.student_name || ed.name;
+      const issuer = ed.institution || ed.issuer;
+      const degree = ed.degree || ed.course || ed.title;
+      const certId = ed.certificate_id || ed.id;
+      const date = ed.issue_date || ed.date;
+      const edges: { from: string; to: string; relation: string }[] = [];
+      const add = (a?: string, b?: string, rel = "RELATED") => {
+        if (a && b) edges.push({ from: String(a), to: String(b), relation: rel });
+      };
+      add(owner, degree, "EARNED");
+      add(degree, issuer, "ISSUED_BY");
+      add(owner, issuer, "STUDIED_AT");
+      add(owner, certId, "CERT_ID");
+      add(degree, date, "ISSUED_ON");
+
+      const ingested: { from: string; to: string; relation: string; ok: boolean }[] = [];
+      for (const e of edges) {
+        try {
+          const r = await fetch(`${KG_BASE}/relationships/add`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ concept_a: e.from, concept_b: e.to, weight: 1.0, color: e.relation }),
+          });
+          ingested.push({ ...e, ok: r.ok });
+        } catch (_) {
+          ingested.push({ ...e, ok: false });
+        }
+      }
+
+      let sentence: string | null = null;
+      if (owner) {
+        try {
+          const sr = await fetch(`${KG_BASE}/sentence`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ concept: owner }),
+          });
+          if (sr.ok) {
+            const sj = await sr.json();
+            sentence = sj?.sentence ?? null;
+          }
+        } catch (_) { /* ignore */ }
+      }
+
+      // Merge external KG edges into the parsed knowledge_graph
+      const kgNodes = new Set<string>([
+        ...((parsed.knowledge_graph?.nodes ?? []) as string[]),
+        ...edges.flatMap((e) => [e.from, e.to]),
+      ]);
+      parsed.knowledge_graph = {
+        nodes: Array.from(kgNodes),
+        edges: [...((parsed.knowledge_graph?.edges ?? []) as unknown[]), ...edges],
+      };
+      kgIngest = { ingested, sentence };
+    } catch (e) {
+      console.error("KG ingest failed (non-fatal):", e);
+    }
+
     return new Response(
       JSON.stringify({
         ...parsed,
         content_hash: contentHash,
         canonical_text: canonical,
+        kg: kgIngest,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
