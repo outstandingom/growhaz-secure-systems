@@ -679,6 +679,10 @@ export type Database = {
         Row: {
           ai_validation: Json | null
           blockchain_tx: string | null
+          chain_block_number: number | null
+          chain_contract_address: string | null
+          chain_issuer_address: string | null
+          chain_tx_hash: string | null
           content_hash: string
           created_at: string
           document_name: string
@@ -686,6 +690,8 @@ export type Database = {
           extracted_data: Json | null
           file_hash: string
           id: string
+          ipfs_cid: string | null
+          ipfs_url: string | null
           issuer_name: string | null
           knowledge_graph: Json | null
           status: string
@@ -696,6 +702,10 @@ export type Database = {
         Insert: {
           ai_validation?: Json | null
           blockchain_tx?: string | null
+          chain_block_number?: number | null
+          chain_contract_address?: string | null
+          chain_issuer_address?: string | null
+          chain_tx_hash?: string | null
           content_hash: string
           created_at?: string
           document_name: string
@@ -703,6 +713,8 @@ export type Database = {
           extracted_data?: Json | null
           file_hash: string
           id?: string
+          ipfs_cid?: string | null
+          ipfs_url?: string | null
           issuer_name?: string | null
           knowledge_graph?: Json | null
           status?: string
@@ -713,6 +725,10 @@ export type Database = {
         Update: {
           ai_validation?: Json | null
           blockchain_tx?: string | null
+          chain_block_number?: number | null
+          chain_contract_address?: string | null
+          chain_issuer_address?: string | null
+          chain_tx_hash?: string | null
           content_hash?: string
           created_at?: string
           document_name?: string
@@ -720,6 +736,8 @@ export type Database = {
           extracted_data?: Json | null
           file_hash?: string
           id?: string
+          ipfs_cid?: string | null
+          ipfs_url?: string | null
           issuer_name?: string | null
           knowledge_graph?: Json | null
           status?: string
