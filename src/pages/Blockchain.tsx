@@ -193,12 +193,33 @@ export default function Blockchain() {
           extracted_data: data.extracted_data || {},
         });
       } else {
-        // Issue mode: store
+        // Issue mode: Supabase storage + IPFS (Pinata) + on-chain register
         const path = `${userId}/${Date.now()}-${file.name}`;
         const { error: upErr } = await supabase.storage
           .from("verified-documents")
           .upload(path, file, { upsert: false });
         if (upErr) throw upErr;
+
+        // 1) Pin original file to IPFS
+        toast.message("Pinning to IPFS...");
+        const { data: pin, error: pinErr } = await supabase.functions.invoke("pinata-upload", {
+          body: { fileBase64: base64, fileName: file.name, mimeType: file.type },
+        });
+        if (pinErr) throw pinErr;
+        if (pin?.error) throw new Error(pin.error);
+
+        // 2) Register dual hash + CID on smart contract
+        toast.message("Registering on blockchain...");
+        const { data: chain, error: chainErr } = await supabase.functions.invoke("blockchain-register", {
+          body: {
+            action: "register",
+            fileHash,
+            contentHash: data.content_hash,
+            ipfsCid: pin.cid,
+          },
+        });
+        if (chainErr) throw chainErr;
+        if (chain?.error) throw new Error(chain.error);
 
         const { error: insErr } = await supabase.from("verified_documents").insert({
           user_id: userId,
@@ -211,10 +232,16 @@ export default function Blockchain() {
           knowledge_graph: data.knowledge_graph,
           ai_validation: data.validation,
           status: data.validation?.status || "authentic",
-          blockchain_tx: `0x${fileHash.slice(0, 40)}`,
+          ipfs_cid: pin.cid,
+          ipfs_url: pin.url,
+          blockchain_tx: chain.txHash,
+          chain_tx_hash: chain.txHash,
+          chain_block_number: chain.blockNumber,
+          chain_issuer_address: chain.issuer,
+          chain_contract_address: chain.contractAddress,
         });
         if (insErr) throw insErr;
-        toast.success("Document issued and recorded on the ledger");
+        toast.success("Issued: pinned to IPFS and recorded on-chain");
       }
 
       setResult(aiResult);
@@ -252,6 +279,18 @@ export default function Blockchain() {
           .upload(path, f, { upsert: false });
         if (upErr) throw upErr;
 
+        const { data: pin, error: pinErr } = await supabase.functions.invoke("pinata-upload", {
+          body: { fileBase64: base64, fileName: f.name, mimeType: f.type },
+        });
+        if (pinErr) throw pinErr;
+        if (pin?.error) throw new Error(pin.error);
+
+        const { data: chain, error: chainErr } = await supabase.functions.invoke("blockchain-register", {
+          body: { action: "register", fileHash, contentHash: data.content_hash, ipfsCid: pin.cid },
+        });
+        if (chainErr) throw chainErr;
+        if (chain?.error) throw new Error(chain.error);
+
         const { data: inserted, error: insErr } = await supabase
           .from("verified_documents")
           .insert({
@@ -265,7 +304,13 @@ export default function Blockchain() {
             knowledge_graph: data.knowledge_graph,
             ai_validation: data.validation,
             status: data.validation?.status || "authentic",
-            blockchain_tx: `0x${fileHash.slice(0, 40)}`,
+            ipfs_cid: pin.cid,
+            ipfs_url: pin.url,
+            blockchain_tx: chain.txHash,
+            chain_tx_hash: chain.txHash,
+            chain_block_number: chain.blockNumber,
+            chain_issuer_address: chain.issuer,
+            chain_contract_address: chain.contractAddress,
           })
           .select("id")
           .single();
