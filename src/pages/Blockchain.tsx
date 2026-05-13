@@ -404,10 +404,16 @@ export default function Blockchain() {
             <>
               <div
                 onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const dropped = e.dataTransfer.files[0];
+                  if (dropped) setFile(dropped);
+                }}
                 className="flex flex-col items-center gap-2 sm:gap-3 p-5 sm:p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4 text-center"
               >
                 <Upload className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
-                <span className="text-sm font-medium break-all px-2">{file ? file.name : "Tap to upload PDF / JPG / PNG"}</span>
+                <span className="text-sm font-medium break-all px-2">{file ? file.name : "Drag & drop or tap to upload PDF / JPG / PNG"}</span>
                 <span className="text-xs text-muted-foreground">Image-based extraction works best</span>
                 <Input
                   ref={fileInputRef}
@@ -428,11 +434,17 @@ export default function Blockchain() {
             <>
               <div
                 onClick={() => bulkInputRef.current?.click()}
+                onDragOver={(e) => { e.preventDefault(); }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const dropped = Array.from(e.dataTransfer.files || []);
+                  if (dropped.length > 0) setBulkFiles(dropped);
+                }}
                 className="flex flex-col items-center gap-2 sm:gap-3 p-5 sm:p-8 rounded-xl bg-card/50 border-2 border-dashed border-border hover:border-primary/40 cursor-pointer transition mb-4 text-center"
               >
                 <Upload className="w-7 h-7 sm:w-8 sm:h-8 text-primary" />
                 <span className="text-sm font-medium">
-                  {bulkFiles.length > 0 ? `${bulkFiles.length} files selected` : "Tap to upload multiple documents"}
+                  {bulkFiles.length > 0 ? `${bulkFiles.length} files selected` : "Drag & drop or tap to upload multiple documents"}
                 </span>
                 <span className="text-xs text-muted-foreground px-2">
                   For schools, colleges, enterprises — upload up to 300 files at once
