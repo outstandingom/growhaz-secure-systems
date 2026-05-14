@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
                   type: "object",
                   properties: {
                     document_type: { type: "string", description: "e.g. Degree, Diploma, Certificate, ID" },
+                    raw_text: { type: "string", description: "Full verbatim OCR text of the document — every readable word preserved." },
                     extracted_data: {
                       type: "object",
                       properties: {
