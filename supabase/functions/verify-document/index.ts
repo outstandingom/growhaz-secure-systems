@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are an intelligent document verification AI. Extract structured data from the document image, build a knowledge graph of entities and their relationships, and perform logical validation. Detect inconsistencies (e.g. degree-course mismatch, timeline issues, institution-accreditation conflicts). Always call the extract_document tool.`;
+    const systemPrompt = `You are an intelligent document verification AI. Perform OCR and extract ALL readable text verbatim from the document image (every word, number, date, name, ID — preserve order, ignore decorative noise). Then extract structured data, build a knowledge graph of entities and their relationships, and perform logical validation. Detect inconsistencies (e.g. degree-course mismatch, timeline issues, institution-accreditation conflicts). Always call the extract_document tool and ALWAYS populate raw_text with the complete OCR output.`;
 
     const aiResp = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -69,6 +69,7 @@ Deno.serve(async (req) => {
                   type: "object",
                   properties: {
                     document_type: { type: "string", description: "e.g. Degree, Diploma, Certificate, ID" },
+                    raw_text: { type: "string", description: "Full verbatim OCR text of the document — every readable word preserved." },
                     extracted_data: {
                       type: "object",
                       properties: {
@@ -144,20 +145,32 @@ Deno.serve(async (req) => {
     if (!toolCall) throw new Error("No structured output from AI");
     const parsed = JSON.parse(toolCall.function.arguments);
 
-    // Stable content hash: only the key identifying facts, aggressively normalized.
-    // This survives compression, resize, format changes, and minor OCR jitter on noise fields.
+    // Stable content hash from the FULL OCR text — same content yields the same
+    // hash regardless of file format / compression / resize. Mirrors the Node.js
+    // reference: cleanText -> normalizeForHash -> SHA-256.
     const ed = parsed.extracted_data || {};
-    const norm = (v: unknown) =>
-      String(v ?? "")
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "");
-    const canonical = [
-      norm(ed.student_name || ed.name),
-      norm(ed.certificate_id || ed.id),
-      norm(ed.issue_date || ed.date),
-      norm(ed.institution || ed.issuer),
-      norm(ed.degree || ed.course || ed.title),
-    ].join("|");
+    const rawText: string = String(parsed.raw_text || "").trim();
+
+    // Fallback: if AI didn't return raw_text, synthesise from extracted fields
+    const fallbackText = [
+      ed.student_name || ed.name,
+      ed.certificate_id || ed.id,
+      ed.issue_date || ed.date,
+      ed.institution || ed.issuer,
+      ed.degree || ed.course || ed.title,
+    ].filter(Boolean).join(" ");
+
+    const sourceText = rawText.length >= 10 ? rawText : fallbackText;
+
+    // cleanText: collapse whitespace, strip noise chars
+    const cleaned = sourceText
+      .replace(/\s+/g, " ")
+      .replace(/[@©•]/g, "")
+      .replace(/[^\w\s:/@.-]/g, " ")
+      .trim();
+
+    // normalizeForHash: lowercase + remove all non-word chars (incl. spaces)
+    const canonical = cleaned.toLowerCase().replace(/\s+/g, "").replace(/[^\w]/g, "");
     const contentHash = await sha256(canonical);
 
     // Push extracted entities into the external Knowledge Graph model and
@@ -228,6 +241,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ...parsed,
         content_hash: contentHash,
+        raw_text: sourceText,
+        cleaned_text: cleaned,
         canonical_text: canonical,
         kg: kgIngest,
       }),
