@@ -278,12 +278,17 @@ export default function Blockchain() {
       const f = bulkFiles[i];
       setBulkProgress({ done: i, total: bulkFiles.length, current: f.name });
       try {
-        const [fileHash, base64] = await Promise.all([fileSha256(f), fileToBase64(f)]);
+        const [fileHash, base64, extracted] = await Promise.all([
+          fileSha256(f),
+          fileToBase64(f),
+          extractAndHash(f),
+        ]);
         const { data, error } = await supabase.functions.invoke("verify-document", {
-          body: { imageBase64: base64, mimeType: f.type },
+          body: { text: extracted.cleanedText, mimeType: f.type },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
+        data.content_hash = extracted.contentHash;
 
         const path = `${userId}/${Date.now()}-${i}-${f.name}`;
         const { error: upErr } = await supabase.storage
