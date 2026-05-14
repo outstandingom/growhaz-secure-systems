@@ -241,6 +241,8 @@ Deno.serve(async (req) => {
       JSON.stringify({
         ...parsed,
         content_hash: contentHash,
+        raw_text: sourceText,
+        cleaned_text: cleaned,
         canonical_text: canonical,
         kg: kgIngest,
       }),
