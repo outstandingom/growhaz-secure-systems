@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are an intelligent document verification AI. Extract structured data from the document image, build a knowledge graph of entities and their relationships, and perform logical validation. Detect inconsistencies (e.g. degree-course mismatch, timeline issues, institution-accreditation conflicts). Always call the extract_document tool.`;
+    const systemPrompt = `You are an intelligent document verification AI. Perform OCR and extract ALL readable text verbatim from the document image (every word, number, date, name, ID — preserve order, ignore decorative noise). Then extract structured data, build a knowledge graph of entities and their relationships, and perform logical validation. Detect inconsistencies (e.g. degree-course mismatch, timeline issues, institution-accreditation conflicts). Always call the extract_document tool and ALWAYS populate raw_text with the complete OCR output.`;
 
     const aiResp = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
