@@ -162,7 +162,9 @@ Deno.serve(async (req) => {
       ed.degree || ed.course || ed.title,
     ].filter(Boolean).join(" ");
 
-    const sourceText = rawText.length >= 10 ? rawText : fallbackText;
+    // If the client supplied OCR text, ALWAYS use it (deterministic hashing
+    // matches the browser's pre-computed contentHash). Otherwise fall back.
+    const sourceText = providedText || (rawText.length >= 10 ? rawText : fallbackText);
 
     // cleanText: collapse whitespace, strip noise chars
     const cleaned = sourceText
