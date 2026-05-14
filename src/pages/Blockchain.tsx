@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { extractAndHash } from "@/lib/documentExtractor";
 
 type Mode = "issue" | "verify" | "bulk";
 
@@ -105,13 +106,24 @@ export default function Blockchain() {
     setLoading(true);
     setResult(null);
     try {
-      const [fileHash, base64] = await Promise.all([fileSha256(file), fileToBase64(file)]);
+      // 1) Local extraction (no Vision API cost): OCR / PDF text / DOCX in browser.
+      toast.message("Extracting text locally...");
+      const [fileHash, base64, extracted] = await Promise.all([
+        fileSha256(file),
+        fileToBase64(file),
+        extractAndHash(file),
+      ]);
 
+      // 2) Send the already-extracted text to the edge function for cheap
+      // text-only structured analysis + KG (no image tokens).
       const { data, error } = await supabase.functions.invoke("verify-document", {
-        body: { imageBase64: base64, mimeType: file.type },
+        body: { text: extracted.cleanedText, mimeType: file.type },
       });
       if (error) throw error;
       if (data?.error) throw new Error(data.error);
+
+      // Trust the locally-computed hash for determinism across client/server
+      data.content_hash = extracted.contentHash;
 
       const aiResult: VerifyResult = { ...data, file_hash: fileHash };
 
@@ -266,12 +278,17 @@ export default function Blockchain() {
       const f = bulkFiles[i];
       setBulkProgress({ done: i, total: bulkFiles.length, current: f.name });
       try {
-        const [fileHash, base64] = await Promise.all([fileSha256(f), fileToBase64(f)]);
+        const [fileHash, base64, extracted] = await Promise.all([
+          fileSha256(f),
+          fileToBase64(f),
+          extractAndHash(f),
+        ]);
         const { data, error } = await supabase.functions.invoke("verify-document", {
-          body: { imageBase64: base64, mimeType: f.type },
+          body: { text: extracted.cleanedText, mimeType: f.type },
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
+        data.content_hash = extracted.contentHash;
 
         const path = `${userId}/${Date.now()}-${i}-${f.name}`;
         const { error: upErr } = await supabase.storage

@@ -18,9 +18,13 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { imageBase64, mimeType } = await req.json();
-    if (!imageBase64) {
-      return new Response(JSON.stringify({ error: "imageBase64 required" }), {
+    // Accept already-extracted text from the browser (no Vision = no per-image
+    // billing). Falls back to image extraction only if no text is provided.
+    const { text, imageBase64, mimeType } = await req.json();
+    const providedText: string = String(text || "").trim();
+
+    if (!providedText && !imageBase64) {
+      return new Response(JSON.stringify({ error: "text or imageBase64 required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -29,7 +33,19 @@ Deno.serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) throw new Error("LOVABLE_API_KEY not configured");
 
-    const systemPrompt = `You are an intelligent document verification AI. Perform OCR and extract ALL readable text verbatim from the document image (every word, number, date, name, ID — preserve order, ignore decorative noise). Then extract structured data, build a knowledge graph of entities and their relationships, and perform logical validation. Detect inconsistencies (e.g. degree-course mismatch, timeline issues, institution-accreditation conflicts). Always call the extract_document tool and ALWAYS populate raw_text with the complete OCR output.`;
+    const systemPrompt = providedText
+      ? `You are an intelligent document verification AI. The user has already extracted the raw OCR text of a document (passed in the user message). DO NOT perform OCR. Parse that text, extract structured data, build a knowledge graph of entities and their relationships, and perform logical validation. Detect inconsistencies (degree-course mismatch, timeline issues, institution-accreditation conflicts). Always call the extract_document tool. Echo the input text back into raw_text unchanged.`
+      : `You are an intelligent document verification AI. Perform OCR and extract ALL readable text verbatim from the document image. Then extract structured data, build a knowledge graph, and perform logical validation. Always call the extract_document tool and ALWAYS populate raw_text with the complete OCR output.`;
+
+    const userContent = providedText
+      ? [{ type: "text", text: `Document raw text:\n\n${providedText}` }]
+      : [
+          { type: "text", text: "Extract and validate this document." },
+          {
+            type: "image_url",
+            image_url: { url: `data:${mimeType || "image/png"};base64,${imageBase64}` },
+          },
+        ];
 
     const aiResp = await fetch(
       "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -43,21 +59,7 @@ Deno.serve(async (req) => {
           model: "google/gemini-2.5-flash",
           messages: [
             { role: "system", content: systemPrompt },
-            {
-              role: "user",
-              content: [
-                {
-                  type: "text",
-                  text: "Extract and validate this document.",
-                },
-                {
-                  type: "image_url",
-                  image_url: {
-                    url: `data:${mimeType || "image/png"};base64,${imageBase64}`,
-                  },
-                },
-              ],
-            },
+            { role: "user", content: userContent },
           ],
           tools: [
             {
@@ -160,7 +162,9 @@ Deno.serve(async (req) => {
       ed.degree || ed.course || ed.title,
     ].filter(Boolean).join(" ");
 
-    const sourceText = rawText.length >= 10 ? rawText : fallbackText;
+    // If the client supplied OCR text, ALWAYS use it (deterministic hashing
+    // matches the browser's pre-computed contentHash). Otherwise fall back.
+    const sourceText = providedText || (rawText.length >= 10 ? rawText : fallbackText);
 
     // cleanText: collapse whitespace, strip noise chars
     const cleaned = sourceText
