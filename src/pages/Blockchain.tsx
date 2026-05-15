@@ -27,6 +27,16 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { extractAndHash } from "@/lib/documentExtractor";
+import { ethers } from "ethers";
+
+const DOCUMENT_REGISTRY_ABI = [
+  "function verifyDocument(string _documentId, string _documentHash, string _ownerId) public",
+  "function isDocumentVerified(string _documentHash) public view returns (bool)",
+  "function getDocumentDetails(string _documentHash) public view returns (string documentId, string ownerId, uint256 timestamp, address verifier)",
+  "event DocumentVerified(string documentId, string documentHash, string ownerId, uint256 timestamp, address verifier)"
+];
+// IMPORTANT: Replace this with the Contract Address you got from Remix!
+const DOCUMENT_REGISTRY_ADDRESS = "0xYourContractAddressHere";
 
 type Mode = "issue" | "verify" | "bulk";
 
@@ -220,18 +230,37 @@ export default function Blockchain() {
         if (pinErr) throw pinErr;
         if (pin?.error) throw new Error(pin.error);
 
-        // 2) Register dual hash + CID on smart contract
-        toast.message("Registering on blockchain...");
-        const { data: chain, error: chainErr } = await supabase.functions.invoke("blockchain-register", {
-          body: {
-            action: "register",
-            fileHash,
-            contentHash: data.content_hash,
-            ipfsCid: pin.cid,
-          },
-        });
-        if (chainErr) throw chainErr;
-        if (chain?.error) throw new Error(chain.error);
+        // 2) Register dual hash + CID on actual Smart Contract via MetaMask
+        toast.message("Waiting for MetaMask signature...");
+        
+        // Check if MetaMask is installed
+        if (!(window as any).ethereum) {
+          throw new Error("MetaMask is not installed! Please install it to issue on the blockchain.");
+        }
+
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const signer = await provider.getSigner();
+        const contract = new ethers.Contract(DOCUMENT_REGISTRY_ADDRESS, DOCUMENT_REGISTRY_ABI, signer);
+
+        // Generate a safe document ID
+        const safeDocId = file.name.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20) + "_" + Date.now();
+
+        // Call the smart contract
+        const tx = await contract.verifyDocument(
+          safeDocId,
+          data.content_hash, // The hash we are securing
+          userId
+        );
+
+        toast.message("Mining block on Ethereum/Polygon...");
+        const receipt = await tx.wait(); // Wait for it to be mathematically mined!
+        
+        const chain = {
+          txHash: receipt.hash,
+          blockNumber: receipt.blockNumber,
+          issuer: receipt.from,
+          contractAddress: receipt.to
+        };
 
         const { error: insErr } = await supabase.from("verified_documents").insert({
           user_id: userId,
