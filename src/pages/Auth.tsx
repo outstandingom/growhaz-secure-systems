@@ -634,8 +634,9 @@ export default function Auth() {
                   <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
                 </div>
               </div>
-              <div className="mt-4 flex justify-center">
+              <div className="mt-4 flex flex-col items-center gap-2">
                 <GoogleLogin />
+                <Web3Login />
               </div>
             </div>
 
