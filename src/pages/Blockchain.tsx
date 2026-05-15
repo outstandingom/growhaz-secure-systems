@@ -36,7 +36,7 @@ const DOCUMENT_REGISTRY_ABI = [
   "event DocumentVerified(string documentId, string documentHash, string ownerId, uint256 timestamp, address verifier)"
 ];
 // IMPORTANT: Replace this with the Contract Address you got from Remix!
-const DOCUMENT_REGISTRY_ADDRESS = "0xYourContractAddressHere";
+const DOCUMENT_REGISTRY_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138";
 
 type Mode = "issue" | "verify" | "bulk";
 

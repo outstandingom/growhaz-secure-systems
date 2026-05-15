@@ -41,6 +41,8 @@ const Web3Login: FC = () => {
         chain: "ethereum",
         statement: "I accept the Terms of Service. Sign in to authenticate.",
         signer,
+        domain: window.location.host,      // e.g., www.growhaz.com or localhost:8080
+        uri: window.location.origin,       // e.g., https://www.growhaz.com or http://localhost:8080
       });
       if (error) throw error;
       toast({ title: "Connected", description: `Signed in as ${address.slice(0, 6)}...${address.slice(-4)}` });
