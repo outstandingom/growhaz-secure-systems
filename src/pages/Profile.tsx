@@ -23,7 +23,11 @@ import {
   Save,
   X,
   GraduationCap,
-  Zap
+  Zap,
+  Wallet,
+  Link2,
+  Loader2,
+  Copy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -33,6 +37,9 @@ import { ReportViewer } from "@/components/reports/ReportViewer";
 import AlphaG2Report from "@/components/reports/Alphag2report";
 import { MyDocuments } from "@/components/profile/MyDocuments";
 import { VerificationHistory } from "@/components/profile/VerificationHistory";
+import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
+import { sha256 } from "@/lib/blockchain";
+import { SEPOLIA_EXPLORER } from "@/lib/contractConfig";
 
 interface Certificate {
   name: string;
@@ -92,8 +99,114 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [selectedReport, setSelectedReport] = useState<SecurityReport | null>(null);
   const [showG2Report, setShowG2Report] = useState(false);
+  const [registeringOnChain, setRegisteringOnChain] = useState(false);
+  const [editProfession, setEditProfession] = useState("");
+  const [editWork, setEditWork] = useState("");
+  const [bcName, setBcName] = useState("");
+  const [bcPhone, setBcPhone] = useState("");
+  const [ipfsProfileData, setIpfsProfileData] = useState<any>(null);
+  const [loadingIpfs, setLoadingIpfs] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const {
+    walletAddress,
+    walletType,
+    onChainUser,
+    loadingOnChain,
+    connectMetaMask,
+    connectPhantom,
+    disconnect,
+    registerUserOnChain,
+    updateUserOnChain,
+    isConnecting,
+  } = useWeb3Wallet();
+
+  // Fetch IPFS profile when on-chain user is found
+  useEffect(() => {
+    if (onChainUser?.exists && onChainUser.ipfsCid) {
+      setLoadingIpfs(true);
+      fetch(`https://gateway.pinata.cloud/ipfs/${onChainUser.ipfsCid}`)
+        .then(r => r.json())
+        .then(data => setIpfsProfileData(data))
+        .catch(() => setIpfsProfileData(null))
+        .finally(() => setLoadingIpfs(false));
+    } else {
+      setIpfsProfileData(null);
+    }
+  }, [onChainUser]);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied", description: "Address copied to clipboard" });
+  };
+
+  const handleRegisterOnChain = async () => {
+    if (!walletAddress || !profile) return;
+    if (!editProfession.trim()) {
+      toast({ title: "Missing Field", description: "Please enter your profession/role", variant: "destructive" });
+      return;
+    }
+    setRegisteringOnChain(true);
+    try {
+      // 1) Pin full profile data to IPFS via Pinata
+      toast({ title: "Step 1/3 — Uploading to IPFS", description: "Pinning your full profile to decentralized storage..." });
+      const finalName = bcName.trim() || profile.full_name;
+      const finalPhone = bcPhone.trim() || profile.phone || "";
+      const profilePayload = {
+        name: finalName,
+        email: userEmail,
+        phone: finalPhone,
+        profession: editProfession.trim(),
+        work: editWork.trim(),
+        skills: profile.skills || [],
+        bio: profile.bio || "",
+        wallet: walletAddress,
+        walletType: walletType,
+        github: profile.github_url || "",
+        linkedin: profile.linkedin_url || "",
+        registeredAt: new Date().toISOString(),
+        version: 1,
+      };
+      const profileJson = JSON.stringify(profilePayload, null, 2);
+      const base64 = btoa(unescape(encodeURIComponent(profileJson)));
+
+      const { data: pin, error: pinErr } = await supabase.functions.invoke("pinata-upload", {
+        body: {
+          fileBase64: base64,
+          fileName: `profile-${walletAddress.slice(0, 8)}.json`,
+          mimeType: "application/json",
+          metadata: { type: "user-profile", wallet: walletAddress },
+        },
+      });
+      if (pinErr) throw pinErr;
+      if (pin?.error) throw new Error(pin.error);
+
+      const ipfsCid = pin.cid;
+      const phoneHash = finalPhone ? await sha256(finalPhone) : "";
+
+      // 2) Register or update on UserRegistry smart contract
+      toast({ title: "Step 2/3 — Confirm in MetaMask", description: "Sign the blockchain transaction..." });
+      let txHash: string;
+      if (onChainUser?.exists) {
+        txHash = await updateUserOnChain(ipfsCid, finalName, editProfession.trim(), phoneHash);
+      } else {
+        txHash = await registerUserOnChain(ipfsCid, finalName, editProfession.trim(), phoneHash);
+      }
+
+      // 3) Refresh IPFS data
+      setIpfsProfileData(profilePayload);
+
+      toast({
+        title: "✅ Blockchain Profile Created!",
+        description: `TX: ${txHash.slice(0, 14)}... — Data on IPFS: ${ipfsCid.slice(0, 12)}...`,
+      });
+    } catch (e: any) {
+      console.error(e);
+      toast({ title: "Registration Failed", description: e?.message || "Unknown error", variant: "destructive" });
+    } finally {
+      setRegisteringOnChain(false);
+    }
+  };
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -326,13 +439,232 @@ export default function Profile() {
                 {profile?.phone && (
                   <p className="text-muted-foreground">{profile.phone}</p>
                 )}
+                {walletAddress && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <Wallet className="w-3.5 h-3.5 text-primary" />
+                    <code className="text-xs text-primary font-mono">
+                      {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
+                    </code>
+                    <button onClick={() => copyToClipboard(walletAddress)} className="text-muted-foreground hover:text-primary">
+                      <Copy className="w-3 h-3" />
+                    </button>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-primary/30 text-primary">
+                      {walletType === "metamask" ? "MetaMask" : "Phantom"}
+                    </Badge>
+                    {onChainUser?.exists && (
+                      <Badge className="text-[10px] px-1.5 py-0 bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                        On-Chain ✓
+                      </Badge>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
-            <Button variant="outline" onClick={handleLogout} className="w-fit">
-              <LogOut className="w-4 h-4 mr-2" />
-              Logout
-            </Button>
+            <div className="flex gap-2">
+              {walletAddress && (
+                <Button variant="outline" size="sm" onClick={disconnect} className="text-xs">
+                  <Link2 className="w-3 h-3 mr-1" /> Disconnect
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleLogout} className="w-fit">
+                <LogOut className="w-4 h-4 mr-2" />
+                Logout
+              </Button>
+            </div>
           </div>
+
+          {/* ═══ Blockchain Profile Banner ═══ */}
+          {loadingOnChain ? (
+            /* Loading state — fetching from smart contract */
+            <div className="mb-8 p-6 rounded-2xl border border-primary/20 bg-card/50 flex items-center justify-center gap-3">
+              <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Fetching your blockchain profile from the smart contract...</span>
+            </div>
+          ) : !onChainUser?.exists && (
+            <div className="mb-8 p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-accent/10 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
+              <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/10 rounded-full blur-2xl" />
+              
+              <div className="relative z-10">
+                {!walletAddress ? (
+                  /* No wallet — connect prompt */
+                  <div className="flex flex-col md:flex-row md:items-center gap-6">
+                    <div className="w-14 h-14 shrink-0 rounded-2xl bg-primary/20 flex items-center justify-center">
+                      <Wallet className="w-7 h-7 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="text-lg font-bold mb-1">Create Your Blockchain Profile</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Connect your MetaMask wallet to register your profile on the Ethereum blockchain. Your data is stored on IPFS, hash on-chain.
+                      </p>
+                    </div>
+                    <div className="flex gap-2 shrink-0">
+                      <Button variant="hero" size="lg" onClick={connectMetaMask} disabled={isConnecting}>
+                        {isConnecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wallet className="w-4 h-4 mr-2" />}
+                        Connect MetaMask
+                      </Button>
+                      <Button variant="outline" onClick={connectPhantom} disabled={isConnecting}>
+                        Phantom
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Wallet connected but not registered — inline form */
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 shrink-0 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                        <AlertTriangle className="w-5 h-5 text-amber-400" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold">Register on Blockchain</h3>
+                        <p className="text-xs text-muted-foreground">
+                          Wallet <code className="text-primary">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</code> connected — fill details below to create your on-chain profile
+                        </p>
+                      </div>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Full Name</Label>
+                        <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={profile?.full_name || "Your name"} className="bg-background/50 text-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Phone Number</Label>
+                        <Input value={bcPhone} onChange={(e) => setBcPhone(e.target.value)} placeholder={profile?.phone || "Your phone"} className="bg-background/50 text-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Profession / Role <span className="text-destructive">*</span></Label>
+                        <Input value={editProfession} onChange={(e) => setEditProfession(e.target.value)} placeholder="e.g. Developer, Student" className="bg-background/50 text-sm" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Work / About</Label>
+                        <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="e.g. Full-stack dev at XYZ" className="bg-background/50 text-sm" />
+                      </div>
+                    </div>
+                    <Button variant="hero" size="lg" className="w-full" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
+                      {registeringOnChain ? (
+                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating Blockchain Profile...</>
+                      ) : (
+                        <><Link2 className="w-4 h-4 mr-2" /> Create Profile on Blockchain</>
+                      )}
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground text-center">
+                      Pins profile to IPFS → calls <code className="text-primary">registerUser()</code> on UserRegistry contract → MetaMask signs the transaction
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* On-chain profile — full viewer (when registered) */}
+          {onChainUser?.exists && (
+            <div className="mb-8 p-6 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 via-card to-primary/5 relative overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
+              <div className="relative z-10">
+                {/* Header */}
+                <div className="flex items-center justify-between mb-5">
+                  <h2 className="text-xl font-semibold flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                    Your Blockchain Profile
+                  </h2>
+                  <div className="flex items-center gap-2">
+                    <a href={`https://gateway.pinata.cloud/ipfs/${onChainUser.ipfsCid}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      <ExternalLink className="w-3 h-3" /> IPFS
+                    </a>
+                    <a href={`${SEPOLIA_EXPLORER}/address/${walletAddress}`} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline flex items-center gap-1">
+                      <ExternalLink className="w-3 h-3" /> Etherscan
+                    </a>
+                  </div>
+                </div>
+
+                {/* On-chain data cards */}
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                  <div className="p-3 rounded-xl bg-card/60 border border-border">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1"><User className="w-3 h-3" /> Name</span>
+                    <p className="font-medium text-sm">{onChainUser.name}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-card/60 border border-border">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1"><Shield className="w-3 h-3" /> Profession</span>
+                    <p className="font-medium text-sm">{onChainUser.profession}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-card/60 border border-border">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1"><Clock className="w-3 h-3" /> Registered</span>
+                    <p className="font-medium text-sm">{new Date(onChainUser.registeredAt * 1000).toLocaleDateString()}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-card/60 border border-border">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1"><Wallet className="w-3 h-3" /> Wallet</span>
+                    <div className="flex items-center gap-1">
+                      <code className="font-mono text-xs truncate">{walletAddress?.slice(0, 10)}...{walletAddress?.slice(-6)}</code>
+                      <button onClick={() => copyToClipboard(walletAddress!)} className="text-muted-foreground hover:text-primary shrink-0"><Copy className="w-3 h-3" /></button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* IPFS CID */}
+                <div className="p-3 rounded-xl bg-card/60 border border-border mb-4">
+                  <span className="text-[10px] uppercase tracking-wider text-primary font-semibold flex items-center gap-1 mb-1"><Link2 className="w-3 h-3" /> IPFS Content Identifier (CID)</span>
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono text-xs break-all flex-1">{onChainUser.ipfsCid}</code>
+                    <button onClick={() => copyToClipboard(onChainUser.ipfsCid)} className="text-muted-foreground hover:text-primary shrink-0"><Copy className="w-3 h-3" /></button>
+                  </div>
+                </div>
+
+                {/* IPFS profile data (fetched from Pinata gateway) */}
+                {loadingIpfs ? (
+                  <div className="flex items-center justify-center gap-2 py-4">
+                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
+                    <span className="text-sm text-muted-foreground">Fetching profile from IPFS...</span>
+                  </div>
+                ) : ipfsProfileData && (
+                  <div className="p-4 rounded-xl bg-card/60 border border-border mb-4">
+                    <h4 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-primary" /> Full Profile Data (from IPFS)
+                    </h4>
+                    <div className="grid gap-2 md:grid-cols-2 text-sm">
+                      {ipfsProfileData.name && <div><span className="text-xs text-muted-foreground">Name:</span> <span className="font-medium">{ipfsProfileData.name}</span></div>}
+                      {ipfsProfileData.email && <div><span className="text-xs text-muted-foreground">Email:</span> <span className="font-medium">{ipfsProfileData.email}</span></div>}
+                      {ipfsProfileData.phone && <div><span className="text-xs text-muted-foreground">Phone:</span> <span className="font-medium">{ipfsProfileData.phone}</span></div>}
+                      {ipfsProfileData.profession && <div><span className="text-xs text-muted-foreground">Profession:</span> <span className="font-medium">{ipfsProfileData.profession}</span></div>}
+                      {ipfsProfileData.work && <div className="md:col-span-2"><span className="text-xs text-muted-foreground">Work/About:</span> <span className="font-medium">{ipfsProfileData.work}</span></div>}
+                      {ipfsProfileData.github && <div><span className="text-xs text-muted-foreground">GitHub:</span> <a href={ipfsProfileData.github} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">{ipfsProfileData.github}</a></div>}
+                      {ipfsProfileData.linkedin && <div><span className="text-xs text-muted-foreground">LinkedIn:</span> <a href={ipfsProfileData.linkedin} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">{ipfsProfileData.linkedin}</a></div>}
+                      {ipfsProfileData.registeredAt && <div><span className="text-xs text-muted-foreground">Created:</span> <span className="font-medium">{new Date(ipfsProfileData.registeredAt).toLocaleString()}</span></div>}
+                    </div>
+                  </div>
+                )}
+
+                {/* Update form */}
+                <div className="border-t border-border/30 pt-4">
+                  <h4 className="text-sm font-semibold mb-3">Update Profile On-Chain</h4>
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Name</Label>
+                      <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={onChainUser.name} className="bg-background/50 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Phone</Label>
+                      <Input value={bcPhone} onChange={(e) => setBcPhone(e.target.value)} placeholder="Update phone" className="bg-background/50 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Profession</Label>
+                      <Input value={editProfession} onChange={(e) => setEditProfession(e.target.value)} placeholder={onChainUser.profession} className="bg-background/50 text-sm" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Work/About</Label>
+                      <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="Your work" className="bg-background/50 text-sm" />
+                    </div>
+                  </div>
+                  <Button variant="hero" className="w-full mt-3" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
+                    {registeringOnChain ? (
+                      <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Updating...</>
+                    ) : (
+                      <><Save className="w-4 h-4 mr-2" /> Update Blockchain Profile</>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Tabs */}
           <div className="flex gap-2 mb-8 border-b border-border pb-4 overflow-x-auto">
@@ -498,7 +830,6 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
-
               {/* Account Stats */}
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-center">

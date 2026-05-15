@@ -28,195 +28,14 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { extractAndHash } from "@/lib/documentExtractor";
 import { ethers } from "ethers";
+import {
+  DOCUMENT_REGISTRY_ADDRESS,
+  DOCUMENT_REGISTRY_ABI,
+  USER_REGISTRY_ADDRESS,
+} from "@/lib/contractConfig";
+import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
 
-const DOCUMENT_REGISTRY_ABI = [
-	{
-		"anonymous": false,
-		"inputs": [
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "documentId",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "documentHash",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "string",
-				"name": "ownerId",
-				"type": "string"
-			},
-			{
-				"indexed": false,
-				"internalType": "uint256",
-				"name": "timestamp",
-				"type": "uint256"
-			},
-			{
-				"indexed": false,
-				"internalType": "address",
-				"name": "verifier",
-				"type": "address"
-			}
-		],
-		"name": "DocumentVerified",
-		"type": "event"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"name": "documents",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "documentId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "documentHash",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "ownerId",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "timestamp",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "verifier",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_documentHash",
-				"type": "string"
-			}
-		],
-		"name": "getDocumentDetails",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "documentId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "ownerId",
-				"type": "string"
-			},
-			{
-				"internalType": "uint256",
-				"name": "timestamp",
-				"type": "uint256"
-			},
-			{
-				"internalType": "address",
-				"name": "verifier",
-				"type": "address"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [],
-		"name": "getTotalDocuments",
-		"outputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_documentHash",
-				"type": "string"
-			}
-		],
-		"name": "isDocumentVerified",
-		"outputs": [
-			{
-				"internalType": "bool",
-				"name": "",
-				"type": "bool"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "uint256",
-				"name": "",
-				"type": "uint256"
-			}
-		],
-		"name": "verifiedDocumentHashes",
-		"outputs": [
-			{
-				"internalType": "string",
-				"name": "",
-				"type": "string"
-			}
-		],
-		"stateMutability": "view",
-		"type": "function"
-	},
-	{
-		"inputs": [
-			{
-				"internalType": "string",
-				"name": "_documentId",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "_documentHash",
-				"type": "string"
-			},
-			{
-				"internalType": "string",
-				"name": "_ownerId",
-				"type": "string"
-			}
-		],
-		"name": "verifyDocument",
-		"outputs": [],
-		"stateMutability": "nonpayable",
-		"type": "function"
-	}
-];
-// IMPORTANT: Replace this with the Contract Address you got from Remix!
-const DOCUMENT_REGISTRY_ADDRESS = "0xd9145CCE52D386f254917e481eB44e9943F39138";
+const SEPOLIA_EXPLORER = "https://sepolia.etherscan.io";
 
 type Mode = "issue" | "verify" | "bulk";
 
@@ -284,9 +103,17 @@ export default function Blockchain() {
   const [userId, setUserId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bulkInputRef = useRef<HTMLInputElement>(null);
+  const { walletAddress, onChainUser, registeredUsersCount, connectMetaMask, isConnecting } = useWeb3Wallet();
+  const [genesisHash, setGenesisHash] = useState<string | null>(null);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
+  }, []);
+
+  // Fetch genesis block hash from local blockchain table
+  useEffect(() => {
+    supabase.from("blockchain_ledger").select("hash").eq("block_index", 0).limit(1).single()
+      .then(({ data }) => { if (data?.hash) setGenesisHash(data.hash); });
   }, []);
 
   const handleProcess = async () => {
@@ -589,6 +416,51 @@ export default function Blockchain() {
                 <span className="text-xs sm:text-sm font-medium text-center">{item.label}</span>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Genesis Block & Network Stats */}
+      <section className="section-container pt-0">
+        <div className="max-w-3xl mx-auto">
+          <div className="p-6 rounded-2xl bg-gradient-to-br from-primary/5 via-card to-accent/5 border border-primary/20 mb-8">
+            <h2 className="text-lg font-semibold flex items-center gap-2 mb-4">
+              <Database className="w-5 h-5 text-primary" />
+              Genesis Block & Network Stats
+            </h2>
+            <div className="grid gap-3 md:grid-cols-4">
+              <div className="p-3 rounded-xl bg-card/60 border border-border">
+                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Network</span>
+                <p className="font-medium text-sm">Ethereum Sepolia</p>
+              </div>
+              <div className="p-3 rounded-xl bg-card/60 border border-border">
+                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Registered Users</span>
+                <p className="font-medium text-sm">{registeredUsersCount || "—"}</p>
+              </div>
+              <div className="p-3 rounded-xl bg-card/60 border border-border col-span-2">
+                <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">UserRegistry Contract</span>
+                <a href={`${SEPOLIA_EXPLORER}/address/${USER_REGISTRY_ADDRESS}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-primary hover:underline break-all block">{USER_REGISTRY_ADDRESS}</a>
+              </div>
+            </div>
+            {genesisHash && (
+              <div className="mt-3 p-3 rounded-xl bg-card/60 border border-border">
+                <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold">Genesis Block Hash</span>
+                <code className="font-mono text-xs break-all block mt-1">{genesisHash}</code>
+              </div>
+            )}
+            <div className="mt-3 p-3 rounded-xl bg-card/60 border border-border">
+              <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Document Registry Contract</span>
+              <a href={`${SEPOLIA_EXPLORER}/address/${DOCUMENT_REGISTRY_ADDRESS}`} target="_blank" rel="noopener noreferrer" className="font-mono text-xs text-primary hover:underline break-all block">{DOCUMENT_REGISTRY_ADDRESS}</a>
+            </div>
+            {!walletAddress && (
+              <div className="mt-4 text-center">
+                <p className="text-xs text-muted-foreground mb-2">Connect wallet to see live on-chain stats</p>
+                <Button variant="outline" size="sm" onClick={connectMetaMask} disabled={isConnecting}>
+                  {isConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                  Connect MetaMask
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </section>
