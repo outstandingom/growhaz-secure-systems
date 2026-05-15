@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { z } from "zod";
 import GoogleLogin from "@/components/GoogleLogin";
+import Web3Login from "@/components/Web3Login";
 import { ResetPasswordDialog } from "@/components/ResetPasswordDialog";
 
 // --- Validation schemas ---
