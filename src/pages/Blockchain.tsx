@@ -23,6 +23,10 @@ import {
   Calendar,
   Building2,
   Award,
+  Link2,
+  ExternalLink,
+  Copy,
+  Wallet,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
@@ -34,10 +38,11 @@ import {
   USER_REGISTRY_ADDRESS,
 } from "@/lib/contractConfig";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
+import { useBlockchainLookup } from "@/hooks/useBlockchainLookup";
 
 const SEPOLIA_EXPLORER = "https://sepolia.etherscan.io";
 
-type Mode = "issue" | "verify" | "bulk";
+type Mode = "issue" | "verify" | "bulk" | "lookup";
 
 interface VerifyResult {
   document_type: string;
@@ -105,6 +110,8 @@ export default function Blockchain() {
   const bulkInputRef = useRef<HTMLInputElement>(null);
   const { walletAddress, onChainUser, registeredUsersCount, connectMetaMask, isConnecting } = useWeb3Wallet();
   const [genesisHash, setGenesisHash] = useState<string | null>(null);
+  const [lookupQuery, setLookupQuery] = useState("");
+  const { lookup, loading: lookupLoading, result: lookupResult, clear: clearLookup } = useBlockchainLookup();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => setUserId(data.session?.user?.id ?? null));
@@ -468,9 +475,9 @@ export default function Blockchain() {
       {/* Verify / Issue Tool */}
       <section className="section-container pt-0">
         <Card className="max-w-3xl mx-auto p-4 sm:p-6 md:p-8">
-          <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
+          <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-6">
             <button
-              onClick={() => { setMode("issue"); setResult(null); }}
+              onClick={() => { setMode("issue"); setResult(null); clearLookup(); }}
               className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "issue" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
@@ -479,7 +486,7 @@ export default function Blockchain() {
               <span className="text-xs sm:text-sm font-medium">Issue</span>
             </button>
             <button
-              onClick={() => { setMode("bulk"); setResult(null); }}
+              onClick={() => { setMode("bulk"); setResult(null); clearLookup(); }}
               className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "bulk" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
@@ -488,7 +495,7 @@ export default function Blockchain() {
               <span className="text-xs sm:text-sm font-medium">Bulk</span>
             </button>
             <button
-              onClick={() => { setMode("verify"); setResult(null); }}
+              onClick={() => { setMode("verify"); setResult(null); clearLookup(); }}
               className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
                 mode === "verify" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
               }`}
@@ -496,9 +503,201 @@ export default function Blockchain() {
               <Search className="w-5 h-5 sm:w-6 sm:h-6" />
               <span className="text-xs sm:text-sm font-medium">Verify</span>
             </button>
+            <button
+              onClick={() => { setMode("lookup"); setResult(null); }}
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
+                mode === "lookup" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
+              }`}
+            >
+              <Link2 className="w-5 h-5 sm:w-6 sm:h-6" />
+              <span className="text-xs sm:text-sm font-medium">Lookup</span>
+            </button>
           </div>
 
-          {mode !== "bulk" ? (
+          {mode === "lookup" ? (
+            <div className="space-y-4">
+              <p className="text-xs text-muted-foreground text-center">
+                Enter a <strong>transaction hash</strong>, <strong>wallet address</strong>, or <strong>file/document hash</strong> to extract data from the smart contract and IPFS.
+              </p>
+              <div className="flex gap-2">
+                <Input
+                  id="blockchain-lookup-input"
+                  value={lookupQuery}
+                  onChange={e => setLookupQuery(e.target.value)}
+                  placeholder="0x tx hash / 0x wallet / 64-char file hash / doc ID"
+                  className="font-mono text-xs"
+                  onKeyDown={e => { if (e.key === "Enter" && lookupQuery.trim()) lookup(lookupQuery); }}
+                />
+                <Button
+                  onClick={() => lookup(lookupQuery)}
+                  disabled={lookupLoading || !lookupQuery.trim()}
+                  variant="hero"
+                  size="sm"
+                  className="shrink-0"
+                >
+                  {lookupLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                </Button>
+              </div>
+
+              {lookupLoading && (
+                <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
+                  <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                  <span className="text-sm">Querying index → smart contract → IPFS...</span>
+                </div>
+              )}
+
+              {lookupResult && !lookupLoading && (
+                <div className="space-y-4 mt-2">
+                  {/* Input type badge */}
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="capitalize">{lookupResult.inputType.replace("_", " ")}</Badge>
+                    <span className="text-xs text-muted-foreground">detected input type</span>
+                  </div>
+
+                  {lookupResult.error && (
+                    <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30 text-sm text-destructive">{lookupResult.error}</div>
+                  )}
+
+                  {/* User / Profile data from contract */}
+                  {lookupResult.contractUserData?.exists && (
+                    <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <Wallet className="w-4 h-4 text-primary" />
+                        On-Chain User Profile
+                        <Badge className="ml-auto" variant="secondary">Live from Contract</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Name</span><p className="font-medium">{lookupResult.contractUserData.name || "—"}</p></div>
+                        <div><span className="text-muted-foreground">Profession</span><p className="font-medium">{lookupResult.contractUserData.profession || "—"}</p></div>
+                        <div><span className="text-muted-foreground">Wallet</span><code className="text-[10px] break-all">{lookupResult.contractUserData.walletAddress}</code></div>
+                        <div><span className="text-muted-foreground">Registered</span><p className="font-medium">{lookupResult.contractUserData.registeredAt ? new Date(lookupResult.contractUserData.registeredAt * 1000).toLocaleDateString() : "—"}</p></div>
+                        <div className="col-span-2"><span className="text-muted-foreground">IPFS CID</span><code className="text-[10px] break-all block">{lookupResult.contractUserData.ipfsCid || "—"}</code></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* IPFS profile data */}
+                  {lookupResult.ipfsProfileData && (
+                    <div className="p-4 rounded-xl border border-border bg-card/50 space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <Database className="w-4 h-4 text-primary" />
+                        IPFS Profile Data
+                        <Badge className="ml-auto" variant="secondary">Decentralized Storage</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {Object.entries(lookupResult.ipfsProfileData).slice(0, 10).map(([k, v]) => (
+                          <div key={k}>
+                            <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                            <p className="font-medium break-words">{String(v)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Document data from contract */}
+                  {lookupResult.contractDocData && lookupResult.contractDocData.issuer !== ethers.ZeroAddress && (
+                    <div className="p-4 rounded-xl border border-primary/30 bg-primary/5 space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <FileCheck2 className="w-4 h-4 text-primary" />
+                        On-Chain Document
+                        <Badge className="ml-auto" variant="secondary">Live from Contract</Badge>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div><span className="text-muted-foreground">Doc ID</span><p className="font-medium break-all">{lookupResult.contractDocData.docId}</p></div>
+                        <div><span className="text-muted-foreground">Type</span><p className="font-medium">{lookupResult.contractDocData.docType || "—"}</p></div>
+                        <div><span className="text-muted-foreground">Issuer</span><code className="text-[10px] break-all">{lookupResult.contractDocData.issuer}</code></div>
+                        <div><span className="text-muted-foreground">Registered</span><p className="font-medium">{lookupResult.contractDocData.timestamp ? new Date(lookupResult.contractDocData.timestamp * 1000).toLocaleDateString() : "—"}</p></div>
+                        <div className="col-span-2"><span className="text-muted-foreground">File Hash</span><code className="text-[10px] break-all block">{lookupResult.contractDocData.fileHash}</code></div>
+                        <div className="col-span-2"><span className="text-muted-foreground">Merkle Root</span><code className="text-[10px] break-all block">{lookupResult.contractDocData.merkleRoot}</code></div>
+                        <div className="col-span-2"><span className="text-muted-foreground">IPFS CID</span><code className="text-[10px] break-all block">{lookupResult.contractDocData.contentIpfsCid}</code></div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* IPFS document data */}
+                  {lookupResult.ipfsDocumentData && (
+                    <div className="p-4 rounded-xl border border-border bg-card/50 space-y-2">
+                      <div className="flex items-center gap-2 text-sm font-semibold">
+                        <Database className="w-4 h-4 text-primary" />
+                        IPFS Document Data
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        {Object.entries(lookupResult.ipfsDocumentData).slice(0, 12).map(([k, v]) => (
+                          <div key={k}>
+                            <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}</span>
+                            <p className="font-medium break-words">{String(v)}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Supabase index records */}
+                  {lookupResult.userRegistrations.length > 0 && (
+                    <div className="p-4 rounded-xl border border-border bg-card/50 space-y-2">
+                      <div className="text-sm font-semibold flex items-center gap-2"><Hash className="w-4 h-4 text-primary" />Index: User Registrations ({lookupResult.userRegistrations.length})</div>
+                      {lookupResult.userRegistrations.map((r: any, i: number) => (
+                        <div key={i} className="text-xs space-y-1 p-2 rounded-lg bg-background/50 border border-border">
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">TX</span>
+                            <a href={`https://sepolia.etherscan.io/tx/${r.transaction_hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] text-primary hover:underline flex items-center gap-1">
+                              {r.transaction_hash?.slice(0, 20)}...<ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                            <button onClick={() => { navigator.clipboard.writeText(r.transaction_hash); toast.success("Copied!"); }} className="ml-auto"><Copy className="w-3 h-3 text-muted-foreground hover:text-primary" /></button>
+                          </div>
+                          <div className="flex gap-4">
+                            <span><span className="text-muted-foreground">Block</span> {r.block_number}</span>
+                            <span><span className="text-muted-foreground">Event</span> {r.event_type}</span>
+                            <span><span className="text-muted-foreground">Indexed</span> {r.indexed_at ? new Date(r.indexed_at).toLocaleDateString() : "—"}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {lookupResult.documentRegistrations.length > 0 && (
+                    <div className="p-4 rounded-xl border border-border bg-card/50 space-y-2">
+                      <div className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4 text-primary" />Index: Document Registrations ({lookupResult.documentRegistrations.length})</div>
+                      {lookupResult.documentRegistrations.map((r: any, i: number) => (
+                        <div key={i} className="text-xs space-y-1 p-2 rounded-lg bg-background/50 border border-border">
+                          <div className="flex items-center gap-2">
+                            <span className="text-muted-foreground">TX</span>
+                            <a href={`https://sepolia.etherscan.io/tx/${r.transaction_hash || r.chain_tx_hash}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] text-primary hover:underline flex items-center gap-1">
+                              {(r.transaction_hash || r.chain_tx_hash)?.slice(0, 20)}...<ExternalLink className="w-2.5 h-2.5" />
+                            </a>
+                          </div>
+                          <div className="flex gap-4 flex-wrap">
+                            {r.document_name && <span><span className="text-muted-foreground">Name</span> {r.document_name}</span>}
+                            {r.document_type && <span><span className="text-muted-foreground">Type</span> {r.document_type}</span>}
+                            {r.block_number && <span><span className="text-muted-foreground">Block</span> {r.block_number}</span>}
+                          </div>
+                          {r.ipfs_cid && (
+                            <div className="flex items-center gap-1">
+                              <span className="text-muted-foreground">IPFS</span>
+                              <a href={`https://gateway.pinata.cloud/ipfs/${r.ipfs_cid}`} target="_blank" rel="noopener noreferrer" className="font-mono text-[10px] text-primary hover:underline">{r.ipfs_cid}</a>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* No results */}
+                  {!lookupResult.contractUserData?.exists &&
+                    !lookupResult.contractDocData &&
+                    lookupResult.userRegistrations.length === 0 &&
+                    lookupResult.documentRegistrations.length === 0 &&
+                    lookupResult.accessGrants.length === 0 && (
+                    <div className="py-8 text-center text-muted-foreground text-sm">
+                      <XCircle className="w-8 h-8 mx-auto mb-2 text-muted-foreground/50" />
+                      No records found on-chain or in the index for this query.
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : mode !== "bulk" ? (
             <>
               <div
                 onClick={() => fileInputRef.current?.click()}

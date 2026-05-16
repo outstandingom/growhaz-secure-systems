@@ -17,6 +17,10 @@ import {
   USER_REGISTRY_ADDRESS,
   USER_REGISTRY_ABI,
 } from "@/lib/contractConfig";
+import {
+  indexUserRegistration,
+  extractReceiptFields,
+} from "@/lib/blockchainIndexer";
 
 export interface OnChainUser {
   ipfsCid: string;
@@ -414,6 +418,22 @@ export function useWeb3Wallet(): Web3WalletState {
       setOnChainUser(optimisticUser);
       console.log("[registerUserOnChain] Optimistic state set:", optimisticUser);
 
+      // ─── INDEX ON SUPABASE (non-blocking) ───
+      // Blockchain data can't be searched — write an index row so the app
+      // can instantly look up this user by wallet_address or tx hash.
+      const signerAddress = await signer.getAddress();
+      indexUserRegistration({
+        ...extractReceiptFields(receipt),
+        contract_address: USER_REGISTRY_ADDRESS,
+        wallet_address: signerAddress,
+        ipfs_cid: ipfsCid,
+        user_name: name,
+        profession,
+        phone_hash: phoneHash,
+        event_type: 'UserRegistered',
+        on_chain_timestamp: Math.floor(Date.now() / 1000),
+      }).catch(e => console.warn('[registerUserOnChain] Indexing failed (non-critical):', e));
+
       // Background: update user count only (don't re-fetch user — optimistic state is correct)
       try {
         const readContract = new ethers.Contract(USER_REGISTRY_ADDRESS, USER_REGISTRY_ABI, provider);
@@ -459,6 +479,20 @@ export function useWeb3Wallet(): Web3WalletState {
       };
       setOnChainUser(optimisticUser);
       console.log("[updateUserOnChain] Optimistic state set:", optimisticUser);
+
+      // ─── INDEX ON SUPABASE (non-blocking) ───
+      const signerAddress = await signer.getAddress();
+      indexUserRegistration({
+        ...extractReceiptFields(receipt),
+        contract_address: USER_REGISTRY_ADDRESS,
+        wallet_address: signerAddress,
+        ipfs_cid: ipfsCid,
+        user_name: name,
+        profession,
+        phone_hash: phoneHash,
+        event_type: 'ProfileUpdated',
+        on_chain_timestamp: Math.floor(Date.now() / 1000),
+      }).catch(e => console.warn('[updateUserOnChain] Indexing failed (non-critical):', e));
 
       return receipt.hash;
     },

@@ -789,6 +789,183 @@ export type Database = {
         }
         Relationships: []
       }
+      blockchain_user_registrations: {
+        Row: {
+          id: string
+          transaction_hash: string
+          block_hash: string
+          block_number: number
+          contract_address: string
+          wallet_address: string
+          ipfs_cid: string | null
+          user_name: string | null
+          profession: string | null
+          phone_hash: string | null
+          event_type: string
+          on_chain_timestamp: number | null
+          indexed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_hash: string
+          block_hash: string
+          block_number: number
+          contract_address: string
+          wallet_address: string
+          ipfs_cid?: string | null
+          user_name?: string | null
+          profession?: string | null
+          phone_hash?: string | null
+          event_type?: string
+          on_chain_timestamp?: number | null
+          indexed_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_hash?: string
+          block_hash?: string
+          block_number?: number
+          contract_address?: string
+          wallet_address?: string
+          ipfs_cid?: string | null
+          user_name?: string | null
+          profession?: string | null
+          phone_hash?: string | null
+          event_type?: string
+          on_chain_timestamp?: number | null
+          indexed_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      blockchain_document_registry: {
+        Row: {
+          id: string
+          transaction_hash: string
+          block_hash: string
+          block_number: number
+          contract_address: string
+          wallet_address: string
+          document_id: string | null
+          file_hash: string | null
+          content_hash: string | null
+          merkle_root: string | null
+          ipfs_cid: string | null
+          ipfs_metadata_cid: string | null
+          ipfs_url: string | null
+          document_name: string | null
+          document_type: string | null
+          issuer_name: string | null
+          verified_document_id: string | null
+          contract_version: string
+          event_type: string
+          on_chain_timestamp: number | null
+          indexed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_hash: string
+          block_hash: string
+          block_number: number
+          contract_address: string
+          wallet_address: string
+          document_id?: string | null
+          file_hash?: string | null
+          content_hash?: string | null
+          merkle_root?: string | null
+          ipfs_cid?: string | null
+          ipfs_metadata_cid?: string | null
+          ipfs_url?: string | null
+          document_name?: string | null
+          document_type?: string | null
+          issuer_name?: string | null
+          verified_document_id?: string | null
+          contract_version?: string
+          event_type?: string
+          on_chain_timestamp?: number | null
+          indexed_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_hash?: string
+          block_hash?: string
+          block_number?: number
+          contract_address?: string
+          wallet_address?: string
+          document_id?: string | null
+          file_hash?: string | null
+          content_hash?: string | null
+          merkle_root?: string | null
+          ipfs_cid?: string | null
+          ipfs_metadata_cid?: string | null
+          ipfs_url?: string | null
+          document_name?: string | null
+          document_type?: string | null
+          issuer_name?: string | null
+          verified_document_id?: string | null
+          contract_version?: string
+          event_type?: string
+          on_chain_timestamp?: number | null
+          indexed_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
+      blockchain_access_grants: {
+        Row: {
+          id: string
+          transaction_hash: string
+          block_hash: string
+          block_number: number
+          contract_address: string
+          owner_wallet: string
+          viewer_wallet: string
+          document_id: string
+          expires_at: number | null
+          is_active: boolean
+          event_type: string
+          on_chain_timestamp: number | null
+          indexed_at: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          transaction_hash: string
+          block_hash: string
+          block_number: number
+          contract_address: string
+          owner_wallet: string
+          viewer_wallet: string
+          document_id: string
+          expires_at?: number | null
+          is_active?: boolean
+          event_type?: string
+          on_chain_timestamp?: number | null
+          indexed_at?: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          transaction_hash?: string
+          block_hash?: string
+          block_number?: number
+          contract_address?: string
+          owner_wallet?: string
+          viewer_wallet?: string
+          document_id?: string
+          expires_at?: number | null
+          is_active?: boolean
+          event_type?: string
+          on_chain_timestamp?: number | null
+          indexed_at?: string
+          created_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
