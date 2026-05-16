@@ -50,8 +50,8 @@ import {
 } from "@/lib/merkleVerifier";
 import {
   indexDocumentRegistration,
-  indexMerkleDocument,
   extractReceiptFields,
+  indexMerkleDocument,
 } from "@/lib/blockchainIndexer";
 
 const SEPOLIA_EXPLORER = "https://sepolia.etherscan.io";
