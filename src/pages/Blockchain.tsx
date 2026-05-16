@@ -305,60 +305,55 @@ export default function Blockchain() {
         // ISSUE MODE: Storage + IPFS + MerkleDocumentRegistry + Index
         // ══════════════════════════════════════════════════════════════════
         const path = `${userId}/${Date.now()}-${file.name}`;
-        const { error: upErr } = await supabase.storage
-          .from("verified-documents")
-          .upload(path, file, { upsert: false });
-        if (upErr) throw upErr;
+        
+        toast.message("Pinning to IPFS & Saving...");
+        
+        // 1) Parallelize Storage and IPFS uploads
+        const [uploadResult, pinResult] = await Promise.all([
+          supabase.storage.from("verified-documents").upload(path, file, { upsert: false }),
+          supabase.functions.invoke("pinata-upload", {
+            body: { fileBase64: base64, fileName: file.name, mimeType: file.type },
+          })
+        ]);
 
-        // 1) Pin original file to IPFS
-        toast.message("Pinning to IPFS...");
-        const { data: pin, error: pinErr } = await supabase.functions.invoke("pinata-upload", {
-          body: { fileBase64: base64, fileName: file.name, mimeType: file.type },
-        });
-        if (pinErr) throw pinErr;
-        if (pin?.error) throw new Error(pin.error);
+        if (uploadResult.error) throw uploadResult.error;
+        if (pinResult.error) throw pinResult.error;
+        if (pinResult.data?.error) throw new Error(pinResult.data.error);
+        const pin = pinResult.data;
 
-        // 2) Build Merkle root and register on MerkleDocumentRegistry
+        // 2) Build Merkle root and register ONLY on MerkleDocumentRegistry
         if (!(window as any).ethereum) {
           throw new Error("MetaMask is not installed! Please install it to issue on the blockchain.");
         }
 
-        toast.message("Registering Merkle root on-chain...");
+        toast.message("Registering Merkle root on-chain (1/1)...");
         let merkleReceipt: any = null;
-        if (merkle) {
-          try {
-            merkleReceipt = await registerDocumentOnChain({
-              merkleRoot: merkle.merkleRoot,
-              fileHash,
-              contentHash: data.content_hash,
-              ipfsCid: pin.cid,
-              metadataCid: "",
-              totalChunks: merkle.totalChunks,
-              totalTokens: merkle.totalTokens,
-              docType: data.document_type || "document",
-              documentName: file.name,
-            });
-          } catch (merkleErr: any) {
-            console.warn("[Blockchain] Merkle registration failed (may already exist):", merkleErr.message);
-            // Continue — we still have the old DocumentRegistry as fallback
-          }
+        if (!merkle) throw new Error("Failed to build Merkle tree for document.");
+        
+        try {
+          merkleReceipt = await registerDocumentOnChain({
+            merkleRoot: merkle.merkleRoot,
+            fileHash,
+            contentHash: data.content_hash,
+            ipfsCid: pin.cid,
+            metadataCid: "",
+            totalChunks: merkle.totalChunks,
+            totalTokens: merkle.totalTokens,
+            docType: data.document_type || "document",
+            documentName: file.name,
+          });
+        } catch (merkleErr: any) {
+          throw new Error("Blockchain registration failed or rejected: " + merkleErr.message);
         }
 
-        // 3) Also register on legacy DocumentRegistry (V1)
         const provider = new ethers.BrowserProvider((window as any).ethereum);
         const signer = await provider.getSigner();
-        const contract = new ethers.Contract(DOCUMENT_REGISTRY_ADDRESS, DOCUMENT_REGISTRY_ABI, signer);
-        const safeDocId = file.name.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20) + "_" + Date.now();
-
-        toast.message("Mining block on Ethereum Sepolia...");
-        const tx = await contract.verifyDocument(safeDocId, data.content_hash, userId);
-        const receipt = await tx.wait();
 
         const chain = {
-          txHash: merkleReceipt?.hash || receipt.hash,
-          blockNumber: merkleReceipt?.blockNumber || receipt.blockNumber,
+          txHash: merkleReceipt.hash,
+          blockNumber: merkleReceipt.blockNumber,
           issuer: await signer.getAddress(),
-          contractAddress: merkleReceipt ? MERKLE_DOCUMENT_REGISTRY_ADDRESS : receipt.to,
+          contractAddress: MERKLE_DOCUMENT_REGISTRY_ADDRESS,
         };
 
         // 4) Store in verified_documents
