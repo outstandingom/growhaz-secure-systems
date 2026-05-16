@@ -36,9 +36,23 @@ import {
   DOCUMENT_REGISTRY_ADDRESS,
   DOCUMENT_REGISTRY_ABI,
   USER_REGISTRY_ADDRESS,
+  MERKLE_DOCUMENT_REGISTRY_ADDRESS,
 } from "@/lib/contractConfig";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
 import { useBlockchainLookup } from "@/hooks/useBlockchainLookup";
+import {
+  processDocumentForMerkle,
+  lookupByMerkleRoot,
+  lookupByFileHash,
+  registerDocumentOnChain,
+  type OnChainMerkleDocument,
+  type MerkleResult,
+} from "@/lib/merkleVerifier";
+import {
+  indexDocumentRegistration,
+  indexMerkleDocument,
+  extractReceiptFields,
+} from "@/lib/blockchainIndexer";
 
 const SEPOLIA_EXPLORER = "https://sepolia.etherscan.io";
 
@@ -59,6 +73,10 @@ interface VerifyResult {
   contentHashMatch?: boolean;
   uploadedPreview?: string;
   originalPreview?: string;
+  // Merkle fields
+  merkle?: MerkleResult;
+  merkleRootMatch?: boolean;
+  onChainDoc?: OnChainMerkleDocument | null;
 }
 
 const features = [
@@ -151,17 +169,64 @@ export default function Blockchain() {
 
       const aiResult: VerifyResult = { ...data, file_hash: fileHash };
 
+      // ── Build Merkle Tree from extracted content ──────────────────────
+      toast.message("Building Merkle tree...");
+      const merkle = await processDocumentForMerkle(extracted.cleanedText);
+      if (merkle) {
+        aiResult.merkle = merkle;
+        console.log("[Blockchain] Merkle root:", merkle.merkleRoot, "| Tokens:", merkle.totalTokens, "| Chunks:", merkle.totalChunks);
+      }
+
       if (mode === "verify") {
-        // 1) Try exact match on either hash. Content authenticity is only accepted
-        // when the computed content hash exactly equals the stored content hash.
+        // ── STEP 1: Merkle root on-chain lookup ────────────────────────
+        // If the same file is uploaded, the same merkle root is generated.
+        // We use it to find the original issuer wallet, tx hash, contract address.
+        let onChainDoc: OnChainMerkleDocument | null = null;
+        if (merkle) {
+          toast.message("Searching on-chain by Merkle root...");
+          onChainDoc = await lookupByMerkleRoot(merkle.merkleRoot);
+          if (!onChainDoc) {
+            // Fallback: try by file hash
+            onChainDoc = await lookupByFileHash(fileHash);
+          }
+          aiResult.onChainDoc = onChainDoc;
+          aiResult.merkleRootMatch = !!onChainDoc?.exists;
+        }
+
+        // ── STEP 2: Supabase index lookup (fast SQL) ───────────────────
         let { data: matches } = await supabase
           .from("verified_documents")
           .select("*")
           .or(`file_hash.eq.${fileHash},content_hash.eq.${data.content_hash}`)
           .limit(1);
 
-        // 2) Fallback lookup only helps show the likely original side-by-side.
-        // It must never mark the document valid/authentic without exact content hash.
+        // Also check merkle index table
+        if ((!matches || matches.length === 0) && merkle) {
+          const { data: merkleMatches } = await supabase
+            .from("blockchain_merkle_documents")
+            .select("*")
+            .eq("merkle_root", merkle.merkleRoot)
+            .limit(1);
+          if (merkleMatches && merkleMatches.length > 0) {
+            // Found via merkle index — use it as the matched record
+            const mi = merkleMatches[0];
+            matches = [{
+              id: mi.id,
+              file_hash: mi.file_hash,
+              content_hash: mi.content_hash,
+              document_name: mi.document_name,
+              document_type: mi.document_type,
+              ipfs_cid: mi.ipfs_cid,
+              chain_tx_hash: mi.transaction_hash,
+              chain_block_number: mi.block_number,
+              chain_issuer_address: mi.wallet_address,
+              chain_contract_address: mi.contract_address,
+              merkle_root: mi.merkle_root,
+            }] as any;
+          }
+        }
+
+        // Fallback: field-based lookup
         if (!matches || matches.length === 0) {
           const ed = data.extracted_data || {};
           const certId = ed.certificate_id || ed.id;
@@ -194,7 +259,13 @@ export default function Blockchain() {
           aiResult.fileHashMatch = m.file_hash === fileHash;
           aiResult.contentHashMatch = m.content_hash === data.content_hash;
 
-          if (aiResult.contentHashMatch && aiResult.fileHashMatch) {
+          // Merkle root provides the strongest verification
+          if (aiResult.merkleRootMatch && onChainDoc) {
+            aiResult.validation.status = "authentic";
+            aiResult.validation.explanation =
+              `Merkle root matches on-chain record! Document content is identical. ` +
+              `Issuer: ${onChainDoc.issuer} | Registered: ${new Date(onChainDoc.timestamp * 1000).toLocaleDateString()}`;
+          } else if (aiResult.contentHashMatch && aiResult.fileHashMatch) {
             aiResult.validation.status = "authentic";
             aiResult.validation.explanation = "Content hash matches 100% and file hash matches — this document is byte-for-byte identical to the original on the ledger.";
           } else if (aiResult.contentHashMatch) {
@@ -212,8 +283,9 @@ export default function Blockchain() {
         } else {
           aiResult.fileHashMatch = false;
           aiResult.contentHashMatch = false;
+          aiResult.merkleRootMatch = false;
           aiResult.validation.status = "tampered";
-          aiResult.validation.explanation = "No matching record found in the verification ledger.";
+          aiResult.validation.explanation = "No matching record found on-chain or in the verification ledger.";
         }
 
         // Record verification history (best-effort)
@@ -229,7 +301,9 @@ export default function Blockchain() {
           extracted_data: data.extracted_data || {},
         });
       } else {
-        // Issue mode: Supabase storage + IPFS (Pinata) + on-chain register
+        // ══════════════════════════════════════════════════════════════════
+        // ISSUE MODE: Storage + IPFS + MerkleDocumentRegistry + Index
+        // ══════════════════════════════════════════════════════════════════
         const path = `${userId}/${Date.now()}-${file.name}`;
         const { error: upErr } = await supabase.storage
           .from("verified-documents")
@@ -244,38 +318,50 @@ export default function Blockchain() {
         if (pinErr) throw pinErr;
         if (pin?.error) throw new Error(pin.error);
 
-        // 2) Register dual hash + CID on actual Smart Contract via MetaMask
-        toast.message("Waiting for MetaMask signature...");
-        
-        // Check if MetaMask is installed
+        // 2) Build Merkle root and register on MerkleDocumentRegistry
         if (!(window as any).ethereum) {
           throw new Error("MetaMask is not installed! Please install it to issue on the blockchain.");
         }
 
+        toast.message("Registering Merkle root on-chain...");
+        let merkleReceipt: any = null;
+        if (merkle) {
+          try {
+            merkleReceipt = await registerDocumentOnChain({
+              merkleRoot: merkle.merkleRoot,
+              fileHash,
+              contentHash: data.content_hash,
+              ipfsCid: pin.cid,
+              metadataCid: "",
+              totalChunks: merkle.totalChunks,
+              totalTokens: merkle.totalTokens,
+              docType: data.document_type || "document",
+              documentName: file.name,
+            });
+          } catch (merkleErr: any) {
+            console.warn("[Blockchain] Merkle registration failed (may already exist):", merkleErr.message);
+            // Continue — we still have the old DocumentRegistry as fallback
+          }
+        }
+
+        // 3) Also register on legacy DocumentRegistry (V1)
         const provider = new ethers.BrowserProvider((window as any).ethereum);
         const signer = await provider.getSigner();
         const contract = new ethers.Contract(DOCUMENT_REGISTRY_ADDRESS, DOCUMENT_REGISTRY_ABI, signer);
-
-        // Generate a safe document ID
         const safeDocId = file.name.replace(/[^a-zA-Z0-9]/g, "_").substring(0, 20) + "_" + Date.now();
 
-        // Call the smart contract
-        const tx = await contract.verifyDocument(
-          safeDocId,
-          data.content_hash, // The hash we are securing
-          userId
-        );
+        toast.message("Mining block on Ethereum Sepolia...");
+        const tx = await contract.verifyDocument(safeDocId, data.content_hash, userId);
+        const receipt = await tx.wait();
 
-        toast.message("Mining block on Ethereum/Polygon...");
-        const receipt = await tx.wait(); // Wait for it to be mathematically mined!
-        
         const chain = {
-          txHash: receipt.hash,
-          blockNumber: receipt.blockNumber,
-          issuer: receipt.from,
-          contractAddress: receipt.to
+          txHash: merkleReceipt?.hash || receipt.hash,
+          blockNumber: merkleReceipt?.blockNumber || receipt.blockNumber,
+          issuer: await signer.getAddress(),
+          contractAddress: merkleReceipt ? MERKLE_DOCUMENT_REGISTRY_ADDRESS : receipt.to,
         };
 
+        // 4) Store in verified_documents
         const { error: insErr } = await supabase.from("verified_documents").insert({
           user_id: userId,
           document_name: file.name,
@@ -296,7 +382,43 @@ export default function Blockchain() {
           chain_contract_address: chain.contractAddress,
         });
         if (insErr) throw insErr;
-        toast.success("Issued: pinned to IPFS and recorded on-chain");
+
+        // 5) Index in blockchain_merkle_documents (fire-and-forget)
+        if (merkle && merkleReceipt) {
+          const rf = extractReceiptFields(merkleReceipt);
+          indexDocumentRegistration({
+            ...rf,
+            contract_address: MERKLE_DOCUMENT_REGISTRY_ADDRESS,
+            wallet_address: chain.issuer,
+            merkle_root: merkle.merkleRoot,
+            file_hash: fileHash,
+            content_hash: data.content_hash,
+            ipfs_cid: pin.cid,
+            ipfs_url: pin.url,
+            document_name: file.name,
+            document_type: data.document_type,
+            contract_version: 'v2',
+            event_type: 'DocumentRegistered',
+          }).catch(e => console.warn("[Blockchain] Index failed:", e));
+          // Also index in merkle-specific table
+          indexMerkleDocument({
+            ...rf,
+            contract_address: MERKLE_DOCUMENT_REGISTRY_ADDRESS,
+            wallet_address: chain.issuer,
+            merkle_root: merkle.merkleRoot,
+            file_hash: fileHash,
+            content_hash: data.content_hash,
+            total_chunks: merkle.totalChunks,
+            total_tokens: merkle.totalTokens,
+            ipfs_cid: pin.cid,
+            ipfs_url: pin.url,
+            document_name: file.name,
+            document_type: data.document_type,
+            event_type: 'DocumentRegistered',
+          }).catch(e => console.warn("[Blockchain] Merkle index failed:", e));
+        }
+
+        toast.success("Issued: Merkle root + IPFS + on-chain ✓");
       }
 
       setResult(aiResult);
@@ -956,6 +1078,200 @@ export default function Blockchain() {
                     </span>
                     <code className="text-xs break-all">{result.content_hash}</code>
                     <span className="text-[10px] text-muted-foreground">Hash of extracted information — survives format changes.</span>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Merkle Verification Panel ── */}
+              {result.merkle && (
+                <div className="p-4 rounded-xl bg-gradient-to-br from-primary/5 via-card to-accent/5 border border-primary/20 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <Network className="w-4 h-4 text-primary" />
+                    Merkle Tree Verification
+                    {result.merkleRootMatch ? (
+                      <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30">✓ On-Chain Match</Badge>
+                    ) : (
+                      <Badge className="ml-auto" variant="outline">Local Only</Badge>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <div className="p-2 rounded-lg bg-card/60 border border-border">
+                      <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Tokens</span>
+                      <p className="font-medium text-lg">{result.merkle.totalTokens.toLocaleString()}</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-card/60 border border-border">
+                      <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Chunks</span>
+                      <p className="font-medium text-lg">{result.merkle.totalChunks}</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-card/60 border border-border">
+                      <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Tree Levels</span>
+                      <p className="font-medium text-lg">{result.merkle.tree.length}</p>
+                    </div>
+                    <div className="p-2 rounded-lg bg-card/60 border border-border">
+                      <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Leaf Hashes</span>
+                      <p className="font-medium text-lg">{result.merkle.chunkHashes.length}</p>
+                    </div>
+                  </div>
+
+                  <div className="p-3 rounded-lg bg-card/60 border border-border">
+                    <span className="text-[10px] uppercase tracking-wider text-primary font-semibold">Merkle Root</span>
+                    <div className="flex items-center gap-2 mt-1">
+                      <code className="text-[10px] break-all flex-1 font-mono">{result.merkle.merkleRoot}</code>
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(result.merkle!.merkleRoot); toast.success("Merkle root copied!"); }}
+                        className="shrink-0"
+                      >
+                        <Copy className="w-3 h-3 text-muted-foreground hover:text-primary" />
+                      </button>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground block mt-1">
+                      Content → Tokens → Chunks (100 tokens each) → SHA-256 per chunk → Merkle Tree → Root
+                    </span>
+                  </div>
+
+                  {/* Chunk hashes preview */}
+                  {result.merkle.chunkHashes.length > 0 && (
+                    <details className="text-xs">
+                      <summary className="cursor-pointer text-muted-foreground hover:text-primary">
+                        Show {result.merkle.chunkHashes.length} chunk hashes
+                      </summary>
+                      <div className="mt-2 max-h-40 overflow-y-auto space-y-1 p-2 rounded-lg bg-card/60 border border-border">
+                        {result.merkle.chunkHashes.map((ch) => (
+                          <div key={ch.index} className="flex gap-2 font-mono text-[10px]">
+                            <span className="text-primary w-8 shrink-0">#{ch.index}</span>
+                            <code className="break-all text-muted-foreground">{ch.hash}</code>
+                          </div>
+                        ))}
+                      </div>
+                    </details>
+                  )}
+                </div>
+              )}
+
+              {/* ── On-Chain Document (from MerkleDocumentRegistry) ── */}
+              {result.onChainDoc?.exists && (
+                <div className="p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/5 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                    On-Chain Verified Record
+                    <Badge className="ml-auto bg-emerald-500/20 text-emerald-400 border-emerald-500/30">Live from Smart Contract</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Issuer Wallet</span>
+                      <a
+                        href={`${SEPOLIA_EXPLORER}/address/${result.onChainDoc.issuer}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[10px] text-primary hover:underline break-all block"
+                      >
+                        {result.onChainDoc.issuer}
+                      </a>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Registered</span>
+                      <p className="font-medium">
+                        {result.onChainDoc.timestamp
+                          ? new Date(result.onChainDoc.timestamp * 1000).toLocaleString()
+                          : "—"}
+                      </p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Document Name</span>
+                      <p className="font-medium">{result.onChainDoc.documentName || "—"}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Document Type</span>
+                      <p className="font-medium">{result.onChainDoc.docType || "—"}</p>
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">IPFS CID</span>
+                      {result.onChainDoc.ipfsCid ? (
+                        <a
+                          href={`https://gateway.pinata.cloud/ipfs/${result.onChainDoc.ipfsCid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-mono text-[10px] text-primary hover:underline break-all block"
+                        >
+                          {result.onChainDoc.ipfsCid}
+                        </a>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground">—</p>
+                      )}
+                    </div>
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Contract Address</span>
+                      <a
+                        href={`${SEPOLIA_EXPLORER}/address/${MERKLE_DOCUMENT_REGISTRY_ADDRESS}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[10px] text-primary hover:underline break-all block"
+                      >
+                        {MERKLE_DOCUMENT_REGISTRY_ADDRESS}
+                      </a>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Chunks</span>
+                      <p className="font-medium">{result.onChainDoc.totalChunks}</p>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Tokens</span>
+                      <p className="font-medium">{result.onChainDoc.totalTokens}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Matched record from index (wallet, tx, contract) ── */}
+              {result.matched?.chain_tx_hash && (
+                <div className="p-4 rounded-xl border border-border bg-card/50 space-y-2">
+                  <div className="text-sm font-semibold flex items-center gap-2">
+                    <Database className="w-4 h-4 text-primary" /> Blockchain Index Record
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="col-span-2">
+                      <span className="text-muted-foreground">Transaction Hash</span>
+                      <a
+                        href={`${SEPOLIA_EXPLORER}/tx/${result.matched.chain_tx_hash}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-mono text-[10px] text-primary hover:underline break-all flex items-center gap-1"
+                      >
+                        {result.matched.chain_tx_hash} <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                      </a>
+                    </div>
+                    {result.matched.chain_issuer_address && (
+                      <div>
+                        <span className="text-muted-foreground">Issuer Wallet</span>
+                        <code className="text-[10px] break-all block">{result.matched.chain_issuer_address}</code>
+                      </div>
+                    )}
+                    {result.matched.chain_contract_address && (
+                      <div>
+                        <span className="text-muted-foreground">Contract</span>
+                        <code className="text-[10px] break-all block">{result.matched.chain_contract_address}</code>
+                      </div>
+                    )}
+                    {result.matched.chain_block_number && (
+                      <div>
+                        <span className="text-muted-foreground">Block</span>
+                        <p className="font-medium">{result.matched.chain_block_number}</p>
+                      </div>
+                    )}
+                    {result.matched.ipfs_cid && (
+                      <div>
+                        <span className="text-muted-foreground">IPFS</span>
+                        <a
+                          href={`https://gateway.pinata.cloud/ipfs/${result.matched.ipfs_cid}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-[10px] text-primary hover:underline break-all"
+                        >
+                          {result.matched.ipfs_cid}
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

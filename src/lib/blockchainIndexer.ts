@@ -21,6 +21,7 @@ import {
   DOCUMENT_REGISTRY_ADDRESS,
   DOCUMENT_REGISTRY_V2_ADDRESS,
   DOCUMENT_ACCESS_CONTROL_ADDRESS,
+  MERKLE_DOCUMENT_REGISTRY_ADDRESS,
 } from '@/lib/contractConfig';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -74,6 +75,28 @@ export interface AccessGrantIndex {
   expires_at?: number;
   is_active: boolean;
   event_type: 'AccessGranted' | 'AccessRevoked';
+  on_chain_timestamp?: number;
+}
+
+export interface MerkleDocumentIndex {
+  transaction_hash: string;
+  block_hash: string;
+  block_number: number;
+  contract_address: string;
+  wallet_address: string;
+  merkle_root: string;
+  file_hash?: string;
+  content_hash?: string;
+  total_chunks?: number;
+  total_tokens?: number;
+  ipfs_cid?: string;
+  ipfs_metadata_cid?: string;
+  ipfs_url?: string;
+  document_name?: string;
+  document_type?: string;
+  issuer_name?: string;
+  verified_document_id?: string;
+  event_type: 'DocumentRegistered' | 'DocumentVerified';
   on_chain_timestamp?: number;
 }
 
@@ -444,4 +467,111 @@ export function extractReceiptFields(receipt: {
     block_hash:       receipt.blockHash,
     block_number:     receipt.blockNumber,
   };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MERKLE DOCUMENT INDEX — Write & Read
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * indexMerkleDocument
+ * Call this after a successful MerkleDocumentRegistry.registerDocument() tx.
+ */
+export async function indexMerkleDocument(data: MerkleDocumentIndex): Promise<void> {
+  const { error } = await supabase
+    .from('blockchain_merkle_documents')
+    .upsert(
+      {
+        transaction_hash:     data.transaction_hash,
+        block_hash:           data.block_hash,
+        block_number:         data.block_number,
+        contract_address:     data.contract_address ?? MERKLE_DOCUMENT_REGISTRY_ADDRESS,
+        wallet_address:       data.wallet_address.toLowerCase(),
+        merkle_root:          data.merkle_root,
+        file_hash:            data.file_hash,
+        content_hash:         data.content_hash,
+        total_chunks:         data.total_chunks,
+        total_tokens:         data.total_tokens,
+        ipfs_cid:             data.ipfs_cid,
+        ipfs_metadata_cid:    data.ipfs_metadata_cid,
+        ipfs_url:             data.ipfs_url,
+        document_name:        data.document_name,
+        document_type:        data.document_type,
+        issuer_name:          data.issuer_name,
+        verified_document_id: data.verified_document_id,
+        event_type:           data.event_type,
+        on_chain_timestamp:   data.on_chain_timestamp,
+      },
+      { onConflict: 'transaction_hash' }
+    );
+
+  if (error) {
+    console.error('[blockchainIndexer] Failed to index merkle document:', error);
+  } else {
+    console.log('[blockchainIndexer] ✓ Merkle document indexed:', data.merkle_root);
+  }
+}
+
+/**
+ * getMerkleDocumentByRoot
+ * Fast Supabase lookup by merkle_root.
+ */
+export async function getMerkleDocumentByRoot(
+  merkleRoot: string
+): Promise<MerkleDocumentIndex | null> {
+  const { data, error } = await supabase
+    .from('blockchain_merkle_documents')
+    .select('*')
+    .eq('merkle_root', merkleRoot)
+    .order('block_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[blockchainIndexer] getMerkleDocumentByRoot error:', error);
+    return null;
+  }
+  return data as MerkleDocumentIndex | null;
+}
+
+/**
+ * getMerkleDocumentByFileHash
+ * Fast Supabase lookup by file_hash.
+ */
+export async function getMerkleDocumentByFileHash(
+  fileHash: string
+): Promise<MerkleDocumentIndex | null> {
+  const { data, error } = await supabase
+    .from('blockchain_merkle_documents')
+    .select('*')
+    .eq('file_hash', fileHash)
+    .order('block_number', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[blockchainIndexer] getMerkleDocumentByFileHash error:', error);
+    return null;
+  }
+  return data as MerkleDocumentIndex | null;
+}
+
+/**
+ * getMerkleDocumentsByWallet
+ * All merkle documents registered by a wallet.
+ */
+export async function getMerkleDocumentsByWallet(
+  walletAddress: string
+): Promise<MerkleDocumentIndex[]> {
+  const { data, error } = await supabase
+    .from('blockchain_merkle_documents')
+    .select('*')
+    .eq('wallet_address', walletAddress.toLowerCase())
+    .order('block_number', { ascending: false });
+
+  if (error) {
+    console.error('[blockchainIndexer] getMerkleDocumentsByWallet error:', error);
+    return [];
+  }
+  return (data ?? []) as MerkleDocumentIndex[];
 }

@@ -360,6 +360,162 @@ export const DOCUMENT_ACCESS_CONTROL_ABI = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
+// 5) MerkleDocumentRegistry — Content-based Merkle root verification
+//    Deploy via Remix IDE, then paste the address below.
+// ═══════════════════════════════════════════════════════════════════
+export const MERKLE_DOCUMENT_REGISTRY_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: Replace after deploying MerkleDocumentRegistry.sol on Sepolia
+export const MERKLE_DOCUMENT_REGISTRY_ABI = [
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: false, internalType: "string", name: "merkleRoot", type: "string" },
+      { indexed: false, internalType: "string", name: "fileHash", type: "string" },
+      { indexed: false, internalType: "string", name: "contentHash", type: "string" },
+      { indexed: false, internalType: "string", name: "ipfsCid", type: "string" },
+      { indexed: false, internalType: "uint256", name: "totalChunks", type: "uint256" },
+      { indexed: false, internalType: "uint256", name: "totalTokens", type: "uint256" },
+      { indexed: true, internalType: "address", name: "issuer", type: "address" },
+      { indexed: false, internalType: "string", name: "docType", type: "string" },
+      { indexed: false, internalType: "string", name: "documentName", type: "string" },
+    ],
+    name: "DocumentRegistered",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: false, internalType: "string", name: "merkleRoot", type: "string" },
+      { indexed: false, internalType: "bool", name: "isAuthentic", type: "bool" },
+      { indexed: true, internalType: "address", name: "verifier", type: "address" },
+    ],
+    name: "DocumentVerified",
+    type: "event",
+  },
+  {
+    inputs: [
+      { internalType: "string", name: "_merkleRoot", type: "string" },
+      { internalType: "string", name: "_fileHash", type: "string" },
+      { internalType: "string", name: "_contentHash", type: "string" },
+      { internalType: "string", name: "_ipfsCid", type: "string" },
+      { internalType: "string", name: "_metadataCid", type: "string" },
+      { internalType: "uint256", name: "_totalChunks", type: "uint256" },
+      { internalType: "uint256", name: "_totalTokens", type: "uint256" },
+      { internalType: "string", name: "_docType", type: "string" },
+      { internalType: "string", name: "_documentName", type: "string" },
+    ],
+    name: "registerDocument",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "string", name: "_merkleRoot", type: "string" }],
+    name: "getDocumentByMerkle",
+    outputs: [
+      { internalType: "string", name: "fileHash", type: "string" },
+      { internalType: "string", name: "contentHash", type: "string" },
+      { internalType: "string", name: "ipfsCid", type: "string" },
+      { internalType: "string", name: "metadataCid", type: "string" },
+      { internalType: "uint256", name: "totalChunks", type: "uint256" },
+      { internalType: "uint256", name: "totalTokens", type: "uint256" },
+      { internalType: "address", name: "issuer", type: "address" },
+      { internalType: "uint256", name: "timestamp", type: "uint256" },
+      { internalType: "string", name: "docType", type: "string" },
+      { internalType: "string", name: "documentName", type: "string" },
+      { internalType: "bool", name: "exists", type: "bool" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "string", name: "_merkleRoot", type: "string" }],
+    name: "verifyMerkleRoot",
+    outputs: [{ internalType: "bool", name: "", type: "bool" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "string", name: "_fileHash", type: "string" }],
+    name: "lookupByFileHash",
+    outputs: [{ internalType: "string", name: "merkleRoot", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "string", name: "_contentHash", type: "string" }],
+    name: "lookupByContentHash",
+    outputs: [{ internalType: "string", name: "merkleRoot", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "address", name: "_issuer", type: "address" }],
+    name: "getIssuerDocuments",
+    outputs: [{ internalType: "string[]", name: "", type: "string[]" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "getTotalDocuments",
+    outputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "string", name: "", type: "string" }],
+    name: "documentsByMerkle",
+    outputs: [
+      { internalType: "string", name: "merkleRoot", type: "string" },
+      { internalType: "string", name: "fileHash", type: "string" },
+      { internalType: "string", name: "contentHash", type: "string" },
+      { internalType: "string", name: "ipfsCid", type: "string" },
+      { internalType: "string", name: "metadataCid", type: "string" },
+      { internalType: "uint256", name: "totalChunks", type: "uint256" },
+      { internalType: "uint256", name: "totalTokens", type: "uint256" },
+      { internalType: "address", name: "issuer", type: "address" },
+      { internalType: "uint256", name: "timestamp", type: "uint256" },
+      { internalType: "string", name: "docType", type: "string" },
+      { internalType: "string", name: "documentName", type: "string" },
+      { internalType: "bool", name: "exists", type: "bool" },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "string", name: "", type: "string" }],
+    name: "merkleByFileHash",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "string", name: "", type: "string" }],
+    name: "merkleByContentHash",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [
+      { internalType: "address", name: "", type: "address" },
+      { internalType: "uint256", name: "", type: "uint256" },
+    ],
+    name: "issuerDocuments",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ internalType: "uint256", name: "", type: "uint256" }],
+    name: "allMerkleRoots",
+    outputs: [{ internalType: "string", name: "", type: "string" }],
+    stateMutability: "view",
+    type: "function",
+  },
+];
+
+// ═══════════════════════════════════════════════════════════════════
 // Network configuration
 // ═══════════════════════════════════════════════════════════════════
 export const SEPOLIA_CHAIN_ID = "0xaa36a7"; // 11155111
