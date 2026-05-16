@@ -363,7 +363,7 @@ export const DOCUMENT_ACCESS_CONTROL_ABI = [
 // 5) MerkleDocumentRegistry — Content-based Merkle root verification
 //    Deploy via Remix IDE, then paste the address below.
 // ═══════════════════════════════════════════════════════════════════
-export const MERKLE_DOCUMENT_REGISTRY_ADDRESS = "0x0000000000000000000000000000000000000000"; // TODO: Replace after deploying MerkleDocumentRegistry.sol on Sepolia
+export const MERKLE_DOCUMENT_REGISTRY_ADDRESS = "0xddaAd340b0f1Ef65169Ae5E41A8b10776a75482d";
 export const MERKLE_DOCUMENT_REGISTRY_ABI = [
   {
     anonymous: false,
