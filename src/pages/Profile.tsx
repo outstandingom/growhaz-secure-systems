@@ -119,7 +119,9 @@ export default function Profile() {
     registerUserOnChain,
     updateUserOnChain,
     isConnecting,
+    loginMethod,
   } = useWeb3Wallet();
+  const [showBlockchainForm, setShowBlockchainForm] = useState(false);
 
   // Fetch IPFS profile when on-chain user is found
   useEffect(() => {
@@ -473,88 +475,136 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* ═══ Blockchain Profile Banner ═══ */}
-          {loadingOnChain ? (
+          {/* ═══ Blockchain Profile Section ═══ */}
+          {loadingOnChain && walletAddress ? (
             /* Loading state — fetching from smart contract */
-            <div className="mb-8 p-6 rounded-2xl border border-primary/20 bg-card/50 flex items-center justify-center gap-3">
-              <Loader2 className="w-5 h-5 animate-spin text-primary" />
-              <span className="text-sm text-muted-foreground">Fetching your blockchain profile from the smart contract...</span>
+            <div className="mb-8 p-4 rounded-xl border border-primary/20 bg-card/50 flex items-center justify-center gap-3">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span className="text-sm text-muted-foreground">Fetching blockchain profile...</span>
             </div>
-          ) : !onChainUser?.exists && (
-            <div className="mb-8 p-6 rounded-2xl border-2 border-primary/40 bg-gradient-to-r from-primary/10 via-card to-accent/10 relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-40 h-40 bg-primary/10 rounded-full blur-3xl" />
-              <div className="absolute bottom-0 left-0 w-32 h-32 bg-accent/10 rounded-full blur-2xl" />
-              
-              <div className="relative z-10">
-                {!walletAddress ? (
-                  /* No wallet — connect prompt */
-                  <div className="flex flex-col md:flex-row md:items-center gap-6">
-                    <div className="w-14 h-14 shrink-0 rounded-2xl bg-primary/20 flex items-center justify-center">
-                      <Wallet className="w-7 h-7 text-primary" />
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="text-lg font-bold mb-1">Create Your Blockchain Profile</h3>
-                      <p className="text-sm text-muted-foreground">
-                        Connect your MetaMask wallet to register your profile on the Ethereum blockchain. Your data is stored on IPFS, hash on-chain.
-                      </p>
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <Button variant="hero" size="lg" onClick={connectMetaMask} disabled={isConnecting}>
-                        {isConnecting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Wallet className="w-4 h-4 mr-2" />}
-                        Connect MetaMask
-                      </Button>
-                      <Button variant="outline" onClick={connectPhantom} disabled={isConnecting}>
-                        Phantom
-                      </Button>
-                    </div>
-                  </div>
+          ) : loginMethod === "wallet" && walletAddress && !onChainUser?.exists ? (
+            /* ── Wallet-login user: NOT yet registered on-chain → compact inline form ── */
+            <div className="mb-8 p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-card to-primary/5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-9 h-9 shrink-0 rounded-xl bg-amber-500/20 flex items-center justify-center">
+                  <AlertTriangle className="w-4 h-4 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold">Complete Blockchain Registration</h3>
+                  <p className="text-[11px] text-muted-foreground">
+                    Wallet <code className="text-primary">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</code> connected — register your profile on-chain
+                  </p>
+                </div>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Full Name</Label>
+                  <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={profile?.full_name || "Your name"} className="bg-background/50 text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Phone</Label>
+                  <Input value={bcPhone} onChange={(e) => setBcPhone(e.target.value)} placeholder={profile?.phone || "Your phone"} className="bg-background/50 text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Profession <span className="text-destructive">*</span></Label>
+                  <Input value={editProfession} onChange={(e) => setEditProfession(e.target.value)} placeholder="e.g. Developer" className="bg-background/50 text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Work / About</Label>
+                  <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="e.g. Full-stack dev" className="bg-background/50 text-sm h-8" />
+                </div>
+              </div>
+              <Button variant="hero" size="sm" className="w-full mt-3" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
+                {registeringOnChain ? (
+                  <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Registering...</>
                 ) : (
-                  /* Wallet connected but not registered — inline form */
-                  <div className="space-y-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 shrink-0 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                        <AlertTriangle className="w-5 h-5 text-amber-400" />
-                      </div>
-                      <div>
-                        <h3 className="text-lg font-bold">Register on Blockchain</h3>
-                        <p className="text-xs text-muted-foreground">
-                          Wallet <code className="text-primary">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</code> connected — fill details below to create your on-chain profile
-                        </p>
-                      </div>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Full Name</Label>
-                        <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={profile?.full_name || "Your name"} className="bg-background/50 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Phone Number</Label>
-                        <Input value={bcPhone} onChange={(e) => setBcPhone(e.target.value)} placeholder={profile?.phone || "Your phone"} className="bg-background/50 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Profession / Role <span className="text-destructive">*</span></Label>
-                        <Input value={editProfession} onChange={(e) => setEditProfession(e.target.value)} placeholder="e.g. Developer, Student" className="bg-background/50 text-sm" />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs text-muted-foreground">Work / About</Label>
-                        <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="e.g. Full-stack dev at XYZ" className="bg-background/50 text-sm" />
-                      </div>
-                    </div>
-                    <Button variant="hero" size="lg" className="w-full" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
-                      {registeringOnChain ? (
-                        <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating Blockchain Profile...</>
-                      ) : (
-                        <><Link2 className="w-4 h-4 mr-2" /> Create Profile on Blockchain</>
-                      )}
-                    </Button>
-                    <p className="text-[10px] text-muted-foreground text-center">
-                      Pins profile to IPFS → calls <code className="text-primary">registerUser()</code> on UserRegistry contract → MetaMask signs the transaction
-                    </p>
-                  </div>
+                  <><Link2 className="w-3 h-3 mr-1.5" /> Register on Blockchain</>
                 )}
+              </Button>
+            </div>
+          ) : loginMethod === "traditional" && !walletAddress && !onChainUser?.exists ? (
+            /* ── Password/Google user: No wallet → small optional button ── */
+            !showBlockchainForm ? (
+              <div className="mb-6 flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card/40">
+                <div className="flex items-center gap-2">
+                  <Wallet className="w-4 h-4 text-primary" />
+                  <span className="text-xs text-muted-foreground">Want a blockchain profile?</span>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-xs h-7 px-3 border-primary/30 text-primary hover:bg-primary/10"
+                  onClick={() => setShowBlockchainForm(true)}
+                >
+                  <Link2 className="w-3 h-3 mr-1" /> Register on Blockchain
+                </Button>
+              </div>
+            ) : (
+              /* ── Expanded: connect wallet then register ── */
+              <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-card/50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold flex items-center gap-2">
+                    <Wallet className="w-4 h-4 text-primary" /> Connect Wallet to Register
+                  </h4>
+                  <button onClick={() => setShowBlockchainForm(false)} className="text-muted-foreground hover:text-foreground">
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  Connect your MetaMask or Phantom wallet, then fill in your details to create an on-chain profile.
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" className="text-xs flex-1" onClick={() => connectMetaMask()} disabled={isConnecting}>
+                    {isConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wallet className="w-3 h-3 mr-1" />}
+                    MetaMask
+                  </Button>
+                  <Button variant="outline" size="sm" className="text-xs flex-1" onClick={() => connectPhantom()} disabled={isConnecting}>
+                    Phantom
+                  </Button>
+                </div>
+              </div>
+            )
+          ) : loginMethod === "traditional" && walletAddress && !onChainUser?.exists ? (
+            /* ── Password/Google user who just connected wallet — show compact register form ── */
+            <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-card/50 space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-semibold flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" /> Wallet Connected
+                </h4>
+                <code className="text-[10px] text-primary font-mono">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</code>
+              </div>
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Full Name</Label>
+                  <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={profile?.full_name || "Name"} className="bg-background/50 text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Phone</Label>
+                  <Input value={bcPhone} onChange={(e) => setBcPhone(e.target.value)} placeholder={profile?.phone || "Phone"} className="bg-background/50 text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Profession <span className="text-destructive">*</span></Label>
+                  <Input value={editProfession} onChange={(e) => setEditProfession(e.target.value)} placeholder="e.g. Developer" className="bg-background/50 text-sm h-8" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Work / About</Label>
+                  <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="About you" className="bg-background/50 text-sm h-8" />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="hero" size="sm" className="flex-1" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
+                  {registeringOnChain ? (
+                    <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Registering...</>
+                  ) : (
+                    <><Link2 className="w-3 h-3 mr-1.5" /> Register on Blockchain</>
+                  )}
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => { disconnect(); setShowBlockchainForm(false); }} className="text-xs">
+                  Cancel
+                </Button>
               </div>
             </div>
-          )}
+          ) : null}
 
           {/* On-chain profile — full viewer (when registered) */}
           {onChainUser?.exists && (

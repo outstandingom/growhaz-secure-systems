@@ -455,7 +455,7 @@ export default function Blockchain() {
             {!walletAddress && (
               <div className="mt-4 text-center">
                 <p className="text-xs text-muted-foreground mb-2">Connect wallet to see live on-chain stats</p>
-                <Button variant="outline" size="sm" onClick={connectMetaMask} disabled={isConnecting}>
+                <Button variant="outline" size="sm" onClick={() => connectMetaMask()} disabled={isConnecting}>
                   {isConnecting ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
                   Connect MetaMask
                 </Button>

@@ -45,8 +45,9 @@ const Web3Login: FC = () => {
         uri: window.location.origin,       // e.g., https://www.growhaz.com or http://localhost:8080
       });
       if (error) throw error;
-      // Persist wallet address so useWeb3Wallet hook picks it up
-      localStorage.setItem("growhaz_wallet", JSON.stringify({ address, type: "metamask" }));
+      // Persist wallet address AND mark loginMethod as "wallet" so the hook
+      // knows this user authenticated via Web3 (auto-register on blockchain)
+      localStorage.setItem("growhaz_wallet", JSON.stringify({ address, type: "metamask", loginMethod: "wallet" }));
       toast({ title: "Connected", description: `Signed in as ${address.slice(0, 6)}...${address.slice(-4)}` });
     } catch (e: any) {
       toast({ title: "MetaMask login failed", description: e?.message ?? "Unknown error", variant: "destructive" });
@@ -73,17 +74,17 @@ const Web3Login: FC = () => {
       if (error) {
         // Fallback: manual sign-in if signInWithWeb3 unavailable on this client
         const address = phantom.publicKey.toString();
-        // Still persist the wallet address for profile page
-        localStorage.setItem("growhaz_wallet", JSON.stringify({ address, type: "phantom" }));
+        // Still persist the wallet address for profile page — mark as wallet login
+        localStorage.setItem("growhaz_wallet", JSON.stringify({ address, type: "phantom", loginMethod: "wallet" }));
         const message = `Sign in to authenticate.\nAddress: ${address}\nNonce: ${crypto.randomUUID()}`;
         const encoded = new TextEncoder().encode(message);
         const signed = await phantom.signMessage(encoded, "utf8");
         const signature = bs58.encode(signed.signature);
         throw new Error(error.message || `SIWS not available. Signed locally: ${signature.slice(0, 10)}...`);
       }
-      // Persist wallet address for useWeb3Wallet hook
+      // Persist wallet address for useWeb3Wallet hook — mark as wallet login
       const phantomAddr = phantom.publicKey.toString();
-      localStorage.setItem("growhaz_wallet", JSON.stringify({ address: phantomAddr, type: "phantom" }));
+      localStorage.setItem("growhaz_wallet", JSON.stringify({ address: phantomAddr, type: "phantom", loginMethod: "wallet" }));
       toast({ title: "Connected", description: "Signed in with Phantom" });
     } catch (e: any) {
       toast({ title: "Phantom login failed", description: e?.message ?? "Unknown error", variant: "destructive" });
