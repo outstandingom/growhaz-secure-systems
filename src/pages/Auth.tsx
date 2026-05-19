@@ -3,7 +3,6 @@ import { useNavigate, Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -24,6 +23,7 @@ import {
   Phone,
   User,
   UserPlus,
+  Loader2,
 } from "lucide-react";
 import { z } from "zod";
 import GoogleLogin from "@/components/GoogleLogin";
@@ -81,13 +81,12 @@ export default function Auth() {
   const [loginOtpCode, setLoginOtpCode] = useState("");
   const [loginOtpStep, setLoginOtpStep] = useState<"email" | "verify">("email");
   const [loginOtpTimer, setLoginOtpTimer] = useState(0);
-  const [resetLoading, setResetLoading] = useState(false); // reused for OTP dialogs
+  const [resetLoading, setResetLoading] = useState(false);
 
   // --- Effects ---
   useEffect(() => {
     mounted.current = true;
 
-    // Redirect if user already has a valid session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user && mounted.current) {
         navigate("/");
@@ -382,23 +381,25 @@ export default function Auth() {
         <section className="section-container min-h-[80vh] flex items-center justify-center">
           <div className="w-full max-w-md">
             <div className="text-center mb-8">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border bg-primary/10 border-primary/20 mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-primary/20 bg-card/40 backdrop-blur-sm mb-6">
                 <Mail className="w-4 h-4 text-primary" />
                 <span className="text-sm font-medium text-primary">Verify Email</span>
               </div>
               <h1 className="text-3xl font-bold mb-4">
                 Enter <span className="gradient-text">OTP</span>
               </h1>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 We sent a 6-digit code to<br />
                 <span className="font-medium text-foreground">{pendingUser.email}</span>
               </p>
             </div>
 
-            <div className="p-8 rounded-2xl backdrop-blur-2xl border border-white/15 bg-white/5 space-y-6">
+            <div className="p-6 rounded-xl border border-primary/20 bg-card/50 backdrop-blur-sm space-y-6">
               <form onSubmit={handleVerifySignupOtp} className="space-y-5">
                 <div className="space-y-2">
-                  <Label htmlFor="signup-otp">Verification Code</Label>
+                  <Label htmlFor="signup-otp" className="text-xs text-muted-foreground">
+                    Verification Code
+                  </Label>
                   <Input
                     id="signup-otp"
                     inputMode="numeric"
@@ -407,7 +408,7 @@ export default function Auth() {
                     placeholder="Enter 6-digit code"
                     value={signupOtpCode}
                     onChange={(e) => setSignupOtpCode(normalizeOtp(e.target.value))}
-                    className="text-center text-lg tracking-[0.35em]"
+                    className="bg-background/50 border-border/50 text-center text-lg tracking-[0.35em] h-12"
                     maxLength={6}
                   />
                 </div>
@@ -415,7 +416,7 @@ export default function Auth() {
                 <Button type="submit" variant="hero" size="lg" className="w-full" disabled={loading || signupOtpCode.length !== 6}>
                   {loading ? (
                     <span className="flex items-center gap-2">
-                      <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                      <Loader2 className="w-4 h-4 animate-spin" />
                       Verifying...
                     </span>
                   ) : (
@@ -429,7 +430,7 @@ export default function Auth() {
                   type="button"
                   onClick={handleResendSignupOtp}
                   disabled={signupOtpTimer > 0}
-                  className="text-sm text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+                  className="text-xs text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
                 >
                   {signupOtpTimer > 0 ? `Resend in ${signupOtpTimer}s` : "Resend Code"}
                 </button>
@@ -441,7 +442,7 @@ export default function Auth() {
                       setPendingUser(null);
                       setSignupOtpCode("");
                     }}
-                    className="text-sm text-muted-foreground hover:text-foreground"
+                    className="text-xs text-muted-foreground hover:text-foreground"
                   >
                     ← Back to Sign Up
                   </button>
@@ -455,6 +456,7 @@ export default function Auth() {
   }
 
   // --- Main Auth Form ---
+          
   return (
     <Layout>
       <section className="section-container min-h-[80vh] flex items-center justify-center">
@@ -462,7 +464,9 @@ export default function Auth() {
           <div className="text-center mb-8">
             <div
               className={`inline-flex items-center gap-2 px-4 py-2 rounded-full border mb-6 backdrop-blur-sm ${
-                isLogin ? "bg-primary/10 border-primary/20" : "bg-accent/10 border-accent/20"
+                isLogin
+                  ? "bg-primary/10 border-primary/20"
+                  : "bg-gradient-to-r from-amber-500/10 to-primary/10 border-amber-500/30"
               }`}
             >
               {isLogin ? (
@@ -489,7 +493,7 @@ export default function Auth() {
                 </>
               )}
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-sm">
               {isLogin
                 ? "Enter your credentials to access your account"
                 : "Create account with email OTP verification"}
@@ -497,16 +501,18 @@ export default function Auth() {
           </div>
 
           <div
-            className={`p-8 rounded-2xl backdrop-blur-xl border transition-all duration-300 ${
-              isLogin ? "bg-card/80 border-border" : "bg-gradient-to-b from-accent/5 to-card/80 border-accent/20"
+            className={`p-6 rounded-xl backdrop-blur-sm border transition-all duration-300 ${
+              isLogin
+                ? "bg-card/50 border-primary/20"
+                : "bg-gradient-to-r from-amber-500/5 via-card to-primary/5 border-amber-500/30"
             }`}
           >
             <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-5">
               {!isLogin && (
                 <>
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName" className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="fullName" className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <User className="w-3.5 h-3.5" />
                       Full Name <span className="text-destructive">*</span>
                     </Label>
                     <Input
@@ -516,14 +522,14 @@ export default function Auth() {
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
                       required
-                      className={`bg-background/50 border-border/50 ${errors.fullName ? "border-destructive" : ""}`}
+                      className={`bg-background/50 border-border/50 text-sm h-9 ${errors.fullName ? "border-destructive" : ""}`}
                     />
                     {errors.fullName && <p className="text-xs text-destructive">{errors.fullName}</p>}
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="phone" className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Phone className="w-3.5 h-3.5" />
                       Phone Number
                     </Label>
                     <Input
@@ -532,18 +538,18 @@ export default function Auth() {
                       placeholder="+91 9876543210"
                       value={phone}
                       onChange={(e) => setPhone(e.target.value)}
-                      className={`bg-background/50 border-border/50 ${errors.phone ? "border-destructive" : ""}`}
+                      className={`bg-background/50 border-border/50 text-sm h-9 ${errors.phone ? "border-destructive" : ""}`}
                     />
                     {errors.phone && <p className="text-xs text-destructive">{errors.phone}</p>}
                   </div>
 
-                  <div className="border-t border-border/30 my-4" />
+                  <div className="border-t border-border/30 my-2" />
                 </>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email" className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
+              <div className="space-y-1.5">
+                <Label htmlFor="email" className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Mail className="w-3.5 h-3.5" />
                   Email <span className="text-destructive">*</span>
                 </Label>
                 <Input
@@ -553,14 +559,14 @@ export default function Auth() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className={`bg-background/50 border-border/50 ${errors.email ? "border-destructive" : ""}`}
+                  className={`bg-background/50 border-border/50 text-sm h-9 ${errors.email ? "border-destructive" : ""}`}
                 />
                 {errors.email && <p className="text-xs text-destructive">{errors.email}</p>}
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password" className="flex items-center gap-2">
-                  <KeyRound className="w-4 h-4 text-muted-foreground" />
+              <div className="space-y-1.5">
+                <Label htmlFor="password" className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <KeyRound className="w-3.5 h-3.5" />
                   Password {isLogin && <span className="text-destructive">*</span>}
                 </Label>
                 <div className="relative">
@@ -572,15 +578,15 @@ export default function Auth() {
                     onChange={(e) => setPassword(e.target.value)}
                     required={isLogin}
                     minLength={isLogin ? 6 : undefined}
-                    className={`bg-background/50 border-border/50 pr-10 ${errors.password ? "border-destructive" : ""}`}
+                    className={`bg-background/50 border-border/50 text-sm h-9 pr-9 ${errors.password ? "border-destructive" : ""}`}
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                   >
-                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
                 {errors.password && <p className="text-xs text-destructive">{errors.password}</p>}
@@ -596,21 +602,25 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => setResetPasswordOpen(true)}
-                    className="text-sm text-primary hover:underline font-medium"
+                    className="text-xs text-primary hover:underline font-medium"
                   >
                     Forgot Password?
                   </button>
 
-                  <button type="button" onClick={openLoginOtpDialog} className="text-sm text-accent hover:underline font-medium">
+                  <button
+                    type="button"
+                    onClick={openLoginOtpDialog}
+                    className="text-xs text-accent hover:underline font-medium"
+                  >
                     Login with OTP
                   </button>
                 </div>
               )}
 
-              <Button type="submit" variant="hero" size="lg" className="w-full mt-6" disabled={loading}>
+              <Button type="submit" variant="hero" size="lg" className="w-full mt-4" disabled={loading}>
                 {loading ? (
                   <span className="flex items-center gap-2">
-                    <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     {isLogin ? "Signing in..." : "Sending OTP..."}
                   </span>
                 ) : isLogin ? (
@@ -625,8 +635,8 @@ export default function Auth() {
               </Button>
             </form>
 
-            {/* Google Login Button */}
-            <div className="mt-4">
+            {/* Google & Web3 Login */}
+            <div className="mt-5">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <div className="w-full border-t border-border/30"></div>
@@ -641,13 +651,15 @@ export default function Auth() {
               </div>
             </div>
 
-            <div className="mt-6 pt-6 border-t border-border/50 text-center">
-              <p className="text-sm text-muted-foreground">
+            <div className="mt-5 pt-4 border-t border-border/30 text-center">
+              <p className="text-xs text-muted-foreground">
                 {isLogin ? "Don't have an account?" : "Already have an account?"}
                 <button
                   type="button"
                   onClick={switchMode}
-                  className={`ml-2 font-medium hover:underline ${isLogin ? "text-primary" : "text-accent"}`}
+                  className={`ml-2 font-medium hover:underline text-xs ${
+                    isLogin ? "text-primary" : "text-accent"
+                  }`}
                 >
                   {isLogin ? "Sign Up" : "Sign In"}
                 </button>
@@ -655,7 +667,7 @@ export default function Auth() {
             </div>
           </div>
 
-          <p className="text-center text-xs text-muted-foreground/60 mt-6">
+          <p className="text-center text-[10px] text-muted-foreground/60 mt-6">
             By continuing, you agree to our Terms of Service and Privacy Policy.
           </p>
         </div>
@@ -680,13 +692,13 @@ export default function Auth() {
           }
         }}
       >
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md bg-card/80 backdrop-blur-sm border-primary/20">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+            <DialogTitle className="flex items-center gap-2 text-lg">
               <LogIn className="w-5 h-5 text-primary" />
               Login with OTP
             </DialogTitle>
-            <DialogDescription>
+            <DialogDescription className="text-xs">
               {loginOtpStep === "email"
                 ? "Enter your registered email to receive a one-time code."
                 : `Enter the 6-digit code sent to ${loginOtpEmail}`}
@@ -695,24 +707,26 @@ export default function Auth() {
 
           {loginOtpStep === "email" ? (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="loginOtpEmail">Email</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="loginOtpEmail" className="text-xs">Email</Label>
                 <Input
                   id="loginOtpEmail"
                   type="email"
                   value={loginOtpEmail}
                   onChange={(e) => setLoginOtpEmail(e.target.value)}
                   placeholder="you@example.com"
+                  className="bg-background/50 border-border/50 text-sm h-9"
                 />
               </div>
               <Button className="w-full" onClick={sendLoginOtp} disabled={resetLoading || !loginOtpEmail.trim()}>
-                {resetLoading ? "Sending..." : "Send OTP"}
+                {resetLoading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                Send OTP
               </Button>
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="loginOtpCode">Verification Code</Label>
+              <div className="space-y-1.5">
+                <Label htmlFor="loginOtpCode" className="text-xs">Verification Code</Label>
                 <Input
                   id="loginOtpCode"
                   inputMode="numeric"
@@ -721,7 +735,7 @@ export default function Auth() {
                   placeholder="Enter 6-digit OTP"
                   value={loginOtpCode}
                   onChange={(e) => setLoginOtpCode(normalizeOtp(e.target.value))}
-                  className="text-center text-lg tracking-[0.35em]"
+                  className="bg-background/50 border-border/50 text-center text-lg tracking-[0.35em] h-11"
                   maxLength={6}
                 />
               </div>
@@ -730,13 +744,14 @@ export default function Auth() {
                 type="button"
                 onClick={sendLoginOtp}
                 disabled={loginOtpTimer > 0 || resetLoading}
-                className="text-sm text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
+                className="text-xs text-primary font-medium hover:underline disabled:opacity-50 disabled:no-underline"
               >
                 {loginOtpTimer > 0 ? `Resend in ${loginOtpTimer}s` : "Resend OTP"}
               </button>
 
               <Button className="w-full" onClick={verifyLoginOtp} disabled={resetLoading || loginOtpCode.length !== 6}>
-                {resetLoading ? "Verifying..." : "Verify OTP & Login"}
+                {resetLoading ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : null}
+                Verify OTP & Login
               </Button>
             </div>
           )}
@@ -744,4 +759,4 @@ export default function Auth() {
       </Dialog>
     </Layout>
   );
-                    }
+                                            }   
