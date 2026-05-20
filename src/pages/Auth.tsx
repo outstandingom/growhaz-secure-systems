@@ -87,19 +87,40 @@ export default function Auth() {
   useEffect(() => {
     mounted.current = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user && mounted.current) {
-        navigate("/");
+    // Check for Web3 login redirect
+    const checkWeb3Redirect = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      const walletData = localStorage.getItem("growhaz_wallet");
+      
+      if (session?.user) {
+        if (walletData) {
+          // User logged in with Web3, redirect to profile
+          navigate("/profile");
+          // Clear the flag after redirect
+          localStorage.removeItem("growhaz_wallet");
+        } else if (window.location.pathname === "/auth") {
+          // Regular auth redirect to home
+          navigate("/");
+        }
       }
-    });
+    };
+    
+    checkWeb3Redirect();
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (authCompleted.current && session?.user && mounted.current) {
-        navigate("/");
+        const walletData = localStorage.getItem("growhaz_wallet");
+        if (walletData) {
+          navigate("/profile");
+          localStorage.removeItem("growhaz_wallet");
+        } else {
+          navigate("/");
+        }
       }
     });
+    
     return () => {
       mounted.current = false;
       subscription.unsubscribe();
@@ -759,4 +780,4 @@ export default function Auth() {
       </Dialog>
     </Layout>
   );
-                                            }   
+}

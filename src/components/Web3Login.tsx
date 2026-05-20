@@ -1,4 +1,5 @@
 import { FC, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Add this import
 import { BrowserProvider } from "ethers";
 import bs58 from "bs58";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,10 +15,18 @@ declare global {
 const Web3Login: FC = () => {
   const [loading, setLoading] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate(); // Add this line
 
-  const isMobile = /iPhone|iPad|iPod|Android/i.test(
-    navigator.userAgent
-  );
+  // 1. Move check into a function to avoid SSR crashes 
+  // 2. Expand regex and add touch/width fallbacks for iPads and hidden user agents
+  const checkIsMobile = () => {
+    if (typeof window === "undefined") return false;
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (window.navigator.maxTouchPoints && window.navigator.maxTouchPoints > 2) ||
+      window.innerWidth <= 768
+    );
+  };
 
   // ---------------- ETHEREUM ----------------
 
@@ -25,17 +34,11 @@ const Web3Login: FC = () => {
     try {
       setLoading("metamask");
 
-      // MOBILE DEEP LINK
       if (!window.ethereum) {
-        if (isMobile) {
-          const dappUrl = window.location.href.replace(
-            /^https?:\/\//,
-            ""
-          );
-
-          window.location.href =
-            `https://metamask.app.link/dapp/${dappUrl}`;
-
+        if (checkIsMobile()) {
+          // MOBILE DEEP LINK
+          const dappUrl = window.location.href.replace(/^https?:\/\//, "");
+          window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
           return;
         }
 
@@ -44,16 +47,12 @@ const Web3Login: FC = () => {
           description: "Please install MetaMask",
           variant: "destructive",
         });
-
         return;
       }
 
       const provider = new BrowserProvider(window.ethereum);
-
       await provider.send("eth_requestAccounts", []);
-
       const signer = await provider.getSigner();
-
       const address = await signer.getAddress();
 
       // safer nonce
@@ -83,6 +82,10 @@ const Web3Login: FC = () => {
         title: "Connected",
         description: `${address.slice(0, 6)}...${address.slice(-4)}`,
       });
+
+      // Add redirect here
+      navigate("/profile");
+
     } catch (e: any) {
       toast({
         title: "MetaMask Login Failed",
@@ -100,14 +103,11 @@ const Web3Login: FC = () => {
     try {
       setLoading("phantom");
 
-      // MOBILE DEEP LINK
       if (!window.solana?.isPhantom) {
-        if (isMobile) {
+        if (checkIsMobile()) {
+          // MOBILE DEEP LINK
           const url = encodeURIComponent(window.location.href);
-
-          window.location.href =
-            `https://phantom.app/ul/browse/${url}?ref=${url}`;
-
+          window.location.href = `https://phantom.app/ul/browse/${url}?ref=${url}`;
           return;
         }
 
@@ -116,14 +116,11 @@ const Web3Login: FC = () => {
           description: "Please install Phantom wallet",
           variant: "destructive",
         });
-
         return;
       }
 
       const phantom = window.solana;
-
       await phantom.connect();
-
       const address = phantom.publicKey.toString();
 
       const { error } = await (supabase.auth as any).signInWithWeb3({
@@ -142,12 +139,7 @@ const Web3Login: FC = () => {
           `Nonce: ${nonce}`;
 
         const encoded = new TextEncoder().encode(message);
-
-        const signed = await phantom.signMessage(
-          encoded,
-          "utf8"
-        );
-
+        const signed = await phantom.signMessage(encoded, "utf8");
         const signature = bs58.encode(signed.signature);
 
         console.log(signature);
@@ -166,6 +158,10 @@ const Web3Login: FC = () => {
         title: "Connected",
         description: `${address.slice(0, 6)}...${address.slice(-4)}`,
       });
+
+      // Add redirect here
+      navigate("/profile");
+
     } catch (e: any) {
       toast({
         title: "Phantom Login Failed",
@@ -186,22 +182,12 @@ const Web3Login: FC = () => {
         width: "100%",
       }}
     >
-      <button
-        onClick={loginMetaMask}
-        disabled={!!loading}
-      >
-        {loading === "metamask"
-          ? "Connecting..."
-          : "Continue with MetaMask"}
+      <button onClick={loginMetaMask} disabled={!!loading}>
+        {loading === "metamask" ? "Connecting..." : "Continue with MetaMask"}
       </button>
 
-      <button
-        onClick={loginPhantom}
-        disabled={!!loading}
-      >
-        {loading === "phantom"
-          ? "Connecting..."
-          : "Continue with Phantom"}
+      <button onClick={loginPhantom} disabled={!!loading}>
+        {loading === "phantom" ? "Connecting..." : "Continue with Phantom"}
       </button>
     </div>
   );

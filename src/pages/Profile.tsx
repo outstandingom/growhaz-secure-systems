@@ -7,27 +7,10 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { 
-  User, 
-  Shield, 
-  Package, 
-  LogOut, 
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  ExternalLink,
-  FileText,
-  Trash2,
-  Phone,
-  Mail,
-  Edit3,
-  Save,
-  X,
-  GraduationCap,
-  Zap,
-  Wallet,
-  Link2,
-  Loader2,
-  Copy
+  User, Shield, Package, LogOut, AlertTriangle,
+  CheckCircle2, Clock, ExternalLink, FileText, Trash2,
+  Phone, Mail, Edit3, Save, X, GraduationCap, Zap,
+  Wallet, Link2, Loader2, Copy
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
@@ -39,7 +22,7 @@ import { MyDocuments } from "@/components/profile/MyDocuments";
 import { VerificationHistory } from "@/components/profile/VerificationHistory";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
 import { sha256 } from "@/lib/blockchain";
-import { SEPOLIA_EXPLORER } from "@/lib/contractConfig";
+import { USER_REGISTRY_ADDRESS, SEPOLIA_EXPLORER } from "@/lib/contractConfig";
 
 interface Certificate {
   name: string;
@@ -102,6 +85,7 @@ export default function Profile() {
   const [registeringOnChain, setRegisteringOnChain] = useState(false);
   const [editProfession, setEditProfession] = useState("");
   const [editWork, setEditWork] = useState("");
+  const [editAge, setEditAge] = useState<number | "">("");
   const [bcName, setBcName] = useState("");
   const [bcPhone, setBcPhone] = useState("");
   const [ipfsProfileData, setIpfsProfileData] = useState<any>(null);
@@ -148,18 +132,28 @@ export default function Profile() {
       toast({ title: "Missing Field", description: "Please enter your profession/role", variant: "destructive" });
       return;
     }
+    if (!editAge || editAge < 18) {
+      toast({ title: "Invalid Age", description: "You must be at least 18 years old.", variant: "destructive" });
+      return;
+    }
     setRegisteringOnChain(true);
     try {
-      // 1) Pin full profile data to IPFS via Pinata
+      // Step 1: Pin full profile data to IPFS via Pinata
       toast({ title: "Step 1/3 — Uploading to IPFS", description: "Pinning your full profile to decentralized storage..." });
       const finalName = bcName.trim() || profile.full_name;
       const finalPhone = bcPhone.trim() || profile.phone || "";
+      const emailHash = userEmail ? await sha256(userEmail) : "";
+      const phoneHash = finalPhone ? await sha256(finalPhone) : "";
+
       const profilePayload = {
         name: finalName,
         email: userEmail,
+        emailHash,
         phone: finalPhone,
+        phoneHash,
         profession: editProfession.trim(),
         work: editWork.trim(),
+        age: editAge,
         skills: profile.skills || [],
         bio: profile.bio || "",
         wallet: walletAddress,
@@ -167,7 +161,7 @@ export default function Profile() {
         github: profile.github_url || "",
         linkedin: profile.linkedin_url || "",
         registeredAt: new Date().toISOString(),
-        version: 1,
+        version: 2,
       };
       const profileJson = JSON.stringify(profilePayload, null, 2);
       const base64 = btoa(unescape(encodeURIComponent(profileJson)));
@@ -182,22 +176,49 @@ export default function Profile() {
       });
       if (pinErr) throw pinErr;
       if (pin?.error) throw new Error(pin.error);
-
       const ipfsCid = pin.cid;
-      const phoneHash = finalPhone ? await sha256(finalPhone) : "";
 
-      // 2) Register or update on UserRegistry smart contract
+      // Step 2: Register or update on UserRegistry smart contract
       toast({ title: "Step 2/3 — Confirm in MetaMask", description: "Sign the blockchain transaction..." });
       let txHash: string;
       if (onChainUser?.exists) {
-        txHash = await updateUserOnChain(ipfsCid, finalName, editProfession.trim(), phoneHash);
+        txHash = await updateUserOnChain(
+          ipfsCid, finalName, editProfession.trim(), phoneHash, editAge as number, emailHash
+        );
       } else {
-        txHash = await registerUserOnChain(ipfsCid, finalName, editProfession.trim(), phoneHash);
+        txHash = await registerUserOnChain(
+          ipfsCid, finalName, editProfession.trim(), phoneHash, editAge as number, emailHash
+        );
       }
 
-      // 3) Refresh IPFS data
-      setIpfsProfileData(profilePayload);
+      // Step 3: Save registration metadata to Supabase (for search)
+      const { error: dbError } = await supabase.from("blockchain_user_registrations").insert({
+        transaction_hash: txHash,
+        block_hash: "pending",
+        block_number: 0,
+        contract_address: USER_REGISTRY_ADDRESS,
+        wallet_address: walletAddress,
+        ipfs_cid: ipfsCid,
+        user_name: finalName,
+        profession: editProfession.trim(),
+        phone_hash: phoneHash,
+        event_type: onChainUser?.exists ? "ProfileUpdated" : "UserRegistered",
+        on_chain_timestamp: Math.floor(Date.now() / 1000),
+      });
 
+      if (dbError) console.warn("Failed to save to Supabase:", dbError);
+
+      // Step 4: Also update profiles table with blockchain references
+      await supabase
+        .from("profiles")
+        .update({
+          chain_wallet_address: walletAddress,
+          chain_contract_address: USER_REGISTRY_ADDRESS,
+          chain_tx_hash: txHash,
+        })
+        .eq("id", profile.id);
+
+      setIpfsProfileData(profilePayload);
       toast({
         title: "✅ Blockchain Profile Created!",
         description: `TX: ${txHash.slice(0, 14)}... — Data on IPFS: ${ipfsCid.slice(0, 12)}...`,
@@ -252,7 +273,6 @@ export default function Profile() {
       .single();
 
     if (!error && data) {
-      // Parse certificates from JSON
       const certificates = Array.isArray(data.certificates) 
         ? (data.certificates as unknown as Certificate[])
         : [];
@@ -267,7 +287,6 @@ export default function Profile() {
       setEditName(data.full_name);
       setEditPhone(data.phone || "");
     } else if (error && error.code === "PGRST116") {
-      // No profile exists, create one
       const { data: session } = await supabase.auth.getSession();
       const userEmail = session?.session?.user?.email || "";
       const defaultName = userEmail.split("@")[0] || "User";
@@ -475,15 +494,14 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* ═══ Blockchain Profile Section ═══ */}
+          {/* Blockchain Profile Section */}
           {loadingOnChain && walletAddress ? (
-            /* Loading state — fetching from smart contract */
             <div className="mb-8 p-4 rounded-xl border border-primary/20 bg-card/50 flex items-center justify-center gap-3">
               <Loader2 className="w-4 h-4 animate-spin text-primary" />
               <span className="text-sm text-muted-foreground">Fetching blockchain profile...</span>
             </div>
           ) : loginMethod === "wallet" && walletAddress && !onChainUser?.exists ? (
-            /* ── Wallet-login user: NOT yet registered on-chain → compact inline form ── */
+            /* Wallet-login user not registered */
             <div className="mb-8 p-5 rounded-2xl border border-amber-500/30 bg-gradient-to-r from-amber-500/5 via-card to-primary/5">
               <div className="flex items-center gap-3 mb-4">
                 <div className="w-9 h-9 shrink-0 rounded-xl bg-amber-500/20 flex items-center justify-center">
@@ -496,7 +514,7 @@ export default function Profile() {
                   </p>
                 </div>
               </div>
-              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">Full Name</Label>
                   <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={profile?.full_name || "Your name"} className="bg-background/50 text-sm h-8" />
@@ -506,15 +524,19 @@ export default function Profile() {
                   <Input value={bcPhone} onChange={(e) => setBcPhone(e.target.value)} placeholder={profile?.phone || "Your phone"} className="bg-background/50 text-sm h-8" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Profession <span className="text-destructive">*</span></Label>
+                  <Label className="text-[10px] text-muted-foreground">Profession *</Label>
                   <Input value={editProfession} onChange={(e) => setEditProfession(e.target.value)} placeholder="e.g. Developer" className="bg-background/50 text-sm h-8" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">Work / About</Label>
                   <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="e.g. Full-stack dev" className="bg-background/50 text-sm h-8" />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Age (18+) *</Label>
+                  <Input type="number" min="18" max="120" value={editAge} onChange={(e) => setEditAge(e.target.value ? Number(e.target.value) : "")} placeholder="e.g. 28" className="bg-background/50 text-sm h-8" />
+                </div>
               </div>
-              <Button variant="hero" size="sm" className="w-full mt-3" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
+              <Button variant="hero" size="sm" className="w-full mt-3" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim() || !editAge}>
                 {registeringOnChain ? (
                   <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Registering...</>
                 ) : (
@@ -523,24 +545,17 @@ export default function Profile() {
               </Button>
             </div>
           ) : loginMethod === "traditional" && !walletAddress && !onChainUser?.exists ? (
-            /* ── Password/Google user: No wallet → small optional button ── */
             !showBlockchainForm ? (
               <div className="mb-6 flex items-center justify-between gap-3 p-3 rounded-xl border border-border bg-card/40">
                 <div className="flex items-center gap-2">
                   <Wallet className="w-4 h-4 text-primary" />
                   <span className="text-xs text-muted-foreground">Want a blockchain profile?</span>
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-xs h-7 px-3 border-primary/30 text-primary hover:bg-primary/10"
-                  onClick={() => setShowBlockchainForm(true)}
-                >
+                <Button variant="outline" size="sm" className="text-xs h-7 px-3 border-primary/30 text-primary hover:bg-primary/10" onClick={() => setShowBlockchainForm(true)}>
                   <Link2 className="w-3 h-3 mr-1" /> Register on Blockchain
                 </Button>
               </div>
             ) : (
-              /* ── Expanded: connect wallet then register ── */
               <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-card/50 space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-sm font-semibold flex items-center gap-2">
@@ -565,7 +580,6 @@ export default function Profile() {
               </div>
             )
           ) : loginMethod === "traditional" && walletAddress && !onChainUser?.exists ? (
-            /* ── Password/Google user who just connected wallet — show compact register form ── */
             <div className="mb-6 p-4 rounded-xl border border-primary/20 bg-card/50 space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-sm font-semibold flex items-center gap-2">
@@ -573,7 +587,7 @@ export default function Profile() {
                 </h4>
                 <code className="text-[10px] text-primary font-mono">{walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}</code>
               </div>
-              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-4">
+              <div className="grid gap-2 md:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">Full Name</Label>
                   <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={profile?.full_name || "Name"} className="bg-background/50 text-sm h-8" />
@@ -583,16 +597,20 @@ export default function Profile() {
                   <Input value={bcPhone} onChange={(e) => setBcPhone(e.target.value)} placeholder={profile?.phone || "Phone"} className="bg-background/50 text-sm h-8" />
                 </div>
                 <div className="space-y-1">
-                  <Label className="text-[10px] text-muted-foreground">Profession <span className="text-destructive">*</span></Label>
+                  <Label className="text-[10px] text-muted-foreground">Profession *</Label>
                   <Input value={editProfession} onChange={(e) => setEditProfession(e.target.value)} placeholder="e.g. Developer" className="bg-background/50 text-sm h-8" />
                 </div>
                 <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">Work / About</Label>
                   <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="About you" className="bg-background/50 text-sm h-8" />
                 </div>
+                <div className="space-y-1">
+                  <Label className="text-[10px] text-muted-foreground">Age (18+) *</Label>
+                  <Input type="number" min="18" max="120" value={editAge} onChange={(e) => setEditAge(e.target.value ? Number(e.target.value) : "")} placeholder="e.g. 28" className="bg-background/50 text-sm h-8" />
+                </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="hero" size="sm" className="flex-1" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
+                <Button variant="hero" size="sm" className="flex-1" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim() || !editAge}>
                   {registeringOnChain ? (
                     <><Loader2 className="w-3 h-3 mr-1.5 animate-spin" /> Registering...</>
                   ) : (
@@ -606,12 +624,11 @@ export default function Profile() {
             </div>
           ) : null}
 
-          {/* On-chain profile — full viewer (when registered) */}
+          {/* On-chain profile viewer (when registered) */}
           {onChainUser?.exists && (
             <div className="mb-8 p-6 rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/5 via-card to-primary/5 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-3xl" />
               <div className="relative z-10">
-                {/* Header */}
                 <div className="flex items-center justify-between mb-5">
                   <h2 className="text-xl font-semibold flex items-center gap-2">
                     <CheckCircle2 className="w-5 h-5 text-emerald-400" />
@@ -627,8 +644,7 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* On-chain data cards */}
-                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4 mb-4">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5 mb-4">
                   <div className="p-3 rounded-xl bg-card/60 border border-border">
                     <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1"><User className="w-3 h-3" /> Name</span>
                     <p className="font-medium text-sm">{onChainUser.name}</p>
@@ -636,6 +652,10 @@ export default function Profile() {
                   <div className="p-3 rounded-xl bg-card/60 border border-border">
                     <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1"><Shield className="w-3 h-3" /> Profession</span>
                     <p className="font-medium text-sm">{onChainUser.profession}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-card/60 border border-border">
+                    <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1">Age</span>
+                    <p className="font-medium text-sm">{onChainUser.age}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-card/60 border border-border">
                     <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold flex items-center gap-1 mb-1"><Clock className="w-3 h-3" /> Registered</span>
@@ -650,7 +670,6 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* IPFS CID */}
                 <div className="p-3 rounded-xl bg-card/60 border border-border mb-4">
                   <span className="text-[10px] uppercase tracking-wider text-primary font-semibold flex items-center gap-1 mb-1"><Link2 className="w-3 h-3" /> IPFS Content Identifier (CID)</span>
                   <div className="flex items-center gap-2">
@@ -659,7 +678,6 @@ export default function Profile() {
                   </div>
                 </div>
 
-                {/* IPFS profile data (fetched from Pinata gateway) */}
                 {loadingIpfs ? (
                   <div className="flex items-center justify-center gap-2 py-4">
                     <Loader2 className="w-4 h-4 animate-spin text-primary" />
@@ -675,6 +693,7 @@ export default function Profile() {
                       {ipfsProfileData.email && <div><span className="text-xs text-muted-foreground">Email:</span> <span className="font-medium">{ipfsProfileData.email}</span></div>}
                       {ipfsProfileData.phone && <div><span className="text-xs text-muted-foreground">Phone:</span> <span className="font-medium">{ipfsProfileData.phone}</span></div>}
                       {ipfsProfileData.profession && <div><span className="text-xs text-muted-foreground">Profession:</span> <span className="font-medium">{ipfsProfileData.profession}</span></div>}
+                      {ipfsProfileData.age && <div><span className="text-xs text-muted-foreground">Age:</span> <span className="font-medium">{ipfsProfileData.age}</span></div>}
                       {ipfsProfileData.work && <div className="md:col-span-2"><span className="text-xs text-muted-foreground">Work/About:</span> <span className="font-medium">{ipfsProfileData.work}</span></div>}
                       {ipfsProfileData.github && <div><span className="text-xs text-muted-foreground">GitHub:</span> <a href={ipfsProfileData.github} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">{ipfsProfileData.github}</a></div>}
                       {ipfsProfileData.linkedin && <div><span className="text-xs text-muted-foreground">LinkedIn:</span> <a href={ipfsProfileData.linkedin} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline">{ipfsProfileData.linkedin}</a></div>}
@@ -683,10 +702,9 @@ export default function Profile() {
                   </div>
                 )}
 
-                {/* Update form */}
                 <div className="border-t border-border/30 pt-4">
                   <h4 className="text-sm font-semibold mb-3">Update Profile On-Chain</h4>
-                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
                     <div className="space-y-1">
                       <Label className="text-xs text-muted-foreground">Name</Label>
                       <Input value={bcName} onChange={(e) => setBcName(e.target.value)} placeholder={onChainUser.name} className="bg-background/50 text-sm" />
@@ -703,8 +721,12 @@ export default function Profile() {
                       <Label className="text-xs text-muted-foreground">Work/About</Label>
                       <Input value={editWork} onChange={(e) => setEditWork(e.target.value)} placeholder="Your work" className="bg-background/50 text-sm" />
                     </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs text-muted-foreground">Age</Label>
+                      <Input type="number" min="18" max="120" value={editAge} onChange={(e) => setEditAge(e.target.value ? Number(e.target.value) : "")} placeholder={onChainUser.age.toString()} className="bg-background/50 text-sm" />
+                    </div>
                   </div>
-                  <Button variant="hero" className="w-full mt-3" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim()}>
+                  <Button variant="hero" className="w-full mt-3" onClick={handleRegisterOnChain} disabled={registeringOnChain || !editProfession.trim() || !editAge}>
                     {registeringOnChain ? (
                       <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Updating...</>
                     ) : (
@@ -802,21 +824,11 @@ export default function Profile() {
                     </Button>
                   ) : (
                     <div className="flex gap-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        onClick={handleEditToggle}
-                        disabled={saving}
-                      >
+                      <Button variant="outline" size="sm" onClick={handleEditToggle} disabled={saving}>
                         <X className="w-4 h-4 mr-2" />
                         Cancel
                       </Button>
-                      <Button 
-                        variant="hero" 
-                        size="sm" 
-                        onClick={handleSaveProfile}
-                        disabled={saving}
-                      >
+                      <Button variant="hero" size="sm" onClick={handleSaveProfile} disabled={saving}>
                         <Save className="w-4 h-4 mr-2" />
                         {saving ? "Saving..." : "Save"}
                       </Button>
@@ -825,7 +837,6 @@ export default function Profile() {
                 </div>
                 
                 <div className="grid gap-6 md:grid-cols-2">
-                  {/* Full Name */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2 text-muted-foreground">
                       <User className="w-4 h-4" />
@@ -845,7 +856,6 @@ export default function Profile() {
                     )}
                   </div>
 
-                  {/* Phone */}
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2 text-muted-foreground">
                       <Phone className="w-4 h-4" />
@@ -865,7 +875,6 @@ export default function Profile() {
                     )}
                   </div>
 
-                  {/* Email (Read-only) */}
                   <div className="space-y-2 md:col-span-2">
                     <Label className="flex items-center gap-2 text-muted-foreground">
                       <Mail className="w-4 h-4" />
@@ -880,7 +889,6 @@ export default function Profile() {
                   </div>
                 </div>
               </div>
-              {/* Account Stats */}
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-center">
                   <Package className="w-8 h-8 text-primary mx-auto mb-2" />
@@ -903,7 +911,6 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Mentor & Learner Tab */}
           {activeTab === "mentor" && profile && (
             <MentorProfileSection
               profileId={profile.id}
@@ -922,8 +929,7 @@ export default function Profile() {
             />
           )}
 
-          {/* Services Tab */}
-             {activeTab === "services" && (
+          {activeTab === "services" && (
             <div className="space-y-4">
               {purchases.length === 0 ? (
                 <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
@@ -976,7 +982,6 @@ export default function Profile() {
             </div>
           )}
 
-          {/* Security Reports Tab */}
           {activeTab === "reports" && (
             <div className="space-y-4">
               {reports.length === 0 ? (
@@ -1123,7 +1128,6 @@ export default function Profile() {
                 }
               }}
               onExport={() => {
-                // Handle export
                 const dataStr = JSON.stringify(selectedReport.report_data, null, 2);
                 const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
                 const exportFileDefaultName = `security-report-${selectedReport.id}.json`;
@@ -1152,5 +1156,4 @@ export default function Profile() {
       </Dialog>
     </Layout>
   );
-                          }
-          
+}
