@@ -54,11 +54,9 @@ export interface LookupResult {
   error: string | null;
 }
 
-const SEPOLIA_RPCS = [
-  "https://ethereum-sepolia-rpc.publicnode.com",
-  "https://rpc.sepolia.org",
-  "https://sepolia.drpc.org",
-];
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+const ALCHEMY_PROXY_URL = `${SUPABASE_URL}/functions/v1/alchemy-proxy?network=eth-sepolia`;
 
 const IPFS_GATEWAYS = [
   "https://gateway.pinata.cloud/ipfs/",
@@ -76,15 +74,15 @@ function detectInputType(q: string): LookupInputType {
 }
 
 async function getRpcProvider() {
-  for (const rpc of SEPOLIA_RPCS) {
-    try {
-      const p = new ethers.JsonRpcProvider(rpc, 11155111, { staticNetwork: true });
-      return p;
-    } catch {
-      continue;
+  try {
+    const fetchReq = new ethers.FetchRequest(ALCHEMY_PROXY_URL);
+    if (SUPABASE_ANON_KEY) {
+      fetchReq.setHeader("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
     }
+    return new ethers.JsonRpcProvider(fetchReq, 11155111, { staticNetwork: true });
+  } catch {
+    return null;
   }
-  return null;
 }
 
 async function fetchFromIpfs(cid: string): Promise<Record<string, any> | null> {

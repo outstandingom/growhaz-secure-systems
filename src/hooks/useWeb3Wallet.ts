@@ -197,15 +197,18 @@ export function useWeb3Wallet(): Web3WalletState {
     localStorage.removeItem(WALLET_STORAGE_KEY);
   }, []);
 
-  const SEPOLIA_RPCS = [
-    "https://ethereum-sepolia-rpc.publicnode.com",
-    "https://rpc.sepolia.org",
-    "https://sepolia.drpc.org",
-    "https://rpc2.sepolia.org",
-    "https://eth-sepolia.public.blastapi.io",
-    "https://endpoints.omniatech.io/v1/eth/sepolia/public",
-    "https://1rpc.io/sepolia",
-  ];
+  const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+  const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.VITE_SUPABASE_ANON_KEY;
+  const ALCHEMY_PROXY_URL = `${SUPABASE_URL}/functions/v1/alchemy-proxy?network=eth-sepolia`;
+
+  // Helper to create a provider that routes through our Supabase Edge Function
+  const createSecureProvider = () => {
+    const fetchReq = new ethers.FetchRequest(ALCHEMY_PROXY_URL);
+    if (SUPABASE_ANON_KEY) {
+      fetchReq.setHeader("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
+    }
+    return new ethers.JsonRpcProvider(fetchReq, 11155111, { staticNetwork: true });
+  };
 
   const fetchOnChainUserCore = useCallback(
     async (address: string, retryCount = 0): Promise<OnChainUser | null> => {
@@ -228,25 +231,26 @@ export function useWeb3Wallet(): Web3WalletState {
             })()
           );
         }
-        for (const rpc of SEPOLIA_RPCS) {
-          attempts.push(
-            (async () => {
-              const provider = new ethers.JsonRpcProvider(rpc, 11155111, { staticNetwork: true });
-              const contract = new ethers.Contract(USER_REGISTRY_ADDRESS, USER_REGISTRY_ABI, provider);
-              const result = await contract.getUser(address);
-              return {
-                ipfsCid: result[0], name: result[1], profession: result[2],
-                phoneHash: result[3], age: Number(result[4]), emailHash: result[5],
-                registeredAt: Number(result[6]), exists: result[7],
-              };
-            })()
-          );
-        }
+        // Attempt via secure proxy
+        attempts.push(
+          (async () => {
+            const provider = createSecureProvider();
+            const contract = new ethers.Contract(USER_REGISTRY_ADDRESS, USER_REGISTRY_ABI, provider);
+            const result = await contract.getUser(address);
+            return {
+              ipfsCid: result[0], name: result[1], profession: result[2],
+              phoneHash: result[3], age: Number(result[4]), emailHash: result[5],
+              registeredAt: Number(result[6]), exists: result[7],
+            };
+          })()
+        );
+
         const timeout = new Promise<OnChainUser>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 10000));
         const user = await Promise.race([Promise.any(attempts), timeout]);
+        
         // Update count non‑blocking
         try {
-          const countProvider = new ethers.JsonRpcProvider(SEPOLIA_RPCS[0], 11155111, { staticNetwork: true });
+          const countProvider = createSecureProvider();
           const countContract = new ethers.Contract(USER_REGISTRY_ADDRESS, USER_REGISTRY_ABI, countProvider);
           const count = await countContract.getRegisteredUsersCount();
           setRegisteredUsersCount(Number(count));
