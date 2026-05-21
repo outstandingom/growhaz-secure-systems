@@ -228,6 +228,8 @@ export const USER_REGISTRY_ABI = [
     inputs: [
       { indexed: true, internalType: "address", name: "wallet", type: "address" },
       { indexed: false, internalType: "string", name: "ipfsCid", type: "string" },
+      { indexed: false, internalType: "string", name: "name", type: "string" },
+      { indexed: false, internalType: "uint256", name: "age", type: "uint256" },
     ],
     name: "UserRegistered",
     type: "event",
@@ -270,6 +272,8 @@ export const USER_REGISTRY_ABI = [
       { internalType: "string", name: "name", type: "string" },
       { internalType: "string", name: "profession", type: "string" },
       { internalType: "string", name: "phoneHash", type: "string" },
+      { internalType: "uint256", name: "age", type: "uint256" },
+      { internalType: "string", name: "emailHash", type: "string" },
       { internalType: "uint256", name: "registeredAt", type: "uint256" },
       { internalType: "bool", name: "exists", type: "bool" },
     ],
