@@ -33,6 +33,8 @@ export interface LookupResult {
     name: string;
     profession: string;
     phoneHash: string;
+    age: number;
+    emailHash: string;
     registeredAt: number;
     exists: boolean;
     walletAddress: string;
@@ -110,8 +112,10 @@ async function fetchContractUser(wallet: string) {
       name: result[1],
       profession: result[2],
       phoneHash: result[3],
-      registeredAt: Number(result[4]),
-      exists: result[5],
+      age: Number(result[4]),
+      emailHash: result[5],
+      registeredAt: Number(result[6]),
+      exists: result[7],
     };
   } catch { return null; }
 }
