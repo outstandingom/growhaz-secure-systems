@@ -104,7 +104,7 @@
     "globals": "^15.15.0",
     "hardhat": "^2.26.3",
     "jsdom": "^20.0.3",
-    "lovable-tagger": "^1.1.13",
+    
     "postcss": "^8.5.6",
     "solidity-coverage": "^0.8.17",
     "tailwindcss": "^3.4.17",
