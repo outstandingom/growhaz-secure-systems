@@ -1,4 +1,3 @@
-
 import { ethers } from "hardhat";
 
 async function main() {
@@ -17,19 +16,19 @@ async function main() {
   await authReg.deployed();
   console.log("AuthorizationRegistry:", authReg.address);
 
-  // 3. DocumentStatusTracker (needs TimelineLogger)
+  // 3. DocumentStatusTracker
   const DocStatus = await ethers.getContractFactory("DocumentStatusTracker");
   const docStatus = await DocStatus.deploy(timeline.address);
   await docStatus.deployed();
   console.log("DocumentStatusTracker:", docStatus.address);
 
-  // 4. UserRegistry (needs TimelineLogger)
+  // 4. UserRegistry
   const UserReg = await ethers.getContractFactory("UserRegistry");
   const userReg = await UserReg.deploy(timeline.address);
   await userReg.deployed();
   console.log("UserRegistry:", userReg.address);
 
-  // 5. ProcessManager (needs all three)
+  // 5. ProcessManager
   const ProcMan = await ethers.getContractFactory("ProcessManager");
   const procMan = await ProcMan.deploy(
     timeline.address,
@@ -39,17 +38,17 @@ async function main() {
   await procMan.deployed();
   console.log("ProcessManager:", procMan.address);
 
-  // 6. Authorise contracts to write to Timeline
+  // 6. Authorise writers on TimelineLogger
   await timeline.setWriter(procMan.address, true);
   await timeline.setWriter(docStatus.address, true);
   await timeline.setWriter(userReg.address, true);
   console.log("Writers authorised on TimelineLogger");
 
-  // 7. Let DocumentStatusTracker know its caller
+  // 7. Link DocumentStatusTracker to ProcessManager
   await docStatus.setProcessManager(procMan.address);
   console.log("DocumentStatusTracker linked to ProcessManager");
 
-  // 8. (Optional) Deploy standalone contracts
+  // 8. Deploy standalone contracts
   const MerkleReg = await ethers.getContractFactory("MerkleDocumentRegistry");
   const merkleReg = await MerkleReg.deploy();
   await merkleReg.deployed();
@@ -65,7 +64,7 @@ async function main() {
   await accessCtrl.deployed();
   console.log("DocumentAccessControl:", accessCtrl.address);
 
-  console.log("\n✅ All core contracts deployed and connected!");
+  console.log("\n✅ All contracts deployed and connected!");
 }
 
 main()
