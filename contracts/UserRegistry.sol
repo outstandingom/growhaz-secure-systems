@@ -1,89 +1,55 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-/// @title UserRegistry — On-chain user profiles with IPFS CID storage
-/// @notice Stores user profile IPFS CID, name, profession, phoneHash, age, emailHash
+import "./TimelineLogger.sol";
+
 contract UserRegistry {
-    
+    TimelineLogger public timeline;
+
     struct UserProfile {
-        string ipfsCid;
-        string name;
-        string profession;
-        string phoneHash;
-        uint256 age;           // >= 18
-        string emailHash;      // SHA-256 hash of email
-        uint256 registeredAt;
-        bool exists;
+        string ipfsHash;
+        uint256 updatedAt;
     }
-    
-    mapping(address => UserProfile) public users;
-    uint256 public userCount;
-    
-    event UserRegistered(address indexed wallet, string ipfsCid, string name, uint256 age);
-    event ProfileUpdated(address indexed wallet, string ipfsCid);
-    
-    function registerUser(
-        string memory _ipfsCid,
-        string memory _name,
-        string memory _profession,
-        string memory _phoneHash,
-        uint256 _age,
-        string memory _emailHash
-    ) public {
-        require(!users[msg.sender].exists, "User already registered");
-        require(_age >= 18, "Age must be 18+");
-        
-        users[msg.sender] = UserProfile({
-            ipfsCid: _ipfsCid,
-            name: _name,
-            profession: _profession,
-            phoneHash: _phoneHash,
-            age: _age,
-            emailHash: _emailHash,
-            registeredAt: block.timestamp,
-            exists: true
-        });
-        
-        userCount++;
-        emit UserRegistered(msg.sender, _ipfsCid, _name, _age);
+
+    mapping(address => UserProfile) public profiles;
+
+    event UserRegistered(address indexed user, string ipfsHash);
+    event UserUpdated(address indexed user, string newIpfsHash);
+
+    constructor(address _timeline) {
+        timeline = TimelineLogger(_timeline);
     }
-    
-    function updateProfile(
-        string memory _ipfsCid,
-        string memory _name,
-        string memory _profession,
-        string memory _phoneHash,
-        uint256 _age,
-        string memory _emailHash
-    ) public {
-        require(users[msg.sender].exists, "User not registered");
-        
-        UserProfile storage u = users[msg.sender];
-        u.ipfsCid = _ipfsCid;
-        u.name = _name;
-        u.profession = _profession;
-        u.phoneHash = _phoneHash;
-        u.age = _age;
-        u.emailHash = _emailHash;
-        
-        emit ProfileUpdated(msg.sender, _ipfsCid);
+
+    function registerOrUpdate(string calldata _ipfsHash) external {
+        bool isNew = profiles[msg.sender].updatedAt == 0;
+        profiles[msg.sender] = UserProfile(_ipfsHash, block.timestamp);
+        if (isNew) {
+            emit UserRegistered(msg.sender, _ipfsHash);
+            timeline.record("user", _addrToStr(msg.sender), "registered", "User created");
+        } else {
+            emit UserUpdated(msg.sender, _ipfsHash);
+            timeline.record("user", _addrToStr(msg.sender), "updated", "Profile updated");
+        }
     }
-    
-    function getUser(address _wallet) public view returns (
-        string memory ipfsCid,
-        string memory name,
-        string memory profession,
-        string memory phoneHash,
-        uint256 age,
-        string memory emailHash,
-        uint256 registeredAt,
-        bool exists
-    ) {
-        UserProfile memory u = users[_wallet];
-        return (u.ipfsCid, u.name, u.profession, u.phoneHash, u.age, u.emailHash, u.registeredAt, u.exists);
+
+    function getProfile(address _user) external view returns (string memory, uint256) {
+        UserProfile memory p = profiles[_user];
+        return (p.ipfsHash, p.updatedAt);
     }
-    
-    function getRegisteredUsersCount() public view returns (uint256) {
-        return userCount;
+
+    // Helper
+    function _addrToStr(address x) internal pure returns (string memory) {
+        bytes memory s = new bytes(40);
+        for (uint i = 0; i < 20; i++) {
+            bytes1 b = bytes1(uint8(uint(uint160(x)) / (2 ** (8 * (19 - i)))));
+            bytes1 hi = bytes1(uint8(b) / 16);
+            bytes1 lo = bytes1(uint8(b) - 16 * uint8(hi));
+            s[2 * i]     = _char(hi);
+            s[2 * i + 1] = _char(lo);
+        }
+        return string(s);
+    }
+    function _char(bytes1 b) internal pure returns (bytes1) {
+        return uint8(b) < 10 ? bytes1(uint8(b) + 0x30) : bytes1(uint8(b) + 0x57);
     }
 }
