@@ -8,7 +8,8 @@
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["hardhat.config.cjs", "scripts/**/*.ts", "test/**/*.ts"],
-  "exclude": ["src", "node_modules", "dist", "supabase", "artifacts", "cache"]
+  "include": ["hardhat.config.cjs"],
+  "exclude": ["src", "node_modules", "dist", "supabase", "artifacts", "cache", "scripts", "test"]
+
 }
 
