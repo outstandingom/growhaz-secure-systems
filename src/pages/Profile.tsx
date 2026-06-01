@@ -23,6 +23,8 @@ import { VerificationHistory } from "@/components/profile/VerificationHistory";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
 import { sha256 } from "@/lib/blockchain";
 import { USER_REGISTRY_ADDRESS, SEPOLIA_EXPLORER } from "@/lib/contractConfig";
+import { OnChainRegistryHub } from "@/components/chain/OnChainRegistryHub";
+
 
 interface Certificate {
   name: string;
@@ -1154,6 +1156,11 @@ export default function Profile() {
           ) : null}
         </DialogContent>
       </Dialog>
+      <section className="section-container">
+        <div className="max-w-5xl mx-auto">
+          <OnChainRegistryHub defaultTab="access" />
+        </div>
+      </section>
     </Layout>
   );
 }

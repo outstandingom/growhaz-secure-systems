@@ -44,6 +44,8 @@ import {
   indexMerkleDocument,
 } from "@/lib/blockchainIndexer";
 import { VerificationReport } from "@/components/blockchain/VerificationReport";
+import { OnChainRegistryHub } from "@/components/chain/OnChainRegistryHub";
+
 
 const SEPOLIA_EXPLORER = "https://sepolia.etherscan.io";
 
@@ -867,6 +869,10 @@ export default function Blockchain() {
           ))}
         </div>
       </section>
+      <section className="section-container">
+        <OnChainRegistryHub defaultTab="search" />
+      </section>
     </Layout>
   );
 }
+
