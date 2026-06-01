@@ -12,15 +12,21 @@ const BLOCKCHAIN_PRIVATE_KEY = process.env.BLOCKCHAIN_PRIVATE_KEY || process.env
 const BLOCKCHAIN_RPC_URL = process.env.BLOCKCHAIN_RPC_URL;
 
 module.exports = {
-  solidity: "0.8.28",
+  solidity: {
+    version: "0.8.20",
+    settings: { optimizer: { enabled: true, runs: 200 } },
+  },
   networks: {
     sepolia: {
       url: BLOCKCHAIN_RPC_URL || `https://eth-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: [BLOCKCHAIN_PRIVATE_KEY]
+      accounts: [BLOCKCHAIN_PRIVATE_KEY],
+      chainId: 11155111,
     },
     polygon_amoy: {
       url: `https://polygon-amoy.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
-      accounts: [BLOCKCHAIN_PRIVATE_KEY]
-    }
-  }
+      accounts: [BLOCKCHAIN_PRIVATE_KEY],
+    },
+  },
+  paths: { sources: "./contracts", tests: "./test", cache: "./cache", artifacts: "./artifacts" },
 };
+
