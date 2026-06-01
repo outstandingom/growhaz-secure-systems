@@ -9,9 +9,6 @@
     "resolveJsonModule": true
   },
   "include": ["hardhat.config.cjs", "scripts/**/*.ts", "test/**/*.ts"],
-  "exclude": ["src", "node_modules", "dist", "supabase", "artifacts", "cache"],
-  "references": [
-    { "path": "./tsconfig.app.json" },
-    { "path": "./tsconfig.node.json" }
-  ]
+  "exclude": ["src", "node_modules", "dist", "supabase", "artifacts", "cache"]
 }
+
