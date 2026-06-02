@@ -70,6 +70,30 @@ export default function AdminDashboard() {
   const [reportDriveLink, setReportDriveLink] = useState("");
   const [driveLinkReport, setDriveLinkReport] = useState<any>(null);
   const [previewReport, setPreviewReport] = useState<any>(null);
+  const [coinUser, setCoinUser] = useState<any>(null);
+  const [coinAmount, setCoinAmount] = useState<string>("");
+  const [coinType, setCoinType] = useState<'earn' | 'spend'>('earn');
+  const [coinNote, setCoinNote] = useState<string>("");
+  const [coinSubmitting, setCoinSubmitting] = useState(false);
+
+  const handleCoinSubmit = async () => {
+    if (!coinUser) return;
+    const amt = Number(coinAmount);
+    if (!amt || amt <= 0) {
+      toast({ title: 'Invalid amount', description: 'Enter a positive number', variant: 'destructive' });
+      return;
+    }
+    setCoinSubmitting(true);
+    const ok = await adjustCoins(coinUser.user_id, amt, coinType, coinNote || undefined);
+    setCoinSubmitting(false);
+    if (ok) {
+      setCoinUser(null);
+      setCoinAmount("");
+      setCoinNote("");
+      setCoinType('earn');
+    }
+  };
+
 
   const fetchMentorProfiles = async () => {
     try {
