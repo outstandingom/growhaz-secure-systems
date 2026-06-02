@@ -193,6 +193,32 @@ serve(async (req) => {
         );
       }
 
+      case 'adjust_coins': {
+        const { userId, amount, type, description } = data;
+        const amt = Number(amount);
+        if (!userId || !amt || amt <= 0) {
+          return new Response(
+            JSON.stringify({ error: 'userId and positive amount are required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        const txType = type === 'spend' ? 'spend' : 'earn';
+        const { error: rpcError } = await supabaseAdmin.rpc('update_coin_balance', {
+          p_user_id: userId,
+          p_amount: amt,
+          p_type: txType,
+          p_description: description || `Admin ${txType === 'earn' ? 'credit' : 'debit'} by ${user.id}`,
+          p_reference_id: `admin_${user.id}_${Date.now()}`,
+        });
+        if (rpcError) throw rpcError;
+        console.log('Coins adjusted:', userId, txType, amt);
+        return new Response(
+          JSON.stringify({ success: true, message: `${amt} coins ${txType === 'earn' ? 'added to' : 'deducted from'} user wallet` }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+
       case 'get_transactions': {
         const { data: transactions, error } = await supabaseAdmin
           .from('coin_transactions')
