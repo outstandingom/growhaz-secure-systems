@@ -55,8 +55,10 @@ export default function AdminDashboard() {
     fetchWithdrawalRequests,
     fetchTransactions,
     processWithdrawal,
-    updateUserRole
+    updateUserRole,
+    adjustCoins
   } = useAdmin();
+
 
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
@@ -68,6 +70,30 @@ export default function AdminDashboard() {
   const [reportDriveLink, setReportDriveLink] = useState("");
   const [driveLinkReport, setDriveLinkReport] = useState<any>(null);
   const [previewReport, setPreviewReport] = useState<any>(null);
+  const [coinUser, setCoinUser] = useState<any>(null);
+  const [coinAmount, setCoinAmount] = useState<string>("");
+  const [coinType, setCoinType] = useState<'earn' | 'spend'>('earn');
+  const [coinNote, setCoinNote] = useState<string>("");
+  const [coinSubmitting, setCoinSubmitting] = useState(false);
+
+  const handleCoinSubmit = async () => {
+    if (!coinUser) return;
+    const amt = Number(coinAmount);
+    if (!amt || amt <= 0) {
+      toast({ title: 'Invalid amount', description: 'Enter a positive number', variant: 'destructive' });
+      return;
+    }
+    setCoinSubmitting(true);
+    const ok = await adjustCoins(coinUser.user_id, amt, coinType, coinNote || undefined);
+    setCoinSubmitting(false);
+    if (ok) {
+      setCoinUser(null);
+      setCoinAmount("");
+      setCoinNote("");
+      setCoinType('earn');
+    }
+  };
+
 
   const fetchMentorProfiles = async () => {
     try {
@@ -526,7 +552,16 @@ export default function AdminDashboard() {
                                 <Shield className="w-3 h-3 mr-1" />
                                 {user.roles.includes('admin') ? 'Remove Admin' : 'Make Admin'}
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setCoinUser(user); setCoinType('earn'); }}
+                              >
+                                <Coins className="w-3 h-3 mr-1" />
+                                Adjust Coins
+                              </Button>
                             </div>
+
                           </TableCell>
                         </TableRow>
                       ))}
@@ -838,6 +873,43 @@ export default function AdminDashboard() {
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogTitle className="sr-only">Security Report</DialogTitle>
           <ReportViewer report={previewReport} onClose={() => setPreviewReport(null)} />
+        </DialogContent>
+      </Dialog>
+
+      {/* Adjust Coins Modal */}
+      <Dialog open={!!coinUser} onOpenChange={(o) => !o && setCoinUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adjust Coins</DialogTitle>
+            <DialogDescription>
+              {coinUser?.full_name} — current balance: {coinUser?.coinBalance ?? 0} coins
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button size="sm" variant={coinType === 'earn' ? 'default' : 'outline'} onClick={() => setCoinType('earn')}>
+                Add Coins
+              </Button>
+              <Button size="sm" variant={coinType === 'spend' ? 'destructive' : 'outline'} onClick={() => setCoinType('spend')}>
+                Deduct Coins
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label>Amount (coins)</Label>
+              <Input type="number" min="1" placeholder="e.g. 100" value={coinAmount} onChange={(e) => setCoinAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Note (optional)</Label>
+              <Textarea placeholder="Reason for adjustment" value={coinNote} onChange={(e) => setCoinNote(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCoinUser(null)} disabled={coinSubmitting}>Cancel</Button>
+            <Button onClick={handleCoinSubmit} disabled={coinSubmitting}>
+              {coinSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Coins className="w-4 h-4 mr-2" />}
+              {coinType === 'earn' ? 'Add Coins' : 'Deduct Coins'}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </Layout>

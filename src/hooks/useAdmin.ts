@@ -165,7 +165,21 @@ export function useAdmin() {
     return true;
   };
 
+  const adjustCoins = async (userId: string, amount: number, type: 'earn' | 'spend', description?: string) => {
+    const { data, error } = await supabase.functions.invoke('admin-operations', {
+      body: { action: 'adjust_coins', data: { userId, amount, type, description } }
+    });
+    if (error || (data as any)?.error) {
+      toast({ title: 'Error', description: (data as any)?.error || 'Failed to adjust coins', variant: 'destructive' });
+      return false;
+    }
+    toast({ title: 'Success', description: (data as any).message });
+    await fetchUsers();
+    return true;
+  };
+
   useEffect(() => {
+
     checkAdminStatus();
   }, []);
 
@@ -179,6 +193,8 @@ export function useAdmin() {
     fetchWithdrawalRequests,
     fetchTransactions,
     processWithdrawal,
-    updateUserRole
+    updateUserRole,
+    adjustCoins
+
   };
 }
