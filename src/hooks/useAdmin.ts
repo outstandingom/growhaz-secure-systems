@@ -193,6 +193,8 @@ export function useAdmin() {
     fetchWithdrawalRequests,
     fetchTransactions,
     processWithdrawal,
-    updateUserRole
+    updateUserRole,
+    adjustCoins
+
   };
 }
