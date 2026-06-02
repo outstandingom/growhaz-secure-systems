@@ -55,8 +55,10 @@ export default function AdminDashboard() {
     fetchWithdrawalRequests,
     fetchTransactions,
     processWithdrawal,
-    updateUserRole
+    updateUserRole,
+    adjustCoins
   } = useAdmin();
+
 
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
