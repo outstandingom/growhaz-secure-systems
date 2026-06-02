@@ -552,7 +552,16 @@ export default function AdminDashboard() {
                                 <Shield className="w-3 h-3 mr-1" />
                                 {user.roles.includes('admin') ? 'Remove Admin' : 'Make Admin'}
                               </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => { setCoinUser(user); setCoinType('earn'); }}
+                              >
+                                <Coins className="w-3 h-3 mr-1" />
+                                Adjust Coins
+                              </Button>
                             </div>
+
                           </TableCell>
                         </TableRow>
                       ))}
