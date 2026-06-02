@@ -875,6 +875,43 @@ export default function AdminDashboard() {
           <ReportViewer report={previewReport} onClose={() => setPreviewReport(null)} />
         </DialogContent>
       </Dialog>
+
+      {/* Adjust Coins Modal */}
+      <Dialog open={!!coinUser} onOpenChange={(o) => !o && setCoinUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Adjust Coins</DialogTitle>
+            <DialogDescription>
+              {coinUser?.full_name} — current balance: {coinUser?.coinBalance ?? 0} coins
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Button size="sm" variant={coinType === 'earn' ? 'default' : 'outline'} onClick={() => setCoinType('earn')}>
+                Add Coins
+              </Button>
+              <Button size="sm" variant={coinType === 'spend' ? 'destructive' : 'outline'} onClick={() => setCoinType('spend')}>
+                Deduct Coins
+              </Button>
+            </div>
+            <div className="space-y-2">
+              <Label>Amount (coins)</Label>
+              <Input type="number" min="1" placeholder="e.g. 100" value={coinAmount} onChange={(e) => setCoinAmount(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Note (optional)</Label>
+              <Textarea placeholder="Reason for adjustment" value={coinNote} onChange={(e) => setCoinNote(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCoinUser(null)} disabled={coinSubmitting}>Cancel</Button>
+            <Button onClick={handleCoinSubmit} disabled={coinSubmitting}>
+              {coinSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Coins className="w-4 h-4 mr-2" />}
+              {coinType === 'earn' ? 'Add Coins' : 'Deduct Coins'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
         }
