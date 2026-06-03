@@ -210,12 +210,12 @@ contract StepManager {
 
     // ── Views ───────────────────────────────────────────────────
 
-    function getStep(bytes32 _key, uint256 _stepId) external view returns (Step memory) {
-        return steps[_key][_stepId];
+    function getStep(bytes32 _instanceKey, uint256 _stepId) external view returns (Step memory) {
+        return steps[_instanceKey][_stepId];
     }
 
-    function getStepCount(bytes32 _key) external view returns (uint256) {
-        return instances[_key].stepCount;
+    function getStepCount(bytes32 _instanceKey) external view returns (uint256) {
+        return instances[_instanceKey].stepCount;
     }
 
     // ── Internals ───────────────────────────────────────────────
