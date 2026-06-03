@@ -1,7 +1,7 @@
 import { viem } from "hardhat";
 import { formatEther } from "viem";
 
-const SEPOLIA_MIN_ETH_FOR_FULL_DEPLOY = 0.04;
+const SEPOLIA_MIN_ETH_FOR_FULL_DEPLOY = 0.01;
 
 async function deployWithLabel<T>(label: string, deploy: () => Promise<T & { address: `0x${string}` }>) {
   console.log(`\nDeploying ${label}...`);
