@@ -14,7 +14,10 @@ const BLOCKCHAIN_RPC_URL = process.env.BLOCKCHAIN_RPC_URL;
 module.exports = {
   solidity: {
     version: "0.8.20",
-    settings: { optimizer: { enabled: true, runs: 200 } },
+    settings: {
+      optimizer: { enabled: true, runs: 200 },
+      viaIR: true,
+    },
   },
   networks: {
     sepolia: {
