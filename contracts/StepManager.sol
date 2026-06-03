@@ -149,12 +149,12 @@ contract StepManager {
     }
 
     function completeStep(
-        bytes32 _key,
+        bytes32 _instanceKey,
         uint256 _stepId,
         string calldata _evidenceHash,
         string calldata _note
     ) external {
-        Step storage s = steps[_key][_stepId];
+        Step storage s = steps[_instanceKey][_stepId];
         require(s.exists, "Step not found");
         require(s.status == StepStatus.InProgress || s.status == StepStatus.Pending, "Bad status");
         require(s.assignee == address(0) || s.assignee == msg.sender, "Not assignee");
@@ -165,8 +165,8 @@ contract StepManager {
         s.completionNote = _note;
         s.status = StepStatus.Completed;
 
-        emit StepCompleted(_key, _stepId, msg.sender, _evidenceHash, _note);
-        Instance storage inst = instances[_key];
+        emit StepCompleted(_instanceKey, _stepId, msg.sender, _evidenceHash, _note);
+        Instance storage inst = instances[_instanceKey];
         _log(inst.entityType, inst.entityId, "step_completed", s.title);
     }
 
@@ -176,9 +176,9 @@ contract StepManager {
      * Verifier must be authorised by the instance's organisation for the
      * declared processType (if organisation set). Otherwise owner verifies.
      */
-    function verifyStep(bytes32 _key, uint256 _stepId, string calldata _note) external {
-        Step storage s = steps[_key][_stepId];
-        Instance storage inst = instances[_key];
+    function verifyStep(bytes32 _instanceKey, uint256 _stepId, string calldata _note) external {
+        Step storage s = steps[_instanceKey][_stepId];
+        Instance storage inst = instances[_instanceKey];
         require(s.exists, "Step not found");
         require(s.status == StepStatus.Completed, "Not completed");
         _requireVerifier(inst);
@@ -188,13 +188,13 @@ contract StepManager {
         s.verificationNote = _note;
         s.status = StepStatus.Verified;
 
-        emit StepVerified(_key, _stepId, msg.sender, _note);
+        emit StepVerified(_instanceKey, _stepId, msg.sender, _note);
         _log(inst.entityType, inst.entityId, "step_verified", s.title);
     }
 
-    function rejectStep(bytes32 _key, uint256 _stepId, string calldata _reason) external {
-        Step storage s = steps[_key][_stepId];
-        Instance storage inst = instances[_key];
+    function rejectStep(bytes32 _instanceKey, uint256 _stepId, string calldata _reason) external {
+        Step storage s = steps[_instanceKey][_stepId];
+        Instance storage inst = instances[_instanceKey];
         require(s.exists, "Step not found");
         require(s.status == StepStatus.Completed || s.status == StepStatus.InProgress, "Bad status");
         _requireVerifier(inst);
@@ -204,7 +204,7 @@ contract StepManager {
         s.verificationNote = _reason;
         s.status = StepStatus.Rejected;
 
-        emit StepRejected(_key, _stepId, msg.sender, _reason);
+        emit StepRejected(_instanceKey, _stepId, msg.sender, _reason);
         _log(inst.entityType, inst.entityId, "step_rejected", _reason);
     }
 
