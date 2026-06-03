@@ -104,17 +104,17 @@ contract StepManager {
      * This makes the workflow extensible at runtime.
      */
     function addStep(
-        bytes32 _key,
+        bytes32 _instanceKey,
         string calldata _title,
         string calldata _description,
         address _assignee
     ) external returns (uint256 stepId) {
-        Instance storage inst = instances[_key];
+        Instance storage inst = instances[_instanceKey];
         require(inst.exists, "Instance not found");
         require(msg.sender == inst.owner || msg.sender == inst.organisation, "Not allowed");
 
         stepId = ++inst.stepCount;
-        steps[_key][stepId] = Step({
+        steps[_instanceKey][stepId] = Step({
             id: stepId,
             title: _title,
             description: _description,
@@ -130,21 +130,21 @@ contract StepManager {
             status: StepStatus.Pending,
             exists: true
         });
-        emit StepAdded(_key, stepId, _title, _assignee);
+        emit StepAdded(_instanceKey, stepId, _title, _assignee);
         _log(inst.entityType, inst.entityId, "step_added", _title);
     }
 
     // ── Step execution ──────────────────────────────────────────
 
-    function startStep(bytes32 _key, uint256 _stepId) external {
-        Step storage s = steps[_key][_stepId];
+    function startStep(bytes32 _instanceKey, uint256 _stepId) external {
+        Step storage s = steps[_instanceKey][_stepId];
         require(s.exists, "Step not found");
         require(s.status == StepStatus.Pending, "Bad status");
         require(s.assignee == address(0) || s.assignee == msg.sender, "Not assignee");
         s.actor = msg.sender;
         s.status = StepStatus.InProgress;
-        emit StepStarted(_key, _stepId, msg.sender);
-        Instance storage inst = instances[_key];
+        emit StepStarted(_instanceKey, _stepId, msg.sender);
+        Instance storage inst = instances[_instanceKey];
         _log(inst.entityType, inst.entityId, "step_started", s.title);
     }
 
