@@ -10,7 +10,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "contracts:estimate-gas": "hardhat run scripts/estimate-gas.ts --network sepolia",
+    "contracts:deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
