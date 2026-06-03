@@ -1,5 +1,5 @@
 import { artifacts, viem } from "hardhat";
-import { formatEther, parseGwei } from "viem";
+import { encodeDeployData, formatEther, parseGwei } from "viem";
 
 const DUMMY_ADDRESS = "0x0000000000000000000000000000000000000001" as const;
 const SETUP_TX_GAS = 55_000n * 5n; // 4x setWriter + 1x setProcessManager, padded
@@ -31,11 +31,14 @@ async function main() {
 
   for (const contract of contracts) {
     const artifact = await artifacts.readArtifact(contract.name);
-    const gas = await publicClient.estimateContractGas({
-      account: deployer.account,
+    const data = encodeDeployData({
       abi: artifact.abi,
       bytecode: artifact.bytecode as `0x${string}`,
       args: [...contract.args],
+    });
+    const gas = await publicClient.estimateGas({
+      account: deployer.account,
+      data,
     });
     totalGas += gas;
     console.log(`${contract.name.padEnd(28)} ${gas.toString()} gas`);
