@@ -1,7 +1,7 @@
 import { viem } from "hardhat";
 import { formatEther } from "viem";
 
-const SEPOLIA_MIN_ETH_FOR_FULL_DEPLOY = 0.01;
+const MIN_NATIVE_FOR_FULL_DEPLOY = 0.05; // covers Amoy (POL) or Sepolia (ETH)
 
 async function deployWithLabel<T>(label: string, deploy: () => Promise<T & { address: `0x${string}` }>) {
   console.log(`\nDeploying ${label}...`);
@@ -30,15 +30,18 @@ async function main() {
   const [deployer] = await viem.getWalletClients();
   const publicClient = await viem.getPublicClient();
   const balance = await publicClient.getBalance({ address: deployer.account.address });
-  const balanceEth = Number(formatEther(balance));
+  const chainId = await publicClient.getChainId();
+  const isAmoy = chainId === 80002;
+  const sym = isAmoy ? "POL" : "ETH";
+  const balanceNative = Number(formatEther(balance));
 
   console.log("Deploying with:", deployer.account.address);
-  console.log("Sepolia ETH balance:", formatEther(balance));
+  console.log("Chain ID:", chainId, isAmoy ? "(Polygon Amoy)" : "(Sepolia)");
+  console.log(`Native balance: ${formatEther(balance)} ${sym}`);
 
-  if (balanceEth < SEPOLIA_MIN_ETH_FOR_FULL_DEPLOY) {
+  if (balanceNative < MIN_NATIVE_FOR_FULL_DEPLOY) {
     throw new Error(
-      `Balance too low for full deployment. You have ${formatEther(balance)} Sepolia ETH. ` +
-      `For all contracts + setup transactions, fund at least ${SEPOLIA_MIN_ETH_FOR_FULL_DEPLOY} Sepolia ETH, then run again.`
+      `Balance too low. You have ${formatEther(balance)} ${sym}. Fund at least ${MIN_NATIVE_FOR_FULL_DEPLOY} ${sym}, then re-run.`
     );
   }
 
