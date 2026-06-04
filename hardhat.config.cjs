@@ -25,9 +25,15 @@ module.exports = {
       accounts: [BLOCKCHAIN_PRIVATE_KEY],
       chainId: 11155111,
     },
+    amoy: {
+      url: BLOCKCHAIN_RPC_URL || `https://polygon-amoy.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
+      accounts: [BLOCKCHAIN_PRIVATE_KEY],
+      chainId: 80002,
+    },
     polygon_amoy: {
       url: `https://polygon-amoy.g.alchemy.com/v2/${ALCHEMY_API_KEY}`,
       accounts: [BLOCKCHAIN_PRIVATE_KEY],
+      chainId: 80002,
     },
   },
   paths: { sources: "./contracts", tests: "./test", cache: "./cache", artifacts: "./artifacts" },

@@ -11,7 +11,10 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "contracts:estimate-gas": "hardhat run scripts/estimate-gas.ts --network sepolia",
+    "contracts:estimate-gas": "hardhat run scripts/estimate-gas.ts --network amoy",
+    "contracts:estimate-gas:sepolia": "hardhat run scripts/estimate-gas.ts --network sepolia",
+    "contracts:deploy": "hardhat run scripts/deploy.ts --network amoy",
+    "contracts:deploy:amoy": "hardhat run scripts/deploy.ts --network amoy",
     "contracts:deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia"
   },
   "dependencies": {

@@ -3,13 +3,13 @@
  * Shows children only when wallet is connected on Sepolia.
  */
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
-import { useChain, SEPOLIA_CHAIN_HEX } from "@/hooks/useChain";
+import { useChain, AMOY_CHAIN_HEX, AMOY_NAME } from "@/hooks/useChain";
 import { Button } from "@/components/ui/button";
 import { Wallet, AlertTriangle, Loader2 } from "lucide-react";
 
 export function WalletGate({ children }: { children: React.ReactNode }) {
   const { walletAddress, chainId, connectMetaMask, isConnecting } = useWeb3Wallet();
-  const { ensureSepolia } = useChain();
+  const { ensureAmoy } = useChain();
 
   if (!walletAddress) {
     return (
@@ -25,12 +25,12 @@ export function WalletGate({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (chainId && chainId !== SEPOLIA_CHAIN_HEX) {
+  if (chainId && chainId !== AMOY_CHAIN_HEX) {
     return (
       <div className="flex flex-col items-center gap-3 p-6 rounded-xl bg-amber-500/10 border border-amber-500/30">
         <AlertTriangle className="w-8 h-8 text-amber-400" />
-        <p className="text-sm">Switch your wallet to <strong>Sepolia</strong>.</p>
-        <Button size="sm" onClick={() => ensureSepolia()}>Switch to Sepolia</Button>
+        <p className="text-sm">Switch your wallet to <strong>{AMOY_NAME}</strong>.</p>
+        <Button size="sm" onClick={() => ensureAmoy()}>Switch to {AMOY_NAME}</Button>
       </div>
     );
   }
