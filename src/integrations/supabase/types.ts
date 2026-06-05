@@ -448,6 +448,167 @@ export type Database = {
         }
         Relationships: []
       }
+      demo_chain_wallets: {
+        Row: {
+          created_at: string
+          display_balance: string | null
+          id: string
+          label: string | null
+          network: string
+          owner_id: string
+          wallet_address: string
+        }
+        Insert: {
+          created_at?: string
+          display_balance?: string | null
+          id?: string
+          label?: string | null
+          network?: string
+          owner_id: string
+          wallet_address: string
+        }
+        Update: {
+          created_at?: string
+          display_balance?: string | null
+          id?: string
+          label?: string | null
+          network?: string
+          owner_id?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
+      demo_process_steps: {
+        Row: {
+          assignee_name: string | null
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          data: Json | null
+          description: string | null
+          id: string
+          process_id: string
+          status: string
+          step_index: number
+          title: string
+          updated_at: string
+          verification_notes: string | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          assignee_name?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          data?: Json | null
+          description?: string | null
+          id?: string
+          process_id: string
+          status?: string
+          step_index: number
+          title: string
+          updated_at?: string
+          verification_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          assignee_name?: string | null
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          data?: Json | null
+          description?: string | null
+          id?: string
+          process_id?: string
+          status?: string
+          step_index?: number
+          title?: string
+          updated_at?: string
+          verification_notes?: string | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "demo_process_steps_process_id_fkey"
+            columns: ["process_id"]
+            isOneToOne: false
+            referencedRelation: "demo_processes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      demo_processes: {
+        Row: {
+          created_at: string
+          description: string | null
+          entity_ref: string | null
+          entity_type: string
+          id: string
+          name: string
+          owner_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          entity_ref?: string | null
+          entity_type?: string
+          id?: string
+          name: string
+          owner_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          entity_ref?: string | null
+          entity_type?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      demo_user_registry: {
+        Row: {
+          id: string
+          ipfs_cid: string | null
+          name: string
+          owner_id: string
+          phone_hash: string | null
+          profession: string | null
+          registered_at: string
+          wallet_address: string
+        }
+        Insert: {
+          id?: string
+          ipfs_cid?: string | null
+          name: string
+          owner_id: string
+          phone_hash?: string | null
+          profession?: string | null
+          registered_at?: string
+          wallet_address: string
+        }
+        Update: {
+          id?: string
+          ipfs_cid?: string | null
+          name?: string
+          owner_id?: string
+          phone_hash?: string | null
+          profession?: string | null
+          registered_at?: string
+          wallet_address?: string
+        }
+        Relationships: []
+      }
       learning_request_responses: {
         Row: {
           created_at: string
