@@ -1,4 +1,5 @@
 require("dotenv").config();
+
 // Register ts-node so Hardhat can run TypeScript tests and scripts
 try {
   require("ts-node").register({ transpileOnly: true });
