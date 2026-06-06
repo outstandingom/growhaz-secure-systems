@@ -1,10 +1,10 @@
 /**
- * Shared MetaMask signer + read-only Polygon Amoy provider (through Alchemy proxy).
+ * Shared MetaMask signer + read-only Sepolia provider (through Alchemy proxy).
  * Use getContract(address, abi, { write }) to get a connected ethers.Contract.
  *
- * Network: Polygon Amoy testnet (chainId 80002).
- * Legacy SEPOLIA_* exports are kept as aliases so other files keep working,
- * but they now point at Amoy values.
+ * Network: Ethereum Sepolia testnet (chainId 11155111).
+ * AMOY_* names are kept as aliases (pointing at Sepolia values) so existing
+ * imports keep working without changes.
  */
 import { useCallback, useMemo } from "react";
 import { ethers } from "ethers";
@@ -13,46 +13,48 @@ const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON_KEY =
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.VITE_SUPABASE_ANON_KEY;
-const ALCHEMY_PROXY_URL = `${SUPABASE_URL}/functions/v1/alchemy-proxy?network=polygon-amoy`;
+const ALCHEMY_PROXY_URL = `${SUPABASE_URL}/functions/v1/alchemy-proxy?network=eth-sepolia`;
 
-export const AMOY_CHAIN_ID = 80002;
-export const AMOY_CHAIN_HEX = "0x13882";
-export const AMOY_EXPLORER = "https://amoy.polygonscan.com";
-export const AMOY_NAME = "Polygon Amoy";
-export const AMOY_SYMBOL = "POL";
+export const SEPOLIA_CHAIN_ID = 11155111;
+export const SEPOLIA_CHAIN_HEX = "0xaa36a7";
+export const SEPOLIA_EXPLORER = "https://sepolia.etherscan.io";
+export const SEPOLIA_NAME = "Sepolia";
+export const SEPOLIA_SYMBOL = "ETH";
 
-// Legacy aliases (other files import these names) — now point at Amoy.
-export const SEPOLIA_CHAIN_ID = AMOY_CHAIN_ID;
-export const SEPOLIA_CHAIN_HEX = AMOY_CHAIN_HEX;
-export const SEPOLIA_EXPLORER = AMOY_EXPLORER;
+// Legacy aliases (some components import AMOY_*) — now point at Sepolia.
+export const AMOY_CHAIN_ID = SEPOLIA_CHAIN_ID;
+export const AMOY_CHAIN_HEX = SEPOLIA_CHAIN_HEX;
+export const AMOY_EXPLORER = SEPOLIA_EXPLORER;
+export const AMOY_NAME = SEPOLIA_NAME;
+export const AMOY_SYMBOL = SEPOLIA_SYMBOL;
 
 export function useChain() {
   const readProvider = useMemo(() => {
     const req = new ethers.FetchRequest(ALCHEMY_PROXY_URL);
     if (SUPABASE_ANON_KEY) req.setHeader("Authorization", `Bearer ${SUPABASE_ANON_KEY}`);
-    return new ethers.JsonRpcProvider(req, AMOY_CHAIN_ID, { staticNetwork: true });
+    return new ethers.JsonRpcProvider(req, SEPOLIA_CHAIN_ID, { staticNetwork: true });
   }, []);
 
-  const ensureAmoy = useCallback(async () => {
+  const ensureSepolia = useCallback(async () => {
     if (!(window as any).ethereum) throw new Error("MetaMask not detected");
     const eth = (window as any).ethereum;
     const id = await eth.request({ method: "eth_chainId" });
-    if (id !== AMOY_CHAIN_HEX) {
+    if (id !== SEPOLIA_CHAIN_HEX) {
       try {
         await eth.request({
           method: "wallet_switchEthereumChain",
-          params: [{ chainId: AMOY_CHAIN_HEX }],
+          params: [{ chainId: SEPOLIA_CHAIN_HEX }],
         });
       } catch (e: any) {
         if (e.code === 4902) {
           await eth.request({
             method: "wallet_addEthereumChain",
             params: [{
-              chainId: AMOY_CHAIN_HEX,
-              chainName: AMOY_NAME,
-              nativeCurrency: { name: "POL", symbol: AMOY_SYMBOL, decimals: 18 },
-              rpcUrls: ["https://rpc-amoy.polygon.technology"],
-              blockExplorerUrls: [AMOY_EXPLORER],
+              chainId: SEPOLIA_CHAIN_HEX,
+              chainName: SEPOLIA_NAME,
+              nativeCurrency: { name: "Sepolia ETH", symbol: SEPOLIA_SYMBOL, decimals: 18 },
+              rpcUrls: ["https://rpc.sepolia.org"],
+              blockExplorerUrls: [SEPOLIA_EXPLORER],
             }],
           });
         } else throw e;
@@ -60,14 +62,14 @@ export function useChain() {
     }
   }, []);
 
-  // Legacy name kept for existing callers.
-  const ensureSepolia = ensureAmoy;
+  // Legacy alias kept for existing callers.
+  const ensureAmoy = ensureSepolia;
 
   const getSigner = useCallback(async () => {
-    await ensureAmoy();
+    await ensureSepolia();
     const provider = new ethers.BrowserProvider((window as any).ethereum);
     return provider.getSigner();
-  }, [ensureAmoy]);
+  }, [ensureSepolia]);
 
   const getContract = useCallback(
     async (address: string, abi: any, opts?: { write?: boolean }) => {
@@ -81,7 +83,7 @@ export function useChain() {
     [getSigner, readProvider],
   );
 
-  return { readProvider, getSigner, getContract, ensureAmoy, ensureSepolia };
+  return { readProvider, getSigner, getContract, ensureSepolia, ensureAmoy };
 }
 
 export function getInstanceId(templateId: string, documentId: string): string {
