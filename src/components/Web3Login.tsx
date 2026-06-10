@@ -1,154 +1,197 @@
-// src/hooks/useWeb3Wallet.ts
-import { useState, useEffect, useCallback } from "react";
-import { BrowserProvider, Contract } from "ethers";
-import { USER_REGISTRY_V2_ADDRESS, USER_REGISTRY_V2_ABI } from "@/lib/userRegistryV2Contract";
+import { FC, useState } from "react";
+import { useNavigate } from "react-router-dom"; // Add this import
+import { BrowserProvider } from "ethers";
+import bs58 from "bs58";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast"; 
 
-export interface OnChainUser {
-  exists: boolean;
-  ipfsCid: string;
-  updatedAt: number;
-  name?: string;
-  profession?: string;
-  age?: number;
-  phoneHash?: string;
-  emailHash?: string;
-  fullIpfsData?: any; // cached IPFS data
+
+declare global {
+  interface Window {
+    ethereum?: any;
+    solana?: any;
+  }
 }
 
-export function useWeb3Wallet() {
-  const [walletAddress, setWalletAddress] = useState<string | null>(null);
-  const [walletType, setWalletType] = useState<string | null>(null);
-  const [onChainUser, setOnChainUser] = useState<OnChainUser | null>(null);
-  const [loadingOnChain, setLoadingOnChain] = useState(false);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [loginMethod, setLoginMethod] = useState<"traditional" | "wallet">("traditional");
+const Web3Login: FC = () => {
+  const [loading, setLoading] = useState<string | null>(null);
+  const { toast } = useToast();
+  const navigate = useNavigate(); // Add this line
 
-  // Helper: fetch on‑chain profile (read‑only) and optionally IPFS data
-  const fetchOnChainProfile = useCallback(async (address: string): Promise<OnChainUser | null> => {
-    if (!address) return null;
+  // 1. Move check into a function to avoid SSR crashes 
+  // 2. Expand regex and add touch/width fallbacks for iPads and hidden user agents
+  const checkIsMobile = () => {
+    if (typeof window === "undefined") return false;
+    return (
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+      (window.navigator.maxTouchPoints && window.navigator.maxTouchPoints > 2) ||
+      window.innerWidth <= 768
+    );
+  };
+
+  // ---------------- ETHEREUM ----------------
+
+  const loginMetaMask = async () => {
     try {
-      const provider = new BrowserProvider(window.ethereum);
-      const contract = new Contract(USER_REGISTRY_V2_ADDRESS, USER_REGISTRY_V2_ABI, provider);
-      const [ipfsHash, updatedAt] = await contract.getProfile(address);
-      if (ipfsHash && ipfsHash !== "" && updatedAt > 0) {
-        const profile: OnChainUser = {
-          exists: true,
-          ipfsCid: ipfsHash,
-          updatedAt: Number(updatedAt),
-        };
-        // Optionally fetch full IPFS data
-        try {
-          const res = await fetch(`https://gateway.pinata.cloud/ipfs/${ipfsHash}`);
-          if (res.ok) {
-            profile.fullIpfsData = await res.json();
-            profile.name = profile.fullIpfsData.name;
-            profile.profession = profile.fullIpfsData.profession;
-            profile.age = profile.fullIpfsData.age;
-            profile.phoneHash = profile.fullIpfsData.phoneHash;
-            profile.emailHash = profile.fullIpfsData.emailHash;
-          }
-        } catch (err) {
-          console.warn("Could not fetch IPFS data", err);
+      setLoading("metamask");
+
+      if (!window.ethereum) {
+        if (checkIsMobile()) {
+          // MOBILE DEEP LINK
+          const dappUrl = window.location.href.replace(/^https?:\/\//, "");
+          window.location.href = `https://metamask.app.link/dapp/${dappUrl}`;
+          return;
         }
-        return profile;
-      }
-    } catch (err) {
-      console.warn("Failed to fetch on‑chain profile:", err);
-    }
-    return null;
-  }, []);
 
-  // Connect MetaMask
-  const connectMetaMask = useCallback(async () => {
-    if (!window.ethereum) {
-      throw new Error("MetaMask not installed");
-    }
-    setIsConnecting(true);
-    try {
+        toast({
+          title: "MetaMask not found",
+          description: "Please install MetaMask",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const provider = new BrowserProvider(window.ethereum);
       await provider.send("eth_requestAccounts", []);
       const signer = await provider.getSigner();
       const address = await signer.getAddress();
-      setWalletAddress(address);
-      setWalletType("metamask");
-      setLoginMethod("wallet");
 
-      setLoadingOnChain(true);
-      const profile = await fetchOnChainProfile(address);
-      setOnChainUser(profile);
-      setLoadingOnChain(false);
-      return address;
-    } catch (error: any) {
-      console.error("Connection error:", error);
-      throw error;
+      // safer nonce
+      const nonce = Date.now().toString();
+
+      const { error } = await (supabase.auth as any).signInWithWeb3({
+        chain: "ethereum",
+        signer,
+        statement: "Sign in to GrowHaz",
+        domain: window.location.host,
+        uri: window.location.origin,
+        nonce,
+      });
+
+      if (error) throw error;
+
+      localStorage.setItem(
+        "growhaz_wallet",
+        JSON.stringify({
+          address,
+          type: "metamask",
+          loginMethod: "wallet",
+        })
+      );
+
+      toast({
+        title: "Connected",
+        description: `${address.slice(0, 6)}...${address.slice(-4)}`,
+      });
+
+      // Add redirect here
+      navigate("/profile");
+
+    } catch (e: any) {
+      toast({
+        title: "MetaMask Login Failed",
+        description: e?.message || "Unknown error",
+        variant: "destructive",
+      });
     } finally {
-      setIsConnecting(false);
+      setLoading(null);
     }
-  }, [fetchOnChainProfile]);
-
-  const connectPhantom = useCallback(async () => {
-    throw new Error("Phantom is not supported for Ethereum. Please use MetaMask.");
-  }, []);
-
-  const disconnect = useCallback(() => {
-    setWalletAddress(null);
-    setWalletType(null);
-    setOnChainUser(null);
-    setLoginMethod("traditional");
-  }, []);
-
-  // Register / update on-chain (uses the contract)
-  const registerOrUpdateOnChain = useCallback(async (ipfsCid: string): Promise<string> => {
-    if (!walletAddress) throw new Error("No wallet connected");
-    const provider = new BrowserProvider(window.ethereum);
-    const signer = await provider.getSigner();
-    const contract = new Contract(USER_REGISTRY_V2_ADDRESS, USER_REGISTRY_V2_ABI, signer);
-    const tx = await contract.registerOrUpdate(ipfsCid);
-    const receipt = await tx.wait();
-    return receipt.hash;
-  }, [walletAddress]);
-
-  // Refresh on‑chain profile after registration/update
-  const refreshOnChainProfile = useCallback(async () => {
-    if (!walletAddress) return;
-    setLoadingOnChain(true);
-    const profile = await fetchOnChainProfile(walletAddress);
-    setOnChainUser(profile);
-    setLoadingOnChain(false);
-  }, [walletAddress, fetchOnChainProfile]);
-
-  // Auto‑connect on mount if wallet was previously connected
-  useEffect(() => {
-    const checkConnection = async () => {
-      if (window.ethereum && window.ethereum.selectedAddress) {
-        try {
-          const provider = new BrowserProvider(window.ethereum);
-          const signer = await provider.getSigner();
-          const address = await signer.getAddress();
-          setWalletAddress(address);
-          setWalletType("metamask");
-          setLoginMethod("wallet");
-          const profile = await fetchOnChainProfile(address);
-          setOnChainUser(profile);
-        } catch {
-          // ignore
-        }
-      }
-    };
-    checkConnection();
-  }, [fetchOnChainProfile]);
-
-  return {
-    walletAddress,
-    walletType,
-    onChainUser,
-    loadingOnChain,
-    isConnecting,
-    loginMethod,
-    connectMetaMask,
-    connectPhantom,
-    disconnect,
-    registerOrUpdateOnChain, // unified function for both register & update
-    refreshOnChainProfile,
   };
+
+  // ---------------- SOLANA ----------------
+
+  const loginPhantom = async () => {
+    try {
+      setLoading("phantom");
+
+      if (!window.solana?.isPhantom) {
+        if (checkIsMobile()) {
+          // MOBILE DEEP LINK
+          const url = encodeURIComponent(window.location.href);
+          window.location.href = `https://phantom.app/ul/browse/${url}?ref=${url}`;
+          return;
+        }
+
+        toast({
+          title: "Phantom not found",
+          description: "Please install Phantom wallet",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const phantom = window.solana;
+      await phantom.connect();
+      const address = phantom.publicKey.toString();
+
+      const { error } = await (supabase.auth as any).signInWithWeb3({
+        chain: "solana",
+        wallet: phantom,
+        statement: "Sign in to GrowHaz",
+      });
+
+      // FALLBACK MANUAL SIGN
+      if (error) {
+        const nonce = Date.now().toString();
+
+        const message =
+          `Sign in to GrowHaz\n` +
+          `Wallet: ${address}\n` +
+          `Nonce: ${nonce}`;
+
+        const encoded = new TextEncoder().encode(message);
+        const signed = await phantom.signMessage(encoded, "utf8");
+        const signature = bs58.encode(signed.signature);
+
+        console.log(signature);
+      }
+
+      localStorage.setItem(
+        "growhaz_wallet",
+        JSON.stringify({
+          address,
+          type: "phantom",
+          loginMethod: "wallet",
+        })
+      );
+
+      toast({
+        title: "Connected",
+        description: `${address.slice(0, 6)}...${address.slice(-4)}`,
+      });
+
+      // Add redirect here
+      navigate("/profile");
+
+    } catch (e: any) {
+      toast({
+        title: "Phantom Login Failed",
+        description: e?.message || "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(null);
     }
+  };
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: "10px",
+        width: "100%",
+      }}
+    >
+      <button onClick={loginMetaMask} disabled={!!loading}>
+        {loading === "metamask" ? "Connecting..." : "Continue with MetaMask"}
+      </button>
+
+      <button onClick={loginPhantom} disabled={!!loading}>
+        {loading === "phantom" ? "Connecting..." : "Continue with Phantom"}
+      </button>
+    </div>
+  );
+};
+
+export default Web3Login;
