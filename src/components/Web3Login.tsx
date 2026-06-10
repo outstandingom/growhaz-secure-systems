@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom"; // Add this import
 import { BrowserProvider } from "ethers";
 import bs58 from "bs58";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast"; 
+
 
 declare global {
   interface Window {
