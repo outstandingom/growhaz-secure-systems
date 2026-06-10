@@ -1,4 +1,4 @@
-
+// src/hooks/useWeb3Wallet.ts
 import { useState, useEffect, useCallback } from "react";
 import { BrowserProvider, Contract } from "ethers";
 import { USER_REGISTRY_V2_ADDRESS, USER_REGISTRY_V2_ABI } from "@/lib/userRegistryV2Contract";
@@ -12,6 +12,7 @@ export interface OnChainUser {
   age?: number;
   phoneHash?: string;
   emailHash?: string;
+  fullIpfsData?: any; // cached IPFS data
 }
 
 export function useWeb3Wallet() {
@@ -22,19 +23,34 @@ export function useWeb3Wallet() {
   const [isConnecting, setIsConnecting] = useState(false);
   const [loginMethod, setLoginMethod] = useState<"traditional" | "wallet">("traditional");
 
-  // Helper: fetch on‑chain profile (read‑only)
-  const fetchOnChainProfile = useCallback(async (address: string) => {
+  // Helper: fetch on‑chain profile (read‑only) and optionally IPFS data
+  const fetchOnChainProfile = useCallback(async (address: string): Promise<OnChainUser | null> => {
     if (!address) return null;
     try {
       const provider = new BrowserProvider(window.ethereum);
       const contract = new Contract(USER_REGISTRY_V2_ADDRESS, USER_REGISTRY_V2_ABI, provider);
       const [ipfsHash, updatedAt] = await contract.getProfile(address);
       if (ipfsHash && ipfsHash !== "" && updatedAt > 0) {
-        return {
+        const profile: OnChainUser = {
           exists: true,
           ipfsCid: ipfsHash,
           updatedAt: Number(updatedAt),
         };
+        // Optionally fetch full IPFS data
+        try {
+          const res = await fetch(`https://gateway.pinata.cloud/ipfs/${ipfsHash}`);
+          if (res.ok) {
+            profile.fullIpfsData = await res.json();
+            profile.name = profile.fullIpfsData.name;
+            profile.profession = profile.fullIpfsData.profession;
+            profile.age = profile.fullIpfsData.age;
+            profile.phoneHash = profile.fullIpfsData.phoneHash;
+            profile.emailHash = profile.fullIpfsData.emailHash;
+          }
+        } catch (err) {
+          console.warn("Could not fetch IPFS data", err);
+        }
+        return profile;
       }
     } catch (err) {
       console.warn("Failed to fetch on‑chain profile:", err);
@@ -57,15 +73,9 @@ export function useWeb3Wallet() {
       setWalletType("metamask");
       setLoginMethod("wallet");
 
-      // Fetch on‑chain profile
       setLoadingOnChain(true);
       const profile = await fetchOnChainProfile(address);
-      if (profile) {
-        // Fetch full IPFS data if needed (can be done separately)
-        setOnChainUser(profile as OnChainUser);
-      } else {
-        setOnChainUser(null);
-      }
+      setOnChainUser(profile);
       setLoadingOnChain(false);
       return address;
     } catch (error: any) {
@@ -76,14 +86,10 @@ export function useWeb3Wallet() {
     }
   }, [fetchOnChainProfile]);
 
-  // Connect Phantom (Ethereum-compatible version via MetaMask‑like provider)
   const connectPhantom = useCallback(async () => {
-    // For Ethereum, Phantom does not natively provide an EIP‑1193 provider.
-    // We fall back to MetaMask or show a message.
     throw new Error("Phantom is not supported for Ethereum. Please use MetaMask.");
   }, []);
 
-  // Disconnect wallet (clear local state)
   const disconnect = useCallback(() => {
     setWalletAddress(null);
     setWalletType(null);
@@ -91,8 +97,8 @@ export function useWeb3Wallet() {
     setLoginMethod("traditional");
   }, []);
 
-  // Register user on‑chain (using the contract)
-  const registerUserOnChain = useCallback(async (ipfsCid: string) => {
+  // Register / update on-chain (uses the contract)
+  const registerOrUpdateOnChain = useCallback(async (ipfsCid: string): Promise<string> => {
     if (!walletAddress) throw new Error("No wallet connected");
     const provider = new BrowserProvider(window.ethereum);
     const signer = await provider.getSigner();
@@ -102,19 +108,16 @@ export function useWeb3Wallet() {
     return receipt.hash;
   }, [walletAddress]);
 
-  // Update user on‑chain (same function, contract uses registerOrUpdate)
-  const updateUserOnChain = registerUserOnChain;
-
-  // Refresh on‑chain profile after registration
+  // Refresh on‑chain profile after registration/update
   const refreshOnChainProfile = useCallback(async () => {
     if (!walletAddress) return;
     setLoadingOnChain(true);
     const profile = await fetchOnChainProfile(walletAddress);
-    setOnChainUser(profile as OnChainUser | null);
+    setOnChainUser(profile);
     setLoadingOnChain(false);
   }, [walletAddress, fetchOnChainProfile]);
 
-  // Auto‑connect if wallet was previously connected (optional)
+  // Auto‑connect on mount if wallet was previously connected
   useEffect(() => {
     const checkConnection = async () => {
       if (window.ethereum && window.ethereum.selectedAddress) {
@@ -126,9 +129,9 @@ export function useWeb3Wallet() {
           setWalletType("metamask");
           setLoginMethod("wallet");
           const profile = await fetchOnChainProfile(address);
-          setOnChainUser(profile as OnChainUser | null);
+          setOnChainUser(profile);
         } catch {
-          // Ignore
+          // ignore
         }
       }
     };
@@ -145,8 +148,7 @@ export function useWeb3Wallet() {
     connectMetaMask,
     connectPhantom,
     disconnect,
-    registerUserOnChain,
-    updateUserOnChain,
+    registerOrUpdateOnChain, // unified function for both register & update
     refreshOnChainProfile,
   };
-}
+    }
