@@ -142,7 +142,9 @@ export default function Profile() {
     try {
       // Step 1: Pin full profile data to IPFS via Pinata
       toast({ title: "Step 1/3 — Uploading to IPFS", description: "Pinning your full profile to decentralized storage..." });
-      const finalName = bcName.trim() || profile.full_name;
+      // If user provided input, use it. Otherwise, fallback to existing on-chain data, then Supabase profile data.
+      const finalName = bcName.trim() || onChainUser?.name || profile?.full_name || "Anonymous";
+      const finalProfession = editProfession.trim() || onChainUser?.profession || "User";
       const finalPhone = bcPhone.trim() || profile.phone || "";
       const emailHash = userEmail ? await sha256(userEmail) : "";
       const phoneHash = finalPhone ? await sha256(finalPhone) : "";
@@ -193,22 +195,7 @@ export default function Profile() {
         );
       }
 
-      // Step 3: Save registration metadata to Supabase (for search)
-      const { error: dbError } = await supabase.from("blockchain_user_registrations").insert({
-        transaction_hash: txHash,
-        block_hash: "pending",
-        block_number: 0,
-        contract_address: USER_REGISTRY_ADDRESS,
-        wallet_address: walletAddress,
-        ipfs_cid: ipfsCid,
-        user_name: finalName,
-        profession: editProfession.trim(),
-        phone_hash: phoneHash,
-        event_type: onChainUser?.exists ? "ProfileUpdated" : "UserRegistered",
-        on_chain_timestamp: Math.floor(Date.now() / 1000),
-      });
-
-      if (dbError) console.warn("Failed to save to Supabase:", dbError);
+      // Step 3 is now handled completely by indexUserRegistration in useWeb3Wallet.ts
 
       // Step 4: Also update profiles table with blockchain references
       await supabase

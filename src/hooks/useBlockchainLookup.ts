@@ -19,7 +19,7 @@ import {
   DOCUMENT_REGISTRY_V2_ABI,
 } from "@/lib/contractConfig";
 
-export type LookupInputType = "tx_hash" | "wallet" | "file_hash" | "doc_id" | "unknown";
+export type LookupInputType = "tx_hash" | "wallet" | "file_hash" | "doc_id" | "tracking_id" | "unknown";
 
 export interface LookupResult {
   inputType: LookupInputType;
@@ -71,6 +71,7 @@ function detectInputType(q: string): LookupInputType {
   if (/^0x[0-9a-fA-F]{64}$/.test(trimmed)) return "tx_hash";
   if (/^0x[0-9a-fA-F]{40}$/.test(trimmed)) return "wallet";
   if (/^[0-9a-fA-F]{64}$/.test(trimmed)) return "file_hash";
+  if (/^DOC-[A-Z0-9]+$/.test(trimmed.toUpperCase())) return "tracking_id";
   if (trimmed.length > 0) return "doc_id";
   return "unknown";
 }
@@ -191,6 +192,24 @@ export function useBlockchainLookup() {
         // Also check verified_documents
         const { data: vd } = await supabase.from("verified_documents").select("*").eq("file_hash", q).limit(5);
         if (vd && vd.length > 0) out.documentRegistrations = [...out.documentRegistrations, ...vd];
+      } else if (inputType === "tracking_id") {
+        // Query verified_documents by tracking_id
+        const { data: vd } = await supabase.from("verified_documents").select("*").eq("tracking_id", q.toUpperCase()).limit(1);
+        if (vd && vd.length > 0) {
+          // Wrap it in a format similar to documentRegistrations so downstream logic picks up file_hash or tx
+          out.documentRegistrations = vd.map(doc => ({
+            document_id: doc.id,
+            document_name: doc.document_name,
+            document_type: doc.document_type,
+            file_hash: doc.file_hash,
+            content_hash: doc.content_hash,
+            transaction_hash: doc.chain_tx_hash,
+            block_number: doc.chain_block_number,
+            wallet_address: doc.chain_issuer_address,
+            contract_address: doc.chain_contract_address,
+            ipfs_cid: doc.ipfs_cid,
+          }));
+        }
       } else {
         // doc_id — search by document_id in registry
         const { data } = await supabase.from("blockchain_document_registry").select("*").eq("document_id", q);
@@ -202,11 +221,13 @@ export function useBlockchainLookup() {
         out.contractUserData = await fetchContractUser(q);
       }
 
-      // For tx_hash or doc_id, try to get the wallet from index then read contract
-      if (inputType === "tx_hash" || inputType === "doc_id") {
-        const wallet = out.userRegistrations[0]?.wallet_address;
+      // For tx_hash, doc_id, or tracking_id, try to get the wallet from index then read contract
+      if (inputType === "tx_hash" || inputType === "doc_id" || inputType === "tracking_id") {
+        const wallet = out.userRegistrations[0]?.wallet_address || out.documentRegistrations[0]?.wallet_address;
         if (wallet) out.contractUserData = await fetchContractUser(wallet);
 
+        // First try docId, if not found try fileHash on contract directly? 
+        // We might not have docId if it's from tracking_id, so let's check file_hash if doc_id fails.
         const docId = out.documentRegistrations[0]?.document_id;
         if (docId) out.contractDocData = await fetchContractDoc(docId);
       }

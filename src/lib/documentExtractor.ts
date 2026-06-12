@@ -1,7 +1,7 @@
 // Browser-side document text extraction + content hashing + Merkle tree.
-// Mirrors two Node.js references:
-//   - Hindi pipeline: page-level OCR (hin+eng) -> page hashes -> Merkle root
-//   - English pipeline: tokenize -> chunk(100 tokens) -> chunk hashes -> Merkle root
+// Unified pipeline for both Hindi and English:
+//   extract text -> normalizeForMerkle() -> tokenize -> chunk(100 tokens) -> chunk hashes -> Merkle root
+// The same document always produces the same Merkle root.
 // Uses Tesseract.js for OCR, pdfjs-dist for PDFs, mammoth for DOCX.
 
 import { createWorker, type Worker } from "tesseract.js";
@@ -60,6 +60,25 @@ export function normalizeHin(text: string): string {
 export const cleanText = cleanTextEng;
 export const normalizeForHash = normalizeEng;
 
+/**
+ * Universal normalization for Merkle tree input.
+ * Produces deterministic output from the same logical content regardless of:
+ *   - Minor OCR whitespace/punctuation variations
+ *   - Hindi vs English text
+ *   - Unicode encoding differences (NFC normalized)
+ *
+ * Keeps: Devanagari (\u0900-\u097F), word characters (\w), and spaces.
+ * Strips: all punctuation, special chars, control chars.
+ */
+export function normalizeForMerkle(text: string): string {
+  return text
+    .normalize("NFC")                              // canonical Unicode form
+    .toLowerCase()                                   // case-insensitive
+    .replace(/[^\u0900-\u097F\w\s]/g, " ")           // keep Devanagari + word chars + space
+    .replace(/\s+/g, " ")                            // collapse whitespace
+    .trim();
+}
+
 export async function sha256Hex(text: string): Promise<string> {
   const buf = new TextEncoder().encode(text);
   const hash = await crypto.subtle.digest("SHA-256", buf);
@@ -85,12 +104,13 @@ export function detectDocumentType(text: string): string {
 }
 
 // ---------- Tokenize + chunk + merkle ----------
+/**
+ * Tokenize text that has already been passed through normalizeForMerkle().
+ * Since normalizeForMerkle already lowercases and strips non-word chars,
+ * this just splits on spaces.
+ */
 export function tokenize(text: string): string[] {
   return text
-    .toLowerCase()
-    .replace(/[^\u0900-\u097F\w\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim()
     .split(" ")
     .filter(Boolean);
 }
@@ -195,7 +215,11 @@ export interface ExtractedDoc {
 
 /**
  * Full pipeline: extract text -> detect language -> clean/normalize/hash ->
- * build Merkle tree (per-page for Hindi, per-chunk for English).
+ * build Merkle tree (unified chunk-level for both Hindi and English).
+ *
+ * The Merkle root is always built from:
+ *   normalizeForMerkle(rawText) -> tokenize -> chunk(100) -> sha256 per chunk -> Merkle tree
+ * This ensures the same document always produces the same Merkle root.
  */
 export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   const ext = (file.name.split(".").pop() || "").toLowerCase();
@@ -252,33 +276,25 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   const normalized = language === "hin" ? normalizeHin(cleaned) : normalizeEng(cleaned);
   const contentHash = await sha256Hex(normalized);
 
-  // 2) Merkle tree
-  let merkle: { root: string; leaves: { index: number; hash: string }[] } | null = null;
-  let totalChunks = 0;
-  let totalTokens = 0;
-  let pages: { pageNumber: number; text: string; hash: string }[] | undefined;
+  // 2) Merkle tree — UNIFIED for both Hindi and English
+  //    Always: normalizeForMerkle -> tokenize -> chunk(100) -> hash -> tree
+  const merkleNormalized = normalizeForMerkle(rawText);
+  const tokens = tokenize(merkleNormalized);
+  const totalTokens = tokens.length;
+  const chunks = chunkTokens(tokens, 100);
+  const totalChunks = chunks.length;
+  const merkle = await buildMerkleTree(chunks);
 
-  if (language === "hin" && pageTexts && pageTexts.length > 1) {
-    // Page-level merkle (Hindi reference)
-    const pageNormalized = pageTexts.map((t) => normalizeHin(cleanTextHin(t)));
-    const tree = await buildMerkleTree(pageNormalized);
-    merkle = tree;
-    totalChunks = pageNormalized.length;
+  // Optional page-level info for UI display (does NOT affect Merkle root)
+  let pages: { pageNumber: number; text: string; hash: string }[] | undefined;
+  if (pageTexts && pageTexts.length > 1) {
     pages = await Promise.all(
       pageTexts.map(async (t, i) => ({
         pageNumber: i + 1,
         text: t,
-        hash: await sha256Hex(normalizeHin(cleanTextHin(t))),
+        hash: await sha256Hex(normalizeForMerkle(t)),
       })),
     );
-  } else {
-    // Chunk-level merkle (English reference)
-    const tokens = tokenize(cleaned);
-    totalTokens = tokens.length;
-    const chunks = chunkTokens(tokens, 100);
-    totalChunks = chunks.length;
-    const tree = await buildMerkleTree(chunks);
-    merkle = tree;
   }
 
   return {

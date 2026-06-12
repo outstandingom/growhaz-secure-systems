@@ -2,7 +2,10 @@
  * merkleVerifier.ts
  *
  * Browser-side implementation of the Merkle verification pipeline:
- *   Content → Clean → Tokenize → Chunk → SHA-256 per chunk → Merkle Tree → Root Hash
+ *   Content → normalizeForMerkle → Tokenize → Chunk → SHA-256 per chunk → Merkle Tree → Root Hash
+ *
+ * Uses the same normalizeForMerkle() approach as documentExtractor.ts
+ * to ensure identical Merkle roots for the same document content.
  *
  * The Merkle root is a semantic fingerprint. Two differently formatted copies
  * of the same document produce the same root if the text content is identical.
@@ -26,24 +29,33 @@ async function sha256(message: string): Promise<string> {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-// ─── Text Cleaning ────────────────────────────────────────────────────────────
+// ─── Text Cleaning (Hindi-aware — keeps Devanagari \u0900-\u097F) ──────────────
 
 export function cleanText(text: string): string {
   return text
     .replace(/\s+/g, ' ')
     .replace(/[@©•]/g, '')
-    .replace(/[^\w\s:/@.\-]/g, ' ')
+    .replace(/[^\u0900-\u097F\w\s:/@.\-]/g, ' ')
+    .trim();
+}
+
+// ─── Universal Normalization for Merkle ───────────────────────────────────────
+// Matches normalizeForMerkle() in documentExtractor.ts exactly.
+
+function normalizeForMerkle(text: string): string {
+  return text
+    .normalize('NFC')
+    .toLowerCase()
+    .replace(/[^\u0900-\u097F\w\s]/g, ' ')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
 // ─── Tokenization ─────────────────────────────────────────────────────────────
+// Expects text already passed through normalizeForMerkle().
 
 export function tokenizeText(text: string): string[] {
   return text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
     .split(' ')
     .filter(Boolean);
 }
@@ -117,13 +129,15 @@ export interface MerkleResult {
 /**
  * processDocumentForMerkle
  * Takes raw extracted text and produces the full Merkle breakdown.
+ * Uses normalizeForMerkle() for deterministic output — matches documentExtractor.ts.
  * Use this for both Issue (to register on-chain) and Verify (to compare roots).
  */
 export async function processDocumentForMerkle(rawText: string): Promise<MerkleResult | null> {
   const cleaned = cleanText(rawText);
   if (cleaned.length < 2) return null;
 
-  const tokens = tokenizeText(cleaned);
+  const normalized = normalizeForMerkle(rawText);
+  const tokens = tokenizeText(normalized);
   const chunks = createChunks(tokens, 100);
   const hashes = await hashChunks(chunks);
   const tree = await buildMerkleTree(hashes);

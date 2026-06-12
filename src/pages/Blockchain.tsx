@@ -61,6 +61,7 @@ interface VerifyResult {
   validation: { status: string; issues?: string[]; explanation: string };
   content_hash: string;
   file_hash?: string;
+  tracking_id?: string;
   matched?: any;
   fileHashMatch?: boolean;
   contentHashMatch?: boolean;
@@ -156,12 +157,20 @@ export default function Blockchain() {
 
       const aiResult: VerifyResult = { ...data, file_hash: fileHash };
 
-      toast.message("Building Merkle tree...");
-      const merkle = await processDocumentForMerkle(extracted.cleanedText);
-      if (merkle) {
-        aiResult.merkle = merkle;
-        console.log("[Blockchain] Merkle root:", merkle.merkleRoot, "| Tokens:", merkle.totalTokens, "| Chunks:", merkle.totalChunks);
-      }
+      // Merkle root is already computed by extractAndHash() using the unified
+      // normalizeForMerkle pipeline — no need to call processDocumentForMerkle() again.
+      const merkle: MerkleResult = {
+        cleanedText: extracted.cleanedText,
+        tokens: [],   // not needed for registration; kept for type compat
+        chunks: [],
+        chunkHashes: extracted.leafHashes.map((lh) => ({ index: lh.index, hash: lh.hash })),
+        merkleRoot: extracted.merkleRoot,
+        totalTokens: extracted.totalTokens,
+        totalChunks: extracted.totalChunks,
+        tree: [],     // not needed for registration
+      };
+      aiResult.merkle = merkle;
+      console.log("[Blockchain] Merkle root:", merkle.merkleRoot, "| Tokens:", merkle.totalTokens, "| Chunks:", merkle.totalChunks);
 
       if (mode === "verify") {
         let onChainDoc: OnChainMerkleDocument | null = null;
@@ -201,6 +210,7 @@ export default function Blockchain() {
               chain_issuer_address: mi.wallet_address,
               chain_contract_address: mi.contract_address,
               merkle_root: mi.merkle_root,
+              tracking_id: undefined,
             }] as any;
           }
         }
@@ -234,6 +244,7 @@ export default function Blockchain() {
         if (matches && matches.length > 0) {
           const m = matches[0];
           aiResult.matched = m;
+          aiResult.tracking_id = m.tracking_id;
           aiResult.fileHashMatch = m.file_hash === fileHash;
           aiResult.contentHashMatch = m.content_hash === data.content_hash;
 
@@ -328,6 +339,8 @@ export default function Blockchain() {
           contractAddress: MERKLE_DOCUMENT_REGISTRY_ADDRESS,
         };
 
+        const trackingId = "DOC-" + Math.random().toString(36).substring(2, 10).toUpperCase();
+
         const { error: insErr } = await supabase.from("verified_documents").insert({
           user_id: userId,
           document_name: file.name,
@@ -346,8 +359,26 @@ export default function Blockchain() {
           chain_block_number: chain.blockNumber,
           chain_issuer_address: chain.issuer,
           chain_contract_address: chain.contractAddress,
+          tracking_id: trackingId,
         });
         if (insErr) throw insErr;
+        
+        // Populate the AI Result so we can show the report immediately after issue
+        data.content_hash = data.content_hash;
+        const aiResult: VerifyResult = { ...data, file_hash: fileHash, tracking_id: trackingId };
+        if (merkle) {
+          aiResult.merkle = {
+            cleanedText: extracted.cleanedText,
+            tokens: [],
+            chunks: [],
+            chunkHashes: extracted.leafHashes.map(lh => ({ index: lh.index, hash: lh.hash })),
+            merkleRoot: merkle.merkleRoot,
+            totalTokens: merkle.totalTokens,
+            totalChunks: merkle.totalChunks,
+            tree: [],
+          };
+        }
+        setResult(aiResult);
 
         if (merkle && merkleReceipt) {
           const rf = extractReceiptFields(merkleReceipt);

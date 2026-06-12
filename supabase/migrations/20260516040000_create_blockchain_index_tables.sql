@@ -16,27 +16,19 @@
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- TABLE 1: blockchain_user_registrations
--- Indexes registerUser() and updateProfile() transactions from UserRegistry.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.blockchain_user_registrations (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Core blockchain identifiers
     transaction_hash    TEXT        NOT NULL UNIQUE,
     block_hash          TEXT        NOT NULL,
     block_number        BIGINT      NOT NULL,
     contract_address    TEXT        NOT NULL,
     wallet_address      TEXT        NOT NULL,
-
-    -- Cached payload from the smart contract call
     ipfs_cid            TEXT,
     user_name           TEXT,
     profession          TEXT,
     phone_hash          TEXT,
-
-    -- 'UserRegistered' or 'ProfileUpdated'
     event_type          TEXT        NOT NULL DEFAULT 'UserRegistered',
-
     on_chain_timestamp  BIGINT,
     indexed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -49,14 +41,17 @@ CREATE INDEX IF NOT EXISTS idx_bcur_block_number ON public.blockchain_user_regis
 
 ALTER TABLE public.blockchain_user_registrations ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read user registration index" ON public.blockchain_user_registrations;
 CREATE POLICY "Anyone can read user registration index"
     ON public.blockchain_user_registrations FOR SELECT
     TO PUBLIC USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can index their registrations" ON public.blockchain_user_registrations;
 CREATE POLICY "Authenticated users can index their registrations"
     ON public.blockchain_user_registrations FOR INSERT
     TO authenticated WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Authenticated users can update their registration index" ON public.blockchain_user_registrations;
 CREATE POLICY "Authenticated users can update their registration index"
     ON public.blockchain_user_registrations FOR UPDATE
     TO authenticated USING (true);
@@ -64,43 +59,27 @@ CREATE POLICY "Authenticated users can update their registration index"
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- TABLE 2: blockchain_document_registry
--- Indexes registerDocument() (V2) and verifyDocument() (V1) transactions.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.blockchain_document_registry (
     id                      UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Core blockchain identifiers
     transaction_hash        TEXT        NOT NULL UNIQUE,
     block_hash              TEXT        NOT NULL,
     block_number            BIGINT      NOT NULL,
     contract_address        TEXT        NOT NULL,
     wallet_address          TEXT        NOT NULL,
-
-    -- Document identifiers
     document_id             TEXT,
     file_hash               TEXT,
     content_hash            TEXT,
     merkle_root             TEXT,
-
-    -- IPFS references
     ipfs_cid                TEXT,
     ipfs_metadata_cid       TEXT,
     ipfs_url                TEXT,
-
-    -- Cached metadata
     document_name           TEXT,
     document_type           TEXT,
     issuer_name             TEXT,
-
-    -- Link back to verified_documents table (optional)
     verified_document_id    UUID,
-
-    -- 'v1' or 'v2'
     contract_version        TEXT        NOT NULL DEFAULT 'v2',
-
-    -- 'DocumentRegistered' or 'DocumentVerified'
     event_type              TEXT        NOT NULL DEFAULT 'DocumentRegistered',
-
     on_chain_timestamp      BIGINT,
     indexed_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -116,14 +95,17 @@ CREATE INDEX IF NOT EXISTS idx_bcdr_block_number  ON public.blockchain_document_
 
 ALTER TABLE public.blockchain_document_registry ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read document registry index" ON public.blockchain_document_registry;
 CREATE POLICY "Anyone can read document registry index"
     ON public.blockchain_document_registry FOR SELECT
     TO PUBLIC USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can index document registrations" ON public.blockchain_document_registry;
 CREATE POLICY "Authenticated users can index document registrations"
     ON public.blockchain_document_registry FOR INSERT
     TO authenticated WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Authenticated users can update document registry index" ON public.blockchain_document_registry;
 CREATE POLICY "Authenticated users can update document registry index"
     ON public.blockchain_document_registry FOR UPDATE
     TO authenticated USING (true);
@@ -131,31 +113,19 @@ CREATE POLICY "Authenticated users can update document registry index"
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- TABLE 3: blockchain_access_grants
--- Indexes grantAccess() and revokeAccess() from DocumentAccessControl.
 -- ─────────────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.blockchain_access_grants (
     id                  UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-
-    -- Core blockchain identifiers
     transaction_hash    TEXT        NOT NULL UNIQUE,
     block_hash          TEXT        NOT NULL,
     block_number        BIGINT      NOT NULL,
     contract_address    TEXT        NOT NULL,
-
-    -- The two wallets involved
     owner_wallet        TEXT        NOT NULL,
     viewer_wallet       TEXT        NOT NULL,
-
-    -- Which document the access applies to
     document_id         TEXT        NOT NULL,
-
-    -- Access details
     expires_at          BIGINT,
     is_active           BOOLEAN     NOT NULL DEFAULT true,
-
-    -- 'AccessGranted' or 'AccessRevoked'
     event_type          TEXT        NOT NULL DEFAULT 'AccessGranted',
-
     on_chain_timestamp  BIGINT,
     indexed_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -170,14 +140,17 @@ CREATE INDEX IF NOT EXISTS idx_bcag_is_active     ON public.blockchain_access_gr
 
 ALTER TABLE public.blockchain_access_grants ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Anyone can read access grant index" ON public.blockchain_access_grants;
 CREATE POLICY "Anyone can read access grant index"
     ON public.blockchain_access_grants FOR SELECT
     TO PUBLIC USING (true);
 
+DROP POLICY IF EXISTS "Authenticated users can index access grants" ON public.blockchain_access_grants;
 CREATE POLICY "Authenticated users can index access grants"
     ON public.blockchain_access_grants FOR INSERT
     TO authenticated WITH CHECK (true);
 
+DROP POLICY IF EXISTS "Authenticated users can update access grant index" ON public.blockchain_access_grants;
 CREATE POLICY "Authenticated users can update access grant index"
     ON public.blockchain_access_grants FOR UPDATE
     TO authenticated USING (true);

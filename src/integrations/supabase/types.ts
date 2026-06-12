@@ -1148,6 +1148,7 @@ export type Database = {
           knowledge_graph: Json | null
           status: string
           storage_path: string
+          tracking_id: string | null
           updated_at: string
           user_id: string
         }
@@ -1171,6 +1172,7 @@ export type Database = {
           knowledge_graph?: Json | null
           status?: string
           storage_path: string
+          tracking_id?: string | null
           updated_at?: string
           user_id: string
         }
@@ -1194,6 +1196,7 @@ export type Database = {
           knowledge_graph?: Json | null
           status?: string
           storage_path?: string
+          tracking_id?: string | null
           updated_at?: string
           user_id?: string
         }

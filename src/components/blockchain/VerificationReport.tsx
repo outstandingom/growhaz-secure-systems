@@ -62,6 +62,25 @@ export function VerificationReport({ result }: VerificationReportProps) {
         </div>
       </div>
 
+      {/* Tracking ID */}
+      {result.tracking_id && (
+        <div className="flex items-center justify-between p-3 rounded-xl bg-card border border-border">
+          <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <Hash className="w-4 h-4" /> Tracking ID
+          </span>
+          <div className="flex items-center gap-2">
+            <code className="text-sm font-mono font-bold text-primary">{result.tracking_id}</code>
+            <button
+              onClick={() => { navigator.clipboard.writeText(result.tracking_id!); }}
+              className="shrink-0 p-1 hover:bg-primary/10 rounded"
+              title="Copy Tracking ID"
+            >
+              <Copy className="w-3 h-3 text-muted-foreground hover:text-primary" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Key extracted fields */}
       {result.extracted_data && Object.keys(result.extracted_data).length > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
