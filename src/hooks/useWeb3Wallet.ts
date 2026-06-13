@@ -314,7 +314,6 @@ export function useWeb3Wallet(): Web3WalletState {
         ipfsCid, name, profession, phoneHash, age, emailHash,
         registeredAt: Math.floor(Date.now() / 1000), exists: true,
       });
-      const signerAddress = await signer.getAddress();
       indexUserRegistration({
         ...extractReceiptFields(receipt),
         contract_address: USER_REGISTRY_ADDRESS,
@@ -353,7 +352,6 @@ export function useWeb3Wallet(): Web3WalletState {
       const tx = await contract.updateProfile(ipfsCid, name, profession, phoneHash, age, emailHash);
       const receipt = await tx.wait();
       setOnChainUser((prev) => prev ? { ...prev, ipfsCid, name, profession, phoneHash, age, emailHash } : null);
-      const signerAddress = await signer.getAddress();
       indexUserRegistration({
         ...extractReceiptFields(receipt),
         contract_address: USER_REGISTRY_ADDRESS,
