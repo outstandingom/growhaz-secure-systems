@@ -289,6 +289,19 @@ export default function Blockchain() {
         });
       } else {
         // Issue mode
+        
+        // 1. Pre-check: Does this document already exist?
+        toast.message("Checking if document is already registered...");
+        const { data: existingDocs } = await supabase
+          .from("verified_documents")
+          .select("id, tracking_id")
+          .eq("file_hash", fileHash)
+          .limit(1);
+          
+        if (existingDocs && existingDocs.length > 0) {
+          throw new Error(`This document is already registered on the blockchain! (Tracking ID: ${existingDocs[0].tracking_id || 'Unknown'})`);
+        }
+
         const path = `${userId}/${Date.now()}-${file.name}`;
         
         toast.message("Pinning to IPFS & Saving...");
