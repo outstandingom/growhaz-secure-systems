@@ -294,6 +294,16 @@ export async function registerDocumentOnChain(params: {
 
   const provider = new ethers.BrowserProvider((window as any).ethereum);
   const signer = await provider.getSigner();
+  const signerAddress = await signer.getAddress();
+  
+  const walletAddress = localStorage.getItem("growhaz_wallet") 
+    ? JSON.parse(localStorage.getItem("growhaz_wallet")!).address 
+    : null;
+
+  if (walletAddress && signerAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+    throw new Error(`Wallet mismatch! Your active MetaMask account (${signerAddress.slice(0, 6)}...) doesn't match the connected app account (${walletAddress.slice(0, 6)}...). Please switch accounts in MetaMask.`);
+  }
+
   const contract = new ethers.Contract(
     MERKLE_DOCUMENT_REGISTRY_ADDRESS,
     MERKLE_DOCUMENT_REGISTRY_ABI,

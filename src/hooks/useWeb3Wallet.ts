@@ -300,6 +300,12 @@ export function useWeb3Wallet(): Web3WalletState {
       if (!window.ethereum) throw new Error("MetaMask not found");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
+      
+      if (walletAddress && signerAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        throw new Error(`Wallet mismatch! Your active MetaMask account (${signerAddress.slice(0, 6)}...) doesn't match the connected app account (${walletAddress.slice(0, 6)}...). Please switch accounts in MetaMask.`);
+      }
+
       const contract = new ethers.Contract(USER_REGISTRY_ADDRESS, USER_REGISTRY_ABI, signer);
       const tx = await contract.registerUser(ipfsCid, name, profession, phoneHash, age, emailHash);
       const receipt = await tx.wait();
@@ -337,6 +343,12 @@ export function useWeb3Wallet(): Web3WalletState {
       if (!window.ethereum) throw new Error("MetaMask not found");
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
+      const signerAddress = await signer.getAddress();
+
+      if (walletAddress && signerAddress.toLowerCase() !== walletAddress.toLowerCase()) {
+        throw new Error(`Wallet mismatch! Your active MetaMask account (${signerAddress.slice(0, 6)}...) doesn't match the connected app account (${walletAddress.slice(0, 6)}...). Please switch accounts in MetaMask.`);
+      }
+
       const contract = new ethers.Contract(USER_REGISTRY_ADDRESS, USER_REGISTRY_ABI, signer);
       const tx = await contract.updateProfile(ipfsCid, name, profession, phoneHash, age, emailHash);
       const receipt = await tx.wait();
