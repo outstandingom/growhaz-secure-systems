@@ -55,23 +55,8 @@ export function cleanTextHin(text: string): string {
     .trim();
 }
 
-export function normalizeEng(text: string): string {
-  return text.toLowerCase().replace(/\s+/g, "").replace(/[^\w]/g, "");
-}
-
-export function normalizeHin(text: string): string {
-  return text
-    .normalize("NFC")
-    .toLowerCase()
-    .replace(/[।]/g, "")
-    .replace(/[.,:;'"`]/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
 // Back-compat exports used elsewhere
 export const cleanText = cleanTextEng;
-export const normalizeForHash = normalizeEng;
 
 /**
  * Universal normalization for Merkle tree input.
@@ -88,6 +73,9 @@ export function normalizeForMerkle(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+// Map the old hash normalizer to the unified Merkle one
+export const normalizeForHash = normalizeForMerkle;
 
 export async function sha256Hex(text: string): Promise<string> {
   const buf = new TextEncoder().encode(text);
@@ -157,7 +145,7 @@ async function ocrImage(file: File | Blob, lang: "eng" | "hin+eng" = "eng"): Pro
     const url = URL.createObjectURL(file);
     try {
       const { data } = await worker.recognize(url, {
-        tessedit_pageseg_mode: "6", // Assume a single uniform block of text
+        tessedit_pageseg_mode: 6, // Numeric page segment mode
         preserve_interword_spaces: "1",
       });
       return { text: data.text || "", confidence: data.confidence ?? 0 };
@@ -266,6 +254,8 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   } else if (ext === "docx" || mime.includes("officedocument.wordprocessingml")) {
     rawText = await extractFromDocx(file);
   } else if (IMAGE_EXT.has(ext) || mime.startsWith("image/")) {
+    // Note: Two-pass OCR optimizes speed. For maximum determinism across heavily 
+    // mixed-language environments, you could bypass this and always run "hin+eng".
     const first = await ocrImage(file, "eng");
     rawText = first.text;
     ocrConfidence = first.confidence;
@@ -291,11 +281,12 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   }
 
   const language: "hin" | "eng" = hasDevanagari(rawText) ? "hin" : "eng";
+  
+  // Cleaned text is still formatted based on language for downstream UI/readability
   const cleaned = language === "hin" ? cleanTextHin(rawText) : cleanTextEng(rawText);
   
   // Unify normalization so contentHash and merkleRoot evaluate the exact same string
   const merkleNormalized = normalizeForMerkle(rawText);
-  const normalized = merkleNormalized;
   const contentHash = await sha256Hex(merkleNormalized);
 
   const tokens = tokenize(merkleNormalized);
@@ -318,7 +309,7 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   return {
     rawText,
     cleanedText: cleaned,
-    normalizedText: normalized,
+    normalizedText: merkleNormalized,
     contentHash,
     documentType: detectDocumentType(cleaned),
     language,
@@ -334,4 +325,4 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
 export async function extractDocumentText(file: File): Promise<string> {
   const r = await extractAndHash(file);
   return r.rawText;
-                               }
+         }
