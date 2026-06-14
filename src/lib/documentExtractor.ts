@@ -3,6 +3,11 @@
 //   extract text -> normalizeForMerkle() -> tokenize -> chunk(100 tokens) -> chunk hashes -> Merkle root
 // The same document always produces the same Merkle root.
 // Uses Tesseract.js for OCR, pdfjs-dist for PDFs, mammoth for DOCX.
+//
+// NOTE ON DETERMINISM: Digital/searchable documents will produce perfectly stable
+// Merkle roots. Scanned documents requiring OCR use a highly constrained pipeline,
+// but OCR engines cannot absolutely guarantee 100% identical outputs across all
+// environments and hardware configurations.
 
 import { createWorker, type Worker } from "tesseract.js";
 import * as pdfjs from "pdfjs-dist";
@@ -25,7 +30,12 @@ const TEXT_EXT = new Set([
 // ---------- Persistent OCR workers (one per language) ----------
 const workers: Record<string, Promise<Worker>> = {};
 async function getWorker(lang: "eng" | "hin+eng" = "eng"): Promise<Worker> {
-  if (!workers[lang]) workers[lang] = createWorker(lang);
+  if (!workers[lang]) {
+    workers[lang] = createWorker(lang).catch((err) => {
+      delete workers[lang];
+      throw err;
+    });
+  }
   return workers[lang];
 }
 
@@ -37,16 +47,18 @@ export function cleanTextEng(text: string): string {
     .replace(/[^\w\s:/@.-]/g, " ")
     .trim();
 }
-// Hindi-aware cleaner — keeps Devanagari range \u0900-\u097F
+
 export function cleanTextHin(text: string): string {
   return text
     .replace(/\s+/g, " ")
     .replace(/[^\u0900-\u097F\w\s.,:/()\-]/g, " ")
     .trim();
 }
+
 export function normalizeEng(text: string): string {
   return text.toLowerCase().replace(/\s+/g, "").replace(/[^\w]/g, "");
 }
+
 export function normalizeHin(text: string): string {
   return text
     .normalize("NFC")
@@ -56,6 +68,7 @@ export function normalizeHin(text: string): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
 // Back-compat exports used elsewhere
 export const cleanText = cleanTextEng;
 export const normalizeForHash = normalizeEng;
@@ -63,19 +76,16 @@ export const normalizeForHash = normalizeEng;
 /**
  * Universal normalization for Merkle tree input.
  * Produces deterministic output from the same logical content regardless of:
- *   - Minor OCR whitespace/punctuation variations
- *   - Hindi vs English text
- *   - Unicode encoding differences (NFC normalized)
- *
- * Keeps: Devanagari (\u0900-\u097F), word characters (\w), and spaces.
- * Strips: all punctuation, special chars, control chars.
+ * - Minor OCR whitespace/punctuation variations
+ * - Hindi vs English text
+ * - Unicode encoding differences (NFC normalized)
  */
 export function normalizeForMerkle(text: string): string {
   return text
-    .normalize("NFC")                              // canonical Unicode form
-    .toLowerCase()                                   // case-insensitive
-    .replace(/[^\u0900-\u097F\w\s]/g, " ")           // keep Devanagari + word chars + space
-    .replace(/\s+/g, " ")                            // collapse whitespace
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/[^\u0900-\u097F\w\s]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 }
 
@@ -88,7 +98,6 @@ export async function sha256Hex(text: string): Promise<string> {
 }
 
 function hasDevanagari(text: string): boolean {
-  // returns true if at least ~10 Devanagari chars present
   const matches = text.match(/[\u0900-\u097F]/g);
   return !!matches && matches.length >= 10;
 }
@@ -104,21 +113,16 @@ export function detectDocumentType(text: string): string {
 }
 
 // ---------- Tokenize + chunk + merkle ----------
-/**
- * Tokenize text that has already been passed through normalizeForMerkle().
- * Since normalizeForMerkle already lowercases and strips non-word chars,
- * this just splits on spaces.
- */
 export function tokenize(text: string): string[] {
-  return text
-    .split(" ")
-    .filter(Boolean);
+  return text.split(" ").filter(Boolean);
 }
+
 export function chunkTokens(tokens: string[], size = 100): string[] {
   const chunks: string[] = [];
   for (let i = 0; i < tokens.length; i += size) chunks.push(tokens.slice(i, i + size).join(" "));
   return chunks;
 }
+
 export async function buildMerkleTree(leafTexts: string[]): Promise<{
   root: string;
   leaves: { index: number; hash: string }[];
@@ -143,15 +147,28 @@ export async function buildMerkleTree(leafTexts: string[]): Promise<{
 }
 
 // ---------- Format-specific extractors ----------
+
+// OCR Mutex Lock to process images sequentially and strictly avoid Tesseract race conditions.
+let ocrMutex = Promise.resolve<{ text: string; confidence: number }>({ text: "", confidence: 0 });
+
 async function ocrImage(file: File | Blob, lang: "eng" | "hin+eng" = "eng"): Promise<{ text: string; confidence: number }> {
-  const worker = await getWorker(lang);
-  const url = URL.createObjectURL(file);
-  try {
-    const { data } = await worker.recognize(url);
-    return { text: data.text || "", confidence: data.confidence ?? 0 };
-  } finally {
-    URL.revokeObjectURL(url);
-  }
+  const task = async () => {
+    const worker = await getWorker(lang);
+    const url = URL.createObjectURL(file);
+    try {
+      const { data } = await worker.recognize(url, {
+        tessedit_pageseg_mode: "6", // Assume a single uniform block of text
+        preserve_interword_spaces: "1",
+      });
+      return { text: data.text || "", confidence: data.confidence ?? 0 };
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const result = ocrMutex.then(task, task);
+  ocrMutex = result.catch(() => ({ text: "", confidence: 0 }));
+  return result;
 }
 
 async function renderPdfPageToBlob(page: pdfjs.PDFPageProxy, scale = 2): Promise<Blob> {
@@ -160,8 +177,15 @@ async function renderPdfPageToBlob(page: pdfjs.PDFPageProxy, scale = 2): Promise
   canvas.width = viewport.width;
   canvas.height = viewport.height;
   const ctx = canvas.getContext("2d")!;
+  
+  // Enforce solid white background to avoid transparent PDF rendering issues
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
   await page.render({ canvasContext: ctx, viewport, canvas } as any).promise;
-  return await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/jpeg", 0.92)!);
+  
+  // Output lossless PNG to prevent JPEG compression artifacts from confusing OCR
+  return await new Promise<Blob>((res) => canvas.toBlob((b) => res(b!), "image/png")!);
 }
 
 /**
@@ -172,11 +196,17 @@ async function extractPdfPages(file: File, lang: "eng" | "hin+eng"): Promise<str
   const buf = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: buf }).promise;
   const pages: string[] = [];
-  const maxPages = Math.min(pdf.numPages, 10);
+  const maxPages = pdf.numPages; // Ensure entire document is represented
+  
   for (let i = 1; i <= maxPages; i++) {
     const page = await pdf.getPage(i);
     const content = await page.getTextContent();
-    let pageText = content.items.map((it: any) => it.str).join(" ").trim();
+    let pageText = content.items
+      .map((it: any) => it.str)
+      .join(" ")
+      .replace(/\s+/g, " ") // Normalize internal PDF spacing
+      .trim();
+      
     if (pageText.length < 20) {
       const blob = await renderPdfPageToBlob(page, 2);
       const { text } = await ocrImage(blob, lang);
@@ -192,6 +222,7 @@ async function extractFromDocx(file: File): Promise<string> {
   const result = await mammoth.extractRawText({ arrayBuffer: buf });
   return result.value || "";
 }
+
 async function extractFromText(file: File): Promise<string> {
   return await file.text();
 }
@@ -204,7 +235,6 @@ export interface ExtractedDoc {
   contentHash: string;
   documentType: string;
   language: "hin" | "eng";
-  // merkle
   merkleRoot: string;
   leafHashes: { index: number; hash: string }[];
   totalChunks: number;
@@ -213,25 +243,15 @@ export interface ExtractedDoc {
   ocrConfidence?: number;
 }
 
-/**
- * Full pipeline: extract text -> detect language -> clean/normalize/hash ->
- * build Merkle tree (unified chunk-level for both Hindi and English).
- *
- * The Merkle root is always built from:
- *   normalizeForMerkle(rawText) -> tokenize -> chunk(100) -> sha256 per chunk -> Merkle tree
- * This ensures the same document always produces the same Merkle root.
- */
 export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   const ext = (file.name.split(".").pop() || "").toLowerCase();
   const mime = (file.type || "").toLowerCase();
 
-  // 1) Get raw text + an optional page split
   let rawText = "";
   let pageTexts: string[] | null = null;
   let ocrConfidence: number | undefined;
 
   if (ext === "pdf" || mime === "application/pdf") {
-    // First, try text layer in English mode to detect language cheaply.
     const buf = await file.arrayBuffer();
     const pdf = await pdfjs.getDocument({ data: buf }).promise;
     let sample = "";
@@ -246,7 +266,6 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   } else if (ext === "docx" || mime.includes("officedocument.wordprocessingml")) {
     rawText = await extractFromDocx(file);
   } else if (IMAGE_EXT.has(ext) || mime.startsWith("image/")) {
-    // First pass eng to detect, second pass hindi if needed
     const first = await ocrImage(file, "eng");
     rawText = first.text;
     ocrConfidence = first.confidence;
@@ -259,7 +278,7 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   } else if (TEXT_EXT.has(ext) || mime.startsWith("text/")) {
     rawText = await extractFromText(file);
   } else {
-    try { rawText = await extractFromText(file); } catch { /* */ }
+    try { rawText = await extractFromText(file); } catch { /* Ignore */ }
     if (!rawText.trim()) {
       const r = await ocrImage(file, "eng");
       rawText = r.text;
@@ -273,19 +292,18 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
 
   const language: "hin" | "eng" = hasDevanagari(rawText) ? "hin" : "eng";
   const cleaned = language === "hin" ? cleanTextHin(rawText) : cleanTextEng(rawText);
-  const normalized = language === "hin" ? normalizeHin(cleaned) : normalizeEng(cleaned);
-  const contentHash = await sha256Hex(normalized);
-
-  // 2) Merkle tree — UNIFIED for both Hindi and English
-  //    Always: normalizeForMerkle -> tokenize -> chunk(100) -> hash -> tree
+  
+  // Unify normalization so contentHash and merkleRoot evaluate the exact same string
   const merkleNormalized = normalizeForMerkle(rawText);
+  const normalized = merkleNormalized;
+  const contentHash = await sha256Hex(merkleNormalized);
+
   const tokens = tokenize(merkleNormalized);
   const totalTokens = tokens.length;
   const chunks = chunkTokens(tokens, 100);
   const totalChunks = chunks.length;
   const merkle = await buildMerkleTree(chunks);
 
-  // Optional page-level info for UI display (does NOT affect Merkle root)
   let pages: { pageNumber: number; text: string; hash: string }[] | undefined;
   if (pageTexts && pageTexts.length > 1) {
     pages = await Promise.all(
@@ -313,8 +331,7 @@ export async function extractAndHash(file: File): Promise<ExtractedDoc> {
   };
 }
 
-// Back-compat shim
 export async function extractDocumentText(file: File): Promise<string> {
   const r = await extractAndHash(file);
   return r.rawText;
-}
+                               }
