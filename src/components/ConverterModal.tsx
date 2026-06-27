@@ -94,6 +94,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [errorMsg, setErrorMsg] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [pollAttempts, setPollAttempts] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const patch = (p: Partial<BuildConfig>) =>
@@ -106,9 +107,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   useEffect(() => {
     if (step === "generating" && buildId) {
       console.log(`📊 Starting polling for build: ${buildId}`);
+      setPollAttempts(0);
       
       pollRef.current = setInterval(async () => {
         try {
+          setPollAttempts(prev => prev + 1);
+          
           const { data, error } = await supabase
             .from("apk_builds")
             .select("status, error_message, artifact_url")
@@ -116,7 +120,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
             .single();
 
           if (error) {
-            console.error("Poll error:", error);
+            console.error("❌ Poll error:", error);
             return;
           }
 
@@ -126,23 +130,39 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
             artifact_url: string | null;
           };
 
-          console.log(`📊 Build status: ${build?.status}`);
+          console.log(`📊 Poll #${pollAttempts + 1} - Build status: ${build?.status}`);
 
           if (build?.status === "completed") {
             console.log("✅ Build completed!");
+            console.log("📥 Artifact URL:", build?.artifact_url);
             setStep("done");
             if (build?.artifact_url) {
               setDownloadUrl(build.artifact_url);
             }
-            if (pollRef.current) clearInterval(pollRef.current);
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
           } else if (build?.status === "failed") {
             console.log("❌ Build failed:", build?.error_message);
             setStep("error");
             setErrorMsg(build?.error_message || "Build failed");
-            if (pollRef.current) clearInterval(pollRef.current);
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
+          } else if (pollAttempts > 36) {
+            // Timeout after 3 minutes (36 * 5 seconds)
+            console.log("⏰ Polling timeout - stopping after 3 minutes");
+            setStep("error");
+            setErrorMsg("Build is taking too long. Please check GitHub Actions for status.");
+            if (pollRef.current) {
+              clearInterval(pollRef.current);
+              pollRef.current = null;
+            }
           }
         } catch (err) {
-          console.error("Poll error:", err);
+          console.error("❌ Poll error:", err);
         }
       }, 5000);
       
@@ -150,16 +170,18 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         if (pollRef.current) {
           console.log("🛑 Stopping polling");
           clearInterval(pollRef.current);
+          pollRef.current = null;
         }
       };
     }
-  }, [step, buildId]);
+  }, [step, buildId, pollAttempts]);
 
   const handleGenerate = async () => {
     if (!isValid) return;
     setStep("generating");
     setErrorMsg("");
     setDownloadUrl(null);
+    setPollAttempts(0);
 
     try {
       let websiteUrl = config.websiteUrl.trim();
@@ -202,12 +224,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       console.log("📥 Response from edge function:", { data, error });
 
       if (error) {
-        console.error("Edge function error:", error);
+        console.error("❌ Edge function error:", error);
         throw new Error(error.message);
       }
       
       if (data?.error) {
-        console.error("Build error:", data.error);
+        console.error("❌ Build error:", data.error);
         throw new Error(data.error);
       }
       
@@ -218,6 +240,21 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       setBuildId(data.build_id);
       console.log("✅ Build started with ID:", data.build_id);
       
+      // Verify the build record was created
+      setTimeout(async () => {
+        const { data: verifyData, error: verifyError } = await supabase
+          .from("apk_builds")
+          .select("status")
+          .eq("build_id", data.build_id)
+          .single();
+        
+        if (verifyError) {
+          console.warn("⚠️ Build record not found in database yet:", verifyError);
+        } else {
+          console.log("✅ Build record verified in database:", verifyData);
+        }
+      }, 3000);
+      
     } catch (err: any) {
       console.error("❌ Error in handleGenerate:", err);
       setStep("error");
@@ -225,16 +262,50 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
   };
 
-  const handleDownload = () => {
-    if (!buildId) return;
+  const handleDownload = async () => {
+    if (!buildId) {
+      console.error("❌ No build ID available");
+      return;
+    }
     
     const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
     const downloadUrl = `https://${projectId}.supabase.co/functions/v1/download-apk?build_id=${buildId}`;
     
-    console.log(`📥 Downloading from: ${downloadUrl}`);
+    console.log(`📥 Download URL: ${downloadUrl}`);
+    console.log(`📥 Opening download in new tab...`);
     
-    // Open in new tab to download
-    window.open(downloadUrl, '_blank');
+    // Try to fetch first to check if it works
+    try {
+      console.log("🔍 Testing download function...");
+      const testResponse = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Origin': window.location.origin,
+        },
+      });
+      
+      console.log(`📊 Test response status: ${testResponse.status}`);
+      
+      if (testResponse.ok) {
+        // Get the content type and size
+        const contentType = testResponse.headers.get('content-type');
+        const contentLength = testResponse.headers.get('content-length');
+        console.log(`📦 Content-Type: ${contentType}`);
+        console.log(`📦 Content-Length: ${contentLength} bytes`);
+        
+        // Open in new tab
+        window.open(downloadUrl, '_blank');
+      } else {
+        const errorText = await testResponse.text();
+        console.error(`❌ Download test failed (${testResponse.status}):`, errorText);
+        setStep("error");
+        setErrorMsg(`Download failed: ${testResponse.status} - ${errorText || 'Unknown error'}`);
+      }
+    } catch (err) {
+      console.error("❌ Download error:", err);
+      // Fallback - try to open anyway
+      window.open(downloadUrl, '_blank');
+    }
   };
 
   const handleReset = () => {
@@ -244,6 +315,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setErrorMsg("");
     setShowAdvanced(false);
     setDownloadUrl(null);
+    setPollAttempts(0);
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -586,6 +658,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 <p className="text-xs text-muted-foreground">
                   Build ID: <span className="font-mono text-foreground">{buildId}</span>
                 </p>
+                <p className="text-xs text-muted-foreground">
+                  Polling: {pollAttempts} attempts
+                </p>
               </div>
             </div>
           )}
@@ -604,6 +679,11 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 <p className="text-xs text-muted-foreground">
                   Build ID: <span className="font-mono">{buildId}</span>
                 </p>
+                {downloadUrl && (
+                  <p className="text-xs text-green-600">
+                    ✅ Artifact URL is ready
+                  </p>
+                )}
               </div>
               <div className="flex flex-col w-full gap-3">
                 <Button
@@ -635,6 +715,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                     Build ID: <span className="font-mono">{buildId}</span>
                   </p>
                 )}
+                <p className="text-xs text-muted-foreground">
+                  Check the browser console for more details (F12)
+                </p>
               </div>
               <Button variant="ghost" onClick={handleReset} className="text-muted-foreground">
                 Try again
