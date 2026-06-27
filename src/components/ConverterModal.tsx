@@ -93,7 +93,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [buildId, setBuildId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [pollAttempts, setPollAttempts] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [buildStatus, setBuildStatus] = useState<string>("");
@@ -115,10 +114,11 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         try {
           setPollAttempts(prev => prev + 1);
           
+          // Fixed: Use 'id' instead of 'build_id'
           const { data, error } = await supabase
             .from("apk_builds")
-            .select("status, error_message, artifact_url")
-            .eq("build_id", buildId)
+            .select("status, error_message, github_run_id")
+            .eq("id", buildId)
             .single();
 
           if (error) {
@@ -129,7 +129,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           const build = data as { 
             status: string; 
             error_message: string | null;
-            artifact_url: string | null;
+            github_run_id: string | null;
           };
 
           console.log(`📊 Poll #${pollAttempts + 1} - Build status: ${build?.status}`);
@@ -137,11 +137,8 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
           if (build?.status === "completed") {
             console.log("✅ Build completed!");
-            console.log("📥 Artifact URL:", build?.artifact_url);
+            console.log("📥 GitHub Run ID:", build?.github_run_id);
             setStep("done");
-            if (build?.artifact_url) {
-              setDownloadUrl(build.artifact_url);
-            }
             if (pollRef.current) {
               clearInterval(pollRef.current);
               pollRef.current = null;
@@ -154,9 +151,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               clearInterval(pollRef.current);
               pollRef.current = null;
             }
-          } else if (pollAttempts > 60) {
-            // Timeout after 5 minutes (60 * 5 seconds)
-            console.log("⏰ Polling timeout - stopping after 5 minutes");
+          } else if (pollAttempts > 120) {
+            // Timeout after 10 minutes (120 * 5 seconds)
+            console.log("⏰ Polling timeout - stopping after 10 minutes");
             setStep("error");
             setErrorMsg("Build is taking too long. Please check GitHub Actions for status.");
             if (pollRef.current) {
@@ -183,7 +180,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     if (!isValid) return;
     setStep("generating");
     setErrorMsg("");
-    setDownloadUrl(null);
     setPollAttempts(0);
     setBuildStatus("");
 
@@ -192,30 +188,29 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       if (!websiteUrl.startsWith("http")) websiteUrl = "https://" + websiteUrl;
 
       const requestBody = {
-        config: {
-          website_url: websiteUrl,
-          app_name: config.appName.trim(),
-          icon_url: config.logoPreview || null,
-          package_name: config.packageName.trim() || null,
-          splash_color: config.splashColor,
-          status_bar_color: config.statusBarColor,
-          enable_push: config.enablePush,
-          enable_offline: config.enableOffline,
-          offline_message: config.offlineMessage,
-          enable_analytics: config.enableAnalytics,
-          enable_cookies: config.enableCookies,
-          enable_admob: config.enableAdmob,
-          admob_banner_id: config.admobBannerId || null,
-          admob_interstitial_id: config.admobInterstitialId || null,
-          build_aab: config.buildAab,
-          platform: config.platform,
-          proxy_enabled: config.proxyEnabled,
-          proxy_type: config.proxyType,
-          proxy_host: config.proxyHost.trim(),
-          proxy_port: config.proxyPort ? parseInt(config.proxyPort, 10) : null,
-          proxy_username: config.proxyUsername,
-          proxy_password: config.proxyPassword,
-        }
+        website_url: websiteUrl,
+        app_name: config.appName.trim(),
+        icon_url: config.logoPreview || null,
+        package_name: config.packageName.trim() || null,
+        splash_color: config.splashColor,
+        status_bar_color: config.statusBarColor,
+        enable_push: config.enablePush,
+        enable_offline: config.enableOffline,
+        offline_message: config.offlineMessage,
+        enable_analytics: config.enableAnalytics,
+        enable_cookies: config.enableCookies,
+        enable_admob: config.enableAdmob,
+        admob_banner_id: config.admobBannerId || null,
+        admob_interstitial_id: config.admobInterstitialId || null,
+        build_aab: config.buildAab,
+        platform: config.platform,
+        tier: "free",
+        proxy_enabled: config.proxyEnabled,
+        proxy_type: config.proxyType,
+        proxy_host: config.proxyHost.trim(),
+        proxy_port: config.proxyPort ? parseInt(config.proxyPort, 10) : null,
+        proxy_username: config.proxyUsername,
+        proxy_password: config.proxyPassword,
       };
 
       console.log("📤 Sending request to edge function...");
@@ -249,7 +244,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         const { data: verifyData, error: verifyError } = await supabase
           .from("apk_builds")
           .select("status")
-          .eq("build_id", data.build_id)
+          .eq("id", data.build_id)
           .single();
         
         if (verifyError) {
@@ -280,54 +275,33 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       
       console.log(`📥 Downloading from: ${downloadUrl}`);
       
-      // First, check if the download function is reachable
-      console.log("🔍 Testing download function...");
-      const testResponse = await fetch(`${downloadUrl}&test=1`, {
-        method: 'GET',
-        headers: {
-          'Origin': window.location.origin,
-        },
-      });
-      
-      if (testResponse.ok) {
-        const testData = await testResponse.json();
-        console.log("✅ Download function test response:", testData);
-      } else {
-        console.warn("⚠️ Download function test failed:", testResponse.status);
-      }
-      
-      // Now try to download the actual file
-      console.log("📥 Downloading actual file...");
-      const response = await fetch(downloadUrl, {
-        method: 'GET',
-        headers: {
-          'Origin': window.location.origin,
-        },
-      });
+      const response = await fetch(downloadUrl);
       
       console.log(`📊 Response status: ${response.status}`);
       
       if (!response.ok) {
-        let errorText = '';
+        let errorMessage = 'Download failed';
         try {
-          const errorJson = await response.json();
-          errorText = errorJson.error || JSON.stringify(errorJson);
+          const errorData = await response.json();
+          errorMessage = errorData.error || errorMessage;
         } catch {
-          errorText = await response.text();
+          const errorText = await response.text();
+          errorMessage = errorText || errorMessage;
         }
         
-        console.error(`❌ Download failed (${response.status}):`, errorText);
-        
-        if (response.status === 404) {
-          throw new Error("Build not found. The build may have been deleted or expired.");
-        } else if (response.status === 400) {
-          throw new Error(`Build issue: ${errorText}`);
-        } else {
-          throw new Error(`Download failed: ${response.status} - ${errorText || 'Unknown error'}`);
-        }
+        console.error(`❌ Download failed (${response.status}):`, errorMessage);
+        throw new Error(errorMessage);
       }
       
-      // Get the blob and create download
+      // Get filename from Content-Disposition header
+      const contentDisposition = response.headers.get('Content-Disposition');
+      let filename = `${config.appName}.apk`;
+      if (contentDisposition) {
+        const match = contentDisposition.match(/filename="(.+)"/);
+        if (match) filename = match[1];
+      }
+      
+      // Create and trigger download
       const blob = await response.blob();
       const contentLength = blob.size;
       
@@ -336,26 +310,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       }
       
       console.log(`📦 File size: ${contentLength} bytes`);
+      console.log(`📦 Filename: ${filename}`);
       
-      // Determine file extension from content-type or URL
-      const contentType = response.headers.get('content-type') || '';
-      let fileExtension = 'apk';
-      
-      if (contentType.includes('aab') || downloadUrl.includes('.aab')) {
-        fileExtension = 'aab';
-      } else if (contentType.includes('ipa') || downloadUrl.includes('.ipa')) {
-        fileExtension = 'ipa';
-      } else if (contentType.includes('zip')) {
-        fileExtension = 'zip';
-      }
-      
-      console.log(`📦 File extension: ${fileExtension}`);
-      
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `app-${buildId}.${fileExtension}`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -367,7 +327,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       
       console.log("✅ Download successful!");
       
-    } catch (err) {
+    } catch (err: any) {
       console.error("❌ Download error:", err);
       setStep("error");
       setErrorMsg(err.message || "Failed to download. Please try again.");
@@ -382,7 +342,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setBuildId(null);
     setErrorMsg("");
     setShowAdvanced(false);
-    setDownloadUrl(null);
     setPollAttempts(0);
     setIsDownloading(false);
     setBuildStatus("");
@@ -752,11 +711,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 <p className="text-xs text-muted-foreground">
                   Build ID: <span className="font-mono">{buildId}</span>
                 </p>
-                {downloadUrl && (
-                  <p className="text-xs text-green-600">
-                    ✅ Artifact URL is ready
-                  </p>
-                )}
               </div>
               <div className="flex flex-col w-full gap-3">
                 <Button
