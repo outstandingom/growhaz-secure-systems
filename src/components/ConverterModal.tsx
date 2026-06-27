@@ -96,6 +96,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [pollAttempts, setPollAttempts] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [buildStatus, setBuildStatus] = useState<string>("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const patch = (p: Partial<BuildConfig>) =>
@@ -103,12 +104,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
   const isValid =
     config.websiteUrl.trim().length > 0 && config.appName.trim().length > 0;
-
-  // Get the current session token
-  const getAuthToken = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return session?.access_token || null;
-  };
 
   // Poll build status
   useEffect(() => {
@@ -138,6 +133,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           };
 
           console.log(`📊 Poll #${pollAttempts + 1} - Build status: ${build?.status}`);
+          setBuildStatus(build?.status || "");
 
           if (build?.status === "completed") {
             console.log("✅ Build completed!");
@@ -158,9 +154,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               clearInterval(pollRef.current);
               pollRef.current = null;
             }
-          } else if (pollAttempts > 36) {
-            // Timeout after 3 minutes (36 * 5 seconds)
-            console.log("⏰ Polling timeout - stopping after 3 minutes");
+          } else if (pollAttempts > 60) {
+            // Timeout after 5 minutes (60 * 5 seconds)
+            console.log("⏰ Polling timeout - stopping after 5 minutes");
             setStep("error");
             setErrorMsg("Build is taking too long. Please check GitHub Actions for status.");
             if (pollRef.current) {
@@ -189,14 +185,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setErrorMsg("");
     setDownloadUrl(null);
     setPollAttempts(0);
+    setBuildStatus("");
 
     try {
-      // ✅ Get the JWT token
-      const token = await getAuthToken();
-      if (!token) {
-        throw new Error("You need to be logged in to build an app. Please sign in and try again.");
-      }
-
       let websiteUrl = config.websiteUrl.trim();
       if (!websiteUrl.startsWith("http")) websiteUrl = "https://" + websiteUrl;
 
@@ -230,21 +221,14 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       console.log("📤 Sending request to edge function...");
       console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
-      // ✅ Send the token in the Authorization header
       const { data, error } = await supabase.functions.invoke("trigger-build", {
         body: requestBody,
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
       });
 
       console.log("📥 Response from edge function:", { data, error });
 
       if (error) {
         console.error("❌ Edge function error:", error);
-        if (error.message.includes("401") || error.message.includes("unauthorized")) {
-          throw new Error("Your session has expired. Please sign in again.");
-        }
         throw new Error(error.message);
       }
       
@@ -291,25 +275,32 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setIsDownloading(true);
     
     try {
-      // ✅ Get the JWT token
-      const token = await getAuthToken();
-      if (!token) {
-        setStep("error");
-        setErrorMsg("You need to be logged in to download the app. Please sign in and try again.");
-        setIsDownloading(false);
-        return;
-      }
-      
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const downloadUrl = `https://${projectId}.supabase.co/functions/v1/download-apk?build_id=${buildId}`;
       
-      console.log(`📥 Download URL: ${downloadUrl}`);
+      console.log(`📥 Downloading from: ${downloadUrl}`);
       
-      // ✅ Fetch with authorization header
+      // First, check if the download function is reachable
+      console.log("🔍 Testing download function...");
+      const testResponse = await fetch(`${downloadUrl}&test=1`, {
+        method: 'GET',
+        headers: {
+          'Origin': window.location.origin,
+        },
+      });
+      
+      if (testResponse.ok) {
+        const testData = await testResponse.json();
+        console.log("✅ Download function test response:", testData);
+      } else {
+        console.warn("⚠️ Download function test failed:", testResponse.status);
+      }
+      
+      // Now try to download the actual file
+      console.log("📥 Downloading actual file...");
       const response = await fetch(downloadUrl, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${token}`,
           'Origin': window.location.origin,
         },
       });
@@ -327,28 +318,38 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         
         console.error(`❌ Download failed (${response.status}):`, errorText);
         
-        if (response.status === 401) {
-          throw new Error("Your session has expired. Please sign in again.");
+        if (response.status === 404) {
+          throw new Error("Build not found. The build may have been deleted or expired.");
+        } else if (response.status === 400) {
+          throw new Error(`Build issue: ${errorText}`);
+        } else {
+          throw new Error(`Download failed: ${response.status} - ${errorText || 'Unknown error'}`);
         }
-        
-        throw new Error(`Download failed: ${response.status} - ${errorText || 'Unknown error'}`);
       }
       
       // Get the blob and create download
       const blob = await response.blob();
       const contentLength = blob.size;
-      const contentType = response.headers.get('content-type') || 'application/vnd.android.package-archive';
+      
+      if (contentLength === 0) {
+        throw new Error("Downloaded file is empty. The build may have failed.");
+      }
       
       console.log(`📦 File size: ${contentLength} bytes`);
-      console.log(`📦 Content-Type: ${contentType}`);
       
-      // Determine file extension
+      // Determine file extension from content-type or URL
+      const contentType = response.headers.get('content-type') || '';
       let fileExtension = 'apk';
+      
       if (contentType.includes('aab') || downloadUrl.includes('.aab')) {
         fileExtension = 'aab';
       } else if (contentType.includes('ipa') || downloadUrl.includes('.ipa')) {
         fileExtension = 'ipa';
+      } else if (contentType.includes('zip')) {
+        fileExtension = 'zip';
       }
+      
+      console.log(`📦 File extension: ${fileExtension}`);
       
       // Create download link
       const url = window.URL.createObjectURL(blob);
@@ -384,6 +385,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setDownloadUrl(null);
     setPollAttempts(0);
     setIsDownloading(false);
+    setBuildStatus("");
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -725,6 +727,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Build ID: <span className="font-mono text-foreground">{buildId}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Status: <span className="font-mono">{buildStatus || "Building..."}</span>
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Polling: {pollAttempts} attempts
