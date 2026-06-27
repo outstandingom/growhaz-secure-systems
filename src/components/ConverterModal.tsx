@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   AlertCircle,
   Sparkles,
-  X,
   Globe,
   Smartphone,
   Palette,
@@ -106,20 +105,29 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   useEffect(() => {
     if (step === "generating" && buildId) {
       pollRef.current = setInterval(async () => {
-        const { data } = await supabase
-          .from("apk_builds")
-          .select("status, error_message")
-          .eq("id", buildId)
-          .single();
+        try {
+          const { data, error } = await supabase
+            .from("apk_builds")
+            .select("status, error_message")
+            .eq("id", buildId)
+            .single();
 
-        const build = data as { status: string; error_message: string | null } | null;
-        if (build?.status === "completed") {
-          setStep("done");
-          if (pollRef.current) clearInterval(pollRef.current);
-        } else if (build?.status === "failed") {
-          setStep("error");
-          setErrorMsg(build.error_message || "Build failed");
-          if (pollRef.current) clearInterval(pollRef.current);
+          if (error) {
+            console.error("Poll error:", error);
+            return;
+          }
+
+          const build = data as { status: string; error_message: string | null } | null;
+          if (build?.status === "completed") {
+            setStep("done");
+            if (pollRef.current) clearInterval(pollRef.current);
+          } else if (build?.status === "failed") {
+            setStep("error");
+            setErrorMsg(build.error_message || "Build failed");
+            if (pollRef.current) clearInterval(pollRef.current);
+          }
+        } catch (err) {
+          console.error("Poll error:", err);
         }
       }, 5000);
       return () => {
@@ -137,8 +145,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       let websiteUrl = config.websiteUrl.trim();
       if (!websiteUrl.startsWith("http")) websiteUrl = "https://" + websiteUrl;
 
-      const { data, error } = await supabase.functions.invoke("trigger-build", {
-        body: {
+      // ✅ FIXED: Wrap everything in a "config" object
+      const requestBody = {
+        config: {
           website_url: websiteUrl,
           app_name: config.appName.trim(),
           icon_url: config.logoPreview || null,
@@ -161,13 +170,36 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           proxy_port: config.proxyPort ? parseInt(config.proxyPort, 10) : null,
           proxy_username: config.proxyUsername,
           proxy_password: config.proxyPassword,
-        },
+        }
+      };
+
+      console.log("📤 Sending request:", JSON.stringify(requestBody, null, 2));
+
+      const { data, error } = await supabase.functions.invoke("trigger-build", {
+        body: requestBody,
       });
 
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
+      console.log("📥 Response:", { data, error });
+
+      if (error) {
+        console.error("Edge function error:", error);
+        throw new Error(error.message);
+      }
+      
+      if (data?.error) {
+        console.error("Build error:", data.error);
+        throw new Error(data.error);
+      }
+      
+      if (!data?.build_id) {
+        throw new Error("No build_id returned from edge function");
+      }
+      
       setBuildId(data.build_id);
+      console.log("✅ Build started with ID:", data.build_id);
+      
     } catch (err: any) {
+      console.error("❌ Error:", err);
       setStep("error");
       setErrorMsg(err.message || "Failed to start build");
     }
