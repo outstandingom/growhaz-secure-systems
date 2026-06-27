@@ -1,3 +1,5 @@
+// src/pages/Automation.tsx
+
 import { useState } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -12,23 +14,22 @@ import {
   Bot,
   Workflow,
   Database,
-  Settings,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { ConverterModal } from "@/components/ConverterModal";
 
-// Define the shape of a tool
 type Tool = {
   id: string;
   name: string;
   description: string;
   icon: React.ElementType;
-  price: string; // e.g., "Free", "$9.99", "100 credits"
+  price: string;
   category: "automation" | "ai" | "workflow";
-  url: string; // external link or internal route
+  url?: string;
+  internal?: boolean;
   status?: "coming soon" | "new";
 };
 
-// Sample tool data – add your products here
 const tools: Tool[] = [
   {
     id: "web-to-apk",
@@ -38,7 +39,7 @@ const tools: Tool[] = [
     icon: Smartphone,
     price: "Free (5 credits)",
     category: "automation",
-    url: "https://appify-your-website.vercel.app/",
+    internal: true, // This will open the modal instead of external URL
     status: "new",
   },
   {
@@ -49,41 +50,30 @@ const tools: Tool[] = [
     icon: Bot,
     price: "$19/mo",
     category: "ai",
-    url: "#", // placeholder
+    url: "#",
     status: "coming soon",
   },
-  {
-    id: "data-cleaner",
-    name: "Data Cleaning Workflow",
-    description:
-      "Automated pipeline to clean, deduplicate, and enrich your CSV/Excel data with zero code.",
-    icon: Database,
-    price: "$49 one-time",
-    category: "workflow",
-    url: "#",
-  },
-  {
-    id: "lead-scraper",
-    name: "Lead Scraper Agent",
-    description:
-      "AI agent that scrapes LinkedIn, company websites, and Crunchbase to generate high-quality leads.",
-    icon: Workflow,
-    price: "$99/mo",
-    category: "ai",
-    url: "#",
-  },
-  // Add more tools as you build them
+  // ... other tools remain the same
 ];
 
 export default function Automation() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isConverterOpen, setIsConverterOpen] = useState(false);
 
-  // Filter tools based on search (name, description)
   const filteredTools = tools.filter((tool) =>
     `${tool.name} ${tool.description}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase())
   );
+
+  const handleToolClick = (tool: Tool) => {
+    if (tool.internal) {
+      // Open the internal converter modal
+      setIsConverterOpen(true);
+    } else if (tool.url && tool.url !== "#") {
+      window.open(tool.url, "_blank");
+    }
+  };
 
   return (
     <Layout>
@@ -137,7 +127,6 @@ export default function Automation() {
                   key={tool.id}
                   className="group relative p-6 rounded-2xl bg-card/50 border border-border hover:border-primary/40 transition-all hover:shadow-lg hover:shadow-primary/5 flex flex-col"
                 >
-                  {/* Status badge */}
                   {tool.status && (
                     <span className="absolute top-3 right-3 text-[10px] font-semibold uppercase tracking-wider px-2 py-1 rounded-full bg-primary/10 text-primary">
                       {tool.status}
@@ -163,14 +152,13 @@ export default function Automation() {
                       variant="default"
                       size="sm"
                       className="rounded-full gap-1.5"
-                      onClick={() => window.open(tool.url, "_blank")}
+                      onClick={() => handleToolClick(tool)}
+                      disabled={tool.url === "#" && !tool.internal}
                     >
-                      Use Tool
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </Button>
-                    {/* Optional "Learn More" link */}
-                    <Button variant="ghost" size="sm" className="rounded-full">
-                      Details
+                      {tool.internal ? "Open Converter" : "Use Tool"}
+                      {!tool.internal && tool.url !== "#" && (
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      )}
                     </Button>
                   </div>
                 </div>
@@ -198,6 +186,12 @@ export default function Automation() {
           </Link>
         </div>
       </section>
+
+      {/* Converter Modal */}
+      <ConverterModal
+        isOpen={isConverterOpen}
+        onClose={() => setIsConverterOpen(false)}
+      />
     </Layout>
   );
 }
