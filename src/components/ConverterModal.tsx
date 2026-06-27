@@ -114,7 +114,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         try {
           setPollAttempts(prev => prev + 1);
           
-          // Fixed: Use 'id' instead of 'build_id'
           const { data, error } = await supabase
             .from("apk_builds")
             .select("status, error_message, github_run_id")
@@ -152,7 +151,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               pollRef.current = null;
             }
           } else if (pollAttempts > 120) {
-            // Timeout after 10 minutes (120 * 5 seconds)
             console.log("⏰ Polling timeout - stopping after 10 minutes");
             setStep("error");
             setErrorMsg("Build is taking too long. Please check GitHub Actions for status.");
@@ -213,14 +211,14 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         proxy_password: config.proxyPassword,
       };
 
-      console.log("📤 Sending request to edge function...");
+      console.log("📤 Sending request to trigger-build function...");
       console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
       const { data, error } = await supabase.functions.invoke("trigger-build", {
         body: requestBody,
       });
 
-      console.log("📥 Response from edge function:", { data, error });
+      console.log("📥 Response from trigger-build:", { data, error });
 
       if (error) {
         console.error("❌ Edge function error:", error);
@@ -239,21 +237,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       setBuildId(data.build_id);
       console.log("✅ Build started with ID:", data.build_id);
       
-      // Verify the build record was created
-      setTimeout(async () => {
-        const { data: verifyData, error: verifyError } = await supabase
-          .from("apk_builds")
-          .select("status")
-          .eq("id", data.build_id)
-          .single();
-        
-        if (verifyError) {
-          console.warn("⚠️ Build record not found in database yet:", verifyError);
-        } else {
-          console.log("✅ Build record verified in database:", verifyData);
-        }
-      }, 3000);
-      
     } catch (err: any) {
       console.error("❌ Error in handleGenerate:", err);
       setStep("error");
@@ -264,73 +247,127 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const handleDownload = async () => {
     if (!buildId) {
       console.error("❌ No build ID available");
+      alert("No build ID available. Please try again.");
       return;
     }
+    
+    console.log("🚀 Starting download process...");
+    console.log("📦 Build ID:", buildId);
     
     setIsDownloading(true);
     
     try {
-      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      // Get the Supabase URL from the client configuration
+      const supabaseUrl = supabase.supabaseUrl || '';
+      console.log("🔗 Supabase URL:", supabaseUrl);
+      
+      // Extract project ID from Supabase URL
+      const projectId = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
+      console.log("🔑 Project ID:", projectId);
+      
+      if (!projectId) {
+        throw new Error("Could not determine Supabase project ID");
+      }
+      
+      // Construct the download URL
       const downloadUrl = `https://${projectId}.supabase.co/functions/v1/download-apk?build_id=${buildId}`;
+      console.log("📥 Download URL:", downloadUrl);
       
-      console.log(`📥 Downloading from: ${downloadUrl}`);
+      // Make the fetch request
+      console.log("📡 Sending request to download-apk function...");
+      const response = await fetch(downloadUrl, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
       
-      const response = await fetch(downloadUrl);
-      
-      console.log(`📊 Response status: ${response.status}`);
+      console.log("📊 Response received:", {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries()),
+      });
       
       if (!response.ok) {
-        let errorMessage = 'Download failed';
-        try {
+        let errorMessage = `Download failed with status ${response.status}`;
+        const contentType = response.headers.get('content-type') || '';
+        
+        if (contentType.includes('application/json')) {
           const errorData = await response.json();
-          errorMessage = errorData.error || errorMessage;
-        } catch {
+          console.error("❌ Error response:", errorData);
+          errorMessage = errorData.error || errorData.message || errorMessage;
+        } else {
           const errorText = await response.text();
+          console.error("❌ Error text:", errorText);
           errorMessage = errorText || errorMessage;
         }
         
-        console.error(`❌ Download failed (${response.status}):`, errorMessage);
         throw new Error(errorMessage);
+      }
+      
+      // Check content type
+      const contentType = response.headers.get('content-type') || '';
+      console.log("📄 Content-Type:", contentType);
+      
+      if (contentType.includes('application/json')) {
+        const jsonData = await response.json();
+        console.error("❌ Got JSON instead of file:", jsonData);
+        throw new Error(jsonData.error || 'Server returned JSON instead of file');
       }
       
       // Get filename from Content-Disposition header
       const contentDisposition = response.headers.get('Content-Disposition');
       let filename = `${config.appName}.apk`;
       if (contentDisposition) {
-        const match = contentDisposition.match(/filename="(.+)"/);
-        if (match) filename = match[1];
+        const match = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+        if (match && match[1]) {
+          filename = match[1].replace(/['"]/g, '');
+        }
       }
       
-      // Create and trigger download
+      console.log("📦 Expected filename:", filename);
+      
+      // Get the blob
       const blob = await response.blob();
       const contentLength = blob.size;
+      
+      console.log("📦 File details:", {
+        size: contentLength,
+        type: blob.type,
+        filename: filename,
+      });
       
       if (contentLength === 0) {
         throw new Error("Downloaded file is empty. The build may have failed.");
       }
       
-      console.log(`📦 File size: ${contentLength} bytes`);
-      console.log(`📦 Filename: ${filename}`);
-      
-      const url = window.URL.createObjectURL(blob);
+      // Create download link
+      console.log("💾 Creating download...");
+      const blobUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = blobUrl;
       a.download = filename;
+      a.style.display = 'none';
       document.body.appendChild(a);
+      
+      console.log("🖱️ Triggering download...");
       a.click();
-      document.body.removeChild(a);
       
       // Clean up
       setTimeout(() => {
-        window.URL.revokeObjectURL(url);
-      }, 1000);
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(blobUrl);
+        console.log("🧹 Cleanup complete");
+      }, 100);
       
       console.log("✅ Download successful!");
       
     } catch (err: any) {
       console.error("❌ Download error:", err);
+      console.error("❌ Error stack:", err.stack);
       setStep("error");
       setErrorMsg(err.message || "Failed to download. Please try again.");
+      alert(`Download failed: ${err.message}`);
     } finally {
       setIsDownloading(false);
     }
