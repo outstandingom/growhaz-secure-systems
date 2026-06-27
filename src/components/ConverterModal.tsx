@@ -95,6 +95,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [pollAttempts, setPollAttempts] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const patch = (p: Partial<BuildConfig>) =>
@@ -102,6 +103,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
   const isValid =
     config.websiteUrl.trim().length > 0 && config.appName.trim().length > 0;
+
+  // Get the current session token
+  const getAuthToken = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token || null;
+  };
 
   // Poll build status
   useEffect(() => {
@@ -184,6 +191,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setPollAttempts(0);
 
     try {
+      // ✅ Get the JWT token
+      const token = await getAuthToken();
+      if (!token) {
+        throw new Error("You need to be logged in to build an app. Please sign in and try again.");
+      }
+
       let websiteUrl = config.websiteUrl.trim();
       if (!websiteUrl.startsWith("http")) websiteUrl = "https://" + websiteUrl;
 
@@ -217,14 +230,21 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       console.log("📤 Sending request to edge function...");
       console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
+      // ✅ Send the token in the Authorization header
       const { data, error } = await supabase.functions.invoke("trigger-build", {
         body: requestBody,
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
 
       console.log("📥 Response from edge function:", { data, error });
 
       if (error) {
         console.error("❌ Edge function error:", error);
+        if (error.message.includes("401") || error.message.includes("unauthorized")) {
+          throw new Error("Your session has expired. Please sign in again.");
+        }
         throw new Error(error.message);
       }
       
@@ -268,43 +288,90 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       return;
     }
     
-    const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
-    const downloadUrl = `https://${projectId}.supabase.co/functions/v1/download-apk?build_id=${buildId}`;
+    setIsDownloading(true);
     
-    console.log(`📥 Download URL: ${downloadUrl}`);
-    console.log(`📥 Opening download in new tab...`);
-    
-    // Try to fetch first to check if it works
     try {
-      console.log("🔍 Testing download function...");
-      const testResponse = await fetch(downloadUrl, {
+      // ✅ Get the JWT token
+      const token = await getAuthToken();
+      if (!token) {
+        setStep("error");
+        setErrorMsg("You need to be logged in to download the app. Please sign in and try again.");
+        setIsDownloading(false);
+        return;
+      }
+      
+      const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
+      const downloadUrl = `https://${projectId}.supabase.co/functions/v1/download-apk?build_id=${buildId}`;
+      
+      console.log(`📥 Download URL: ${downloadUrl}`);
+      
+      // ✅ Fetch with authorization header
+      const response = await fetch(downloadUrl, {
         method: 'GET',
         headers: {
+          'Authorization': `Bearer ${token}`,
           'Origin': window.location.origin,
         },
       });
       
-      console.log(`📊 Test response status: ${testResponse.status}`);
+      console.log(`📊 Response status: ${response.status}`);
       
-      if (testResponse.ok) {
-        // Get the content type and size
-        const contentType = testResponse.headers.get('content-type');
-        const contentLength = testResponse.headers.get('content-length');
-        console.log(`📦 Content-Type: ${contentType}`);
-        console.log(`📦 Content-Length: ${contentLength} bytes`);
+      if (!response.ok) {
+        let errorText = '';
+        try {
+          const errorJson = await response.json();
+          errorText = errorJson.error || JSON.stringify(errorJson);
+        } catch {
+          errorText = await response.text();
+        }
         
-        // Open in new tab
-        window.open(downloadUrl, '_blank');
-      } else {
-        const errorText = await testResponse.text();
-        console.error(`❌ Download test failed (${testResponse.status}):`, errorText);
-        setStep("error");
-        setErrorMsg(`Download failed: ${testResponse.status} - ${errorText || 'Unknown error'}`);
+        console.error(`❌ Download failed (${response.status}):`, errorText);
+        
+        if (response.status === 401) {
+          throw new Error("Your session has expired. Please sign in again.");
+        }
+        
+        throw new Error(`Download failed: ${response.status} - ${errorText || 'Unknown error'}`);
       }
+      
+      // Get the blob and create download
+      const blob = await response.blob();
+      const contentLength = blob.size;
+      const contentType = response.headers.get('content-type') || 'application/vnd.android.package-archive';
+      
+      console.log(`📦 File size: ${contentLength} bytes`);
+      console.log(`📦 Content-Type: ${contentType}`);
+      
+      // Determine file extension
+      let fileExtension = 'apk';
+      if (contentType.includes('aab') || downloadUrl.includes('.aab')) {
+        fileExtension = 'aab';
+      } else if (contentType.includes('ipa') || downloadUrl.includes('.ipa')) {
+        fileExtension = 'ipa';
+      }
+      
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `app-${buildId}.${fileExtension}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      
+      // Clean up
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      
+      console.log("✅ Download successful!");
+      
     } catch (err) {
       console.error("❌ Download error:", err);
-      // Fallback - try to open anyway
-      window.open(downloadUrl, '_blank');
+      setStep("error");
+      setErrorMsg(err.message || "Failed to download. Please try again.");
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -316,6 +383,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setShowAdvanced(false);
     setDownloadUrl(null);
     setPollAttempts(0);
+    setIsDownloading(false);
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -691,9 +759,19 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                   size="lg"
                   className="w-full h-13 rounded-xl gap-2"
                   onClick={handleDownload}
+                  disabled={isDownloading}
                 >
-                  <Download className="w-5 h-5" />
-                  Download {outputLabel}
+                  {isDownloading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-5 h-5" />
+                      Download {outputLabel}
+                    </>
+                  )}
                 </Button>
                 <Button variant="ghost" onClick={handleReset} className="text-muted-foreground">
                   Convert another website
