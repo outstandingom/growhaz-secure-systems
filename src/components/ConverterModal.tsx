@@ -26,8 +26,17 @@ import {
   Shield,
   Gauge,
   Cloud,
+  LogIn,
+  Coins,
+  Clock,
+  Users,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { useSpendCoins } from "@/hooks/useSpendCoins";
+import { useBuildQueue } from "@/hooks/useBuildQueue";
+import { useNavigate } from "react-router-dom";
+
+const BUILD_COST_COINS = 5;
 
 // Types
 interface BuildConfig {
@@ -85,7 +94,7 @@ interface ConverterModalProps {
   onClose: () => void;
 }
 
-type Step = "config" | "generating" | "done" | "error";
+type Step = "config" | "queued" | "generating" | "done" | "error";
 
 export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [config, setConfig] = useState<BuildConfig>({ ...DEFAULT_CONFIG });
@@ -93,16 +102,53 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [buildId, setBuildId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
+<<<<<<< HEAD
   const [pollAttempts, setPollAttempts] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [buildStatus, setBuildStatus] = useState<string>("");
+=======
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null); // null = checking
+>>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const navigate = useNavigate();
+
+  const { spendCoins, balance } = useSpendCoins();
+  const {
+    joinQueue,
+    queueEntry,
+    queuePosition,
+    queueStatus,
+    activeCount,
+    markCompleted,
+    markFailed,
+    resetQueue,
+  } = useBuildQueue();
 
   const patch = (p: Partial<BuildConfig>) =>
     setConfig((c) => ({ ...c, ...p }));
 
   const isValid =
     config.websiteUrl.trim().length > 0 && config.appName.trim().length > 0;
+
+  // Check auth on mount
+  useEffect(() => {
+    const check = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsLoggedIn(!!session?.user);
+    };
+    check();
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsLoggedIn(!!session?.user);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // When queue status changes to "building", trigger the actual build
+  useEffect(() => {
+    if (queueStatus === "building" && step === "queued" && queueEntry) {
+      triggerActualBuild(queueEntry.build_id, queueEntry.id);
+    }
+  }, [queueStatus, step]);
 
   // Poll build status
   useEffect(() => {
@@ -120,6 +166,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
             .eq("id", buildId)
             .single();
 
+<<<<<<< HEAD
           if (error) {
             console.error("❌ Poll error:", error);
             return;
@@ -161,6 +208,18 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           }
         } catch (err) {
           console.error("❌ Poll error:", err);
+=======
+        const build = data as { status: string; error_message: string | null } | null;
+        if (build?.status === "completed") {
+          setStep("done");
+          if (queueEntry) markCompleted(queueEntry.id);
+          if (pollRef.current) clearInterval(pollRef.current);
+        } else if (build?.status === "failed") {
+          setStep("error");
+          setErrorMsg(build.error_message || "Build failed");
+          if (queueEntry) markFailed(queueEntry.id);
+          if (pollRef.current) clearInterval(pollRef.current);
+>>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
         }
       }, 5000);
       
@@ -174,13 +233,15 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
   }, [step, buildId, pollAttempts]);
 
-  const handleGenerate = async () => {
-    if (!isValid) return;
+  const triggerActualBuild = async (bId: string, queueId: string) => {
     setStep("generating");
+<<<<<<< HEAD
     setErrorMsg("");
     setPollAttempts(0);
     setBuildStatus("");
 
+=======
+>>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
     try {
       let websiteUrl = config.websiteUrl.trim();
       if (!websiteUrl.startsWith("http")) websiteUrl = "https://" + websiteUrl;
@@ -215,7 +276,35 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
       const { data, error } = await supabase.functions.invoke("trigger-build", {
+<<<<<<< HEAD
         body: requestBody,
+=======
+        body: {
+          website_url: websiteUrl,
+          app_name: config.appName.trim(),
+          icon_url: config.logoPreview || null,
+          package_name: config.packageName.trim() || null,
+          splash_color: config.splashColor,
+          status_bar_color: config.statusBarColor,
+          enable_push: config.enablePush,
+          enable_offline: config.enableOffline,
+          offline_message: config.offlineMessage,
+          enable_analytics: config.enableAnalytics,
+          enable_cookies: config.enableCookies,
+          enable_admob: config.enableAdmob,
+          admob_banner_id: config.admobBannerId || null,
+          admob_interstitial_id: config.admobInterstitialId || null,
+          build_aab: config.buildAab,
+          platform: config.platform,
+          proxy_enabled: config.proxyEnabled,
+          proxy_type: config.proxyType,
+          proxy_host: config.proxyHost.trim(),
+          proxy_port: config.proxyPort ? parseInt(config.proxyPort, 10) : null,
+          proxy_username: config.proxyUsername,
+          proxy_password: config.proxyPassword,
+          build_id: bId,
+        },
+>>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
       });
 
       console.log("📥 Response from trigger-build:", { data, error });
@@ -240,7 +329,54 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     } catch (err: any) {
       console.error("❌ Error in handleGenerate:", err);
       setStep("error");
+<<<<<<< HEAD
       setErrorMsg(err.message || "Failed to start build. Please try again.");
+=======
+      setErrorMsg(err.message || "Failed to start build");
+      if (queueId) markFailed(queueId);
+    }
+  };
+
+  const handleGenerate = async () => {
+    if (!isValid) return;
+
+    // 1. Auth check
+    if (!isLoggedIn) {
+      navigate("/auth");
+      onClose();
+      return;
+    }
+
+    // 2. Coin check
+    if (!balance || balance.balance < BUILD_COST_COINS) {
+      navigate("/wallet");
+      onClose();
+      return;
+    }
+
+    // 3. Deduct coins
+    const spent = await spendCoins(BUILD_COST_COINS, "Website to App Conversion");
+    if (!spent) return;
+
+    // 4. Generate a build ID
+    const newBuildId = crypto.randomUUID();
+    setBuildId(newBuildId);
+
+    // 5. Join queue
+    const result = await joinQueue(newBuildId);
+    if (!result) {
+      setStep("error");
+      setErrorMsg("Failed to join build queue");
+      return;
+    }
+
+    if (result.canStart) {
+      // Build can start immediately
+      triggerActualBuild(newBuildId, result.entry.id);
+    } else {
+      // Must wait in queue
+      setStep("queued");
+>>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
     }
   };
 
@@ -379,6 +515,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setBuildId(null);
     setErrorMsg("");
     setShowAdvanced(false);
+<<<<<<< HEAD
     setPollAttempts(0);
     setIsDownloading(false);
     setBuildStatus("");
@@ -391,6 +528,14 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const handleClose = () => {
     if (step === "generating") {
       if (!confirm("Build is in progress. Are you sure you want to close? The build will continue in the background.")) {
+=======
+    resetQueue();
+  };
+
+  const handleClose = () => {
+    if (step === "generating" || step === "queued") {
+      if (!confirm("Build is in progress. Are you sure you want to close?")) {
+>>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
         return;
       }
     }
@@ -401,6 +546,16 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const outputLabel =
     config.platform === "ios" ? "IPA" : config.buildAab ? "AAB" : "APK";
   const platformLabel = config.platform === "ios" ? "iOS" : "Android";
+
+  // Progress bar width
+  const progressWidth =
+    step === "config"
+      ? "25%"
+      : step === "queued"
+      ? "40%"
+      : step === "generating"
+      ? "66%"
+      : "100%";
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
@@ -419,20 +574,69 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         <div className="h-1 bg-muted rounded-full overflow-hidden">
           <div
             className="h-full bg-primary transition-all duration-700 ease-out"
-            style={{
-              width:
-                step === "config"
-                  ? "33%"
-                  : step === "generating"
-                  ? "66%"
-                  : "100%",
-            }}
+            style={{ width: progressWidth }}
           />
         </div>
 
         <div className="mt-4">
           {step === "config" && (
             <div className="space-y-6">
+              {/* Auth / Coin Warning Banners */}
+              {isLoggedIn === false && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <LogIn className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Login Required</p>
+                    <p className="text-xs text-muted-foreground">
+                      You need to log in or register before using this tool
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                    onClick={() => { navigate("/auth"); onClose(); }}
+                  >
+                    Login
+                  </Button>
+                </div>
+              )}
+
+              {isLoggedIn && balance && balance.balance < BUILD_COST_COINS && (
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
+                  <Coins className="w-5 h-5 text-amber-500 flex-shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Insufficient Coins</p>
+                    <p className="text-xs text-muted-foreground">
+                      This tool costs {BUILD_COST_COINS} coins. You have{" "}
+                      {balance.balance} coins.
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
+                    onClick={() => { navigate("/wallet"); onClose(); }}
+                  >
+                    <Coins className="w-3 h-3 mr-1" />
+                    Add Coins
+                  </Button>
+                </div>
+              )}
+
+              {/* Active builds indicator */}
+              <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <Users className="w-3.5 h-3.5" />
+                <span>
+                  {activeCount}/20 builds running
+                  {activeCount >= 20 && (
+                    <span className="text-amber-500 ml-1">
+                      — queue active, you may wait
+                    </span>
+                  )}
+                </span>
+              </div>
+
               {/* Core Fields */}
               <div className="space-y-4">
                 <div className="space-y-2">
@@ -691,16 +895,78 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 </div>
               )}
 
+              {/* Generate Button */}
               <Button
                 variant="hero"
                 size="lg"
                 className="w-full h-13 rounded-xl text-base gap-2"
-                disabled={!isValid}
+                disabled={
+                  !isValid ||
+                  !isLoggedIn ||
+                  (balance !== null && balance.balance < BUILD_COST_COINS)
+                }
                 onClick={handleGenerate}
               >
-                <Sparkles className="w-4 h-4" />
-                Generate {outputLabel}
+                {!isLoggedIn ? (
+                  <>
+                    <LogIn className="w-4 h-4" />
+                    Login to Generate
+                  </>
+                ) : balance && balance.balance < BUILD_COST_COINS ? (
+                  <>
+                    <Coins className="w-4 h-4" />
+                    Add Coins ({BUILD_COST_COINS} required)
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4" />
+                    Generate {outputLabel}
+                    <span className="text-xs opacity-70 ml-1">
+                      ({BUILD_COST_COINS} coins)
+                    </span>
+                  </>
+                )}
               </Button>
+            </div>
+          )}
+
+          {/* QUEUED — waiting for slot */}
+          {step === "queued" && (
+            <div className="flex flex-col items-center justify-center py-10 space-y-6">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-2xl bg-amber-500/10 flex items-center justify-center">
+                  <Clock className="w-8 h-8 text-amber-500 animate-pulse" />
+                </div>
+                <div className="absolute -inset-3 rounded-3xl border border-amber-500/20 animate-pulse" />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="font-semibold text-lg">Waiting in Queue</p>
+                <p className="text-sm text-muted-foreground">
+                  Your build for{" "}
+                  <span className="text-foreground font-medium">
+                    {config.appName}
+                  </span>{" "}
+                  is in the queue
+                </p>
+                {queuePosition && (
+                  <div className="mt-4 p-3 rounded-xl bg-muted/50 border border-border/40">
+                    <p className="text-2xl font-bold text-primary">
+                      #{queuePosition}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Position in queue
+                    </p>
+                  </div>
+                )}
+                <div className="flex items-center justify-center gap-2 text-xs text-muted-foreground mt-3">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>{activeCount}/20 builds running</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  Your build will start automatically when a slot opens. Don't
+                  close this page.
+                </p>
+              </div>
             </div>
           )}
 

@@ -14,6 +14,85 @@ export type Database = {
   }
   public: {
     Tables: {
+      build_queue: {
+        Row: {
+          id: string
+          user_id: string
+          build_id: string
+          status: string
+          position: number | null
+          created_at: string
+          started_at: string | null
+          completed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          build_id: string
+          status?: string
+          position?: number | null
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          build_id?: string
+          status?: string
+          position?: number | null
+          created_at?: string
+          started_at?: string | null
+          completed_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "build_queue_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      user_titles: {
+        Row: {
+          id: string
+          user_id: string
+          title_key: string
+          title_name: string
+          title_emoji: string
+          cost: number
+          claimed_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          title_key: string
+          title_name: string
+          title_emoji: string
+          cost: number
+          claimed_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          title_key?: string
+          title_name?: string
+          title_emoji?: string
+          cost?: number
+          claimed_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_titles_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
       blockchain_access_grants: {
         Row: {
           block_hash: string

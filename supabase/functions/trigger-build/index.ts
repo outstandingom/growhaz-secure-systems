@@ -1,6 +1,7 @@
 // supabase/functions/trigger-build/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { v4 as uuid } from "https://deno.land/std@0.168.0/uuid/mod.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -112,6 +113,37 @@ serve(async (req: Request) => {
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
+
+    // --- Build Queue Check ---
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+    
+    if (supabaseUrl && supabaseServiceKey) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      
+      // Check if this build is already approved to start ('building' status)
+      const { data: queueEntry } = await supabase
+        .from('build_queue')
+        .select('status')
+        .eq('build_id', finalBuildId)
+        .single();
+        
+      if (!queueEntry || queueEntry.status !== 'building') {
+        // If not explicitly approved, check if we're under the limit
+        const { data: activeCount } = await supabase.rpc('get_active_build_count');
+        
+        if (typeof activeCount === 'number' && activeCount >= 20) {
+           return new Response(
+             JSON.stringify({ 
+               error: "Build queue is full (max 20). Please use the queue system.",
+               status: "queued" 
+             }),
+             { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+           );
+        }
+      }
+    }
+    // -------------------------
 
     // Workflow filename (as it appears in .github/workflows/)
     const workflowId = "build.yml";

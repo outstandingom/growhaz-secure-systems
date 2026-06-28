@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ConverterModal } from "@/components/ConverterModal";
+import { TitleLadder } from "@/components/TitleLadder";
 
 type Tool = {
   id: string;
@@ -109,6 +110,9 @@ export default function Automation() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+
+          {/* Title Leaderboard Ladder */}
+          <TitleLadder />
         </div>
       </section>
 
