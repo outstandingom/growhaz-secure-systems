@@ -101,13 +101,10 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [buildId, setBuildId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [showAdvanced, setShowAdvanced] = useState(false);
-<<<<<<< HEAD
   const [pollAttempts, setPollAttempts] = useState(0);
   const [isDownloading, setIsDownloading] = useState(false);
   const [buildStatus, setBuildStatus] = useState<string>("");
-=======
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null); // null = checking
->>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
 
@@ -164,7 +161,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
             .eq("id", buildId)
             .single();
 
-<<<<<<< HEAD
           if (error) {
             console.error("❌ Poll error:", error);
             return;
@@ -183,6 +179,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
             console.log("✅ Build completed!");
             console.log("📥 GitHub Run ID:", build?.github_run_id);
             setStep("done");
+            if (queueEntry) markCompleted(queueEntry.id);
             if (pollRef.current) {
               clearInterval(pollRef.current);
               pollRef.current = null;
@@ -191,6 +188,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
             console.log("❌ Build failed:", build?.error_message);
             setStep("error");
             setErrorMsg(build?.error_message || "Build failed");
+            if (queueEntry) markFailed(queueEntry.id);
             if (pollRef.current) {
               clearInterval(pollRef.current);
               pollRef.current = null;
@@ -206,18 +204,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           }
         } catch (err) {
           console.error("❌ Poll error:", err);
-=======
-        const build = data as { status: string; error_message: string | null } | null;
-        if (build?.status === "completed") {
-          setStep("done");
-          if (queueEntry) markCompleted(queueEntry.id);
-          if (pollRef.current) clearInterval(pollRef.current);
-        } else if (build?.status === "failed") {
-          setStep("error");
-          setErrorMsg(build.error_message || "Build failed");
-          if (queueEntry) markFailed(queueEntry.id);
-          if (pollRef.current) clearInterval(pollRef.current);
->>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
         }
       }, 5000);
       
@@ -233,13 +219,10 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
   const triggerActualBuild = async (bId: string, queueId: string) => {
     setStep("generating");
-<<<<<<< HEAD
     setErrorMsg("");
     setPollAttempts(0);
     setBuildStatus("");
 
-=======
->>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
     try {
       let websiteUrl = config.websiteUrl.trim();
       if (!websiteUrl.startsWith("http")) websiteUrl = "https://" + websiteUrl;
@@ -274,35 +257,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       console.log("📤 Request body:", JSON.stringify(requestBody, null, 2));
 
       const { data, error } = await supabase.functions.invoke("trigger-build", {
-<<<<<<< HEAD
-        body: requestBody,
-=======
-        body: {
-          website_url: websiteUrl,
-          app_name: config.appName.trim(),
-          icon_url: config.logoPreview || null,
-          package_name: config.packageName.trim() || null,
-          splash_color: config.splashColor,
-          status_bar_color: config.statusBarColor,
-          enable_push: config.enablePush,
-          enable_offline: config.enableOffline,
-          offline_message: config.offlineMessage,
-          enable_analytics: config.enableAnalytics,
-          enable_cookies: config.enableCookies,
-          enable_admob: config.enableAdmob,
-          admob_banner_id: config.admobBannerId || null,
-          admob_interstitial_id: config.admobInterstitialId || null,
-          build_aab: config.buildAab,
-          platform: config.platform,
-          proxy_enabled: config.proxyEnabled,
-          proxy_type: config.proxyType,
-          proxy_host: config.proxyHost.trim(),
-          proxy_port: config.proxyPort ? parseInt(config.proxyPort, 10) : null,
-          proxy_username: config.proxyUsername,
-          proxy_password: config.proxyPassword,
-          build_id: bId,
-        },
->>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
+        body: { ...requestBody, build_id: bId },
       });
 
       console.log("📥 Response from trigger-build:", { data, error });
@@ -327,10 +282,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     } catch (err: any) {
       console.error("❌ Error in handleGenerate:", err);
       setStep("error");
-<<<<<<< HEAD
       setErrorMsg(err.message || "Failed to start build. Please try again.");
-=======
-      setErrorMsg(err.message || "Failed to start build");
       if (queueId) markFailed(queueId);
     }
   };
@@ -363,7 +315,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     } else {
       // Must wait in queue
       setStep("queued");
->>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
     }
   };
 
@@ -502,7 +453,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setBuildId(null);
     setErrorMsg("");
     setShowAdvanced(false);
-<<<<<<< HEAD
     setPollAttempts(0);
     setIsDownloading(false);
     setBuildStatus("");
@@ -510,19 +460,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       clearInterval(pollRef.current);
       pollRef.current = null;
     }
-  };
-
-  const handleClose = () => {
-    if (step === "generating") {
-      if (!confirm("Build is in progress. Are you sure you want to close? The build will continue in the background.")) {
-=======
     resetQueue();
   };
 
   const handleClose = () => {
     if (step === "generating" || step === "queued") {
-      if (!confirm("Build is in progress. Are you sure you want to close?")) {
->>>>>>> b6441e1 (feat: Add title leaderboard and build queue with coin gating)
+      if (!confirm("Build is in progress. Are you sure you want to close? The build will continue in the background.")) {
         return;
       }
     }
