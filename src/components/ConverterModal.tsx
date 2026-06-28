@@ -35,8 +35,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSpendCoins } from "@/hooks/useSpendCoins";
 import { useBuildQueue } from "@/hooks/useBuildQueue";
 import { useNavigate } from "react-router-dom";
-
-const BUILD_COST_COINS = 5;
+import { TitleLadder } from "@/components/TitleLadder";
 
 // Types
 interface BuildConfig {
@@ -112,7 +111,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
 
-  const { spendCoins, balance } = useSpendCoins();
   const {
     joinQueue,
     queueEntry,
@@ -347,22 +345,11 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       return;
     }
 
-    // 2. Coin check
-    if (!balance || balance.balance < BUILD_COST_COINS) {
-      navigate("/wallet");
-      onClose();
-      return;
-    }
-
-    // 3. Deduct coins
-    const spent = await spendCoins(BUILD_COST_COINS, "Website to App Conversion");
-    if (!spent) return;
-
-    // 4. Generate a build ID
+    // 2. Generate a build ID
     const newBuildId = crypto.randomUUID();
     setBuildId(newBuildId);
 
-    // 5. Join queue
+    // 3. Join queue
     const result = await joinQueue(newBuildId);
     if (!result) {
       setStep("error");
@@ -598,28 +585,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                     onClick={() => { navigate("/auth"); onClose(); }}
                   >
                     Login
-                  </Button>
-                </div>
-              )}
-
-              {isLoggedIn && balance && balance.balance < BUILD_COST_COINS && (
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
-                  <Coins className="w-5 h-5 text-amber-500 flex-shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium">Insufficient Coins</p>
-                    <p className="text-xs text-muted-foreground">
-                      This tool costs {BUILD_COST_COINS} coins. You have{" "}
-                      {balance.balance} coins.
-                    </p>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-amber-500/30 text-amber-500 hover:bg-amber-500/10"
-                    onClick={() => { navigate("/wallet"); onClose(); }}
-                  >
-                    <Coins className="w-3 h-3 mr-1" />
-                    Add Coins
                   </Button>
                 </div>
               )}
@@ -902,8 +867,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 className="w-full h-13 rounded-xl text-base gap-2"
                 disabled={
                   !isValid ||
-                  !isLoggedIn ||
-                  (balance !== null && balance.balance < BUILD_COST_COINS)
+                  !isLoggedIn
                 }
                 onClick={handleGenerate}
               >
@@ -912,17 +876,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                     <LogIn className="w-4 h-4" />
                     Login to Generate
                   </>
-                ) : balance && balance.balance < BUILD_COST_COINS ? (
-                  <>
-                    <Coins className="w-4 h-4" />
-                    Add Coins ({BUILD_COST_COINS} required)
-                  </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
                     Generate {outputLabel}
                     <span className="text-xs opacity-70 ml-1">
-                      ({BUILD_COST_COINS} coins)
+                      (Free)
                     </span>
                   </>
                 )}
@@ -1001,7 +960,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           )}
 
           {step === "done" && (
-            <div className="flex flex-col items-center justify-center py-8 space-y-6">
+            <div className="flex flex-col items-center justify-center py-4 space-y-6">
               <div className="w-20 h-20 rounded-2xl bg-primary/10 flex items-center justify-center">
                 <CheckCircle2 className="w-10 h-10 text-primary" />
               </div>
@@ -1038,6 +997,20 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 <Button variant="ghost" onClick={handleReset} className="text-muted-foreground">
                   Convert another website
                 </Button>
+              </div>
+
+              {/* Title Ladder Post-Build Upsell */}
+              <div className="w-full pt-6 border-t border-border/40">
+                <div className="text-center mb-4">
+                  <h3 className="font-semibold flex items-center justify-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    Support Our Project!
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    This converter is 100% free. If you found it useful, consider claiming a title to support us and show off your rank on the leaderboard!
+                  </p>
+                </div>
+                <TitleLadder />
               </div>
             </div>
           )}

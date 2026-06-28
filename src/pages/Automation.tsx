@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ConverterModal } from "@/components/ConverterModal";
-import { TitleLadder } from "@/components/TitleLadder";
+import { TitleMarquee } from "@/components/TitleMarquee";
 
 type Tool = {
   id: string;
@@ -111,8 +111,8 @@ export default function Automation() {
             />
           </div>
 
-          {/* Title Leaderboard Ladder */}
-          <TitleLadder />
+          {/* Title Leaderboard Marquee */}
+          <TitleMarquee />
         </div>
       </section>
 

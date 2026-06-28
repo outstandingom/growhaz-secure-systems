@@ -64,6 +64,8 @@ export type Database = {
           title_emoji: string
           cost: number
           claimed_at: string
+          multiplier: number
+          user_display_name: string | null
         }
         Insert: {
           id?: string
@@ -73,6 +75,8 @@ export type Database = {
           title_emoji: string
           cost: number
           claimed_at?: string
+          multiplier?: number
+          user_display_name?: string | null
         }
         Update: {
           id?: string
@@ -82,6 +86,8 @@ export type Database = {
           title_emoji?: string
           cost?: number
           claimed_at?: string
+          multiplier?: number
+          user_display_name?: string | null
         }
         Relationships: [
           {
