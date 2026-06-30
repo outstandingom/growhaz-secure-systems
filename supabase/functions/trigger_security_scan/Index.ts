@@ -68,7 +68,7 @@ serve(async (req) => {
       )
     }
 
-    const repo = Deno.env.get("GITHUB_REPO") || "outstandingom/growhaz-secure-systems"
+    const repo = Deno.env.get("GITHUB_REPO1") || "outstandingom/growhaz-secure-systems"
     const githubApi = `https://api.github.com/repos/${repo}/actions/workflows/security-scan.yml/dispatches`
     console.log('📡 Calling GitHub API:', githubApi)
 
