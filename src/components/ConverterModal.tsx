@@ -125,6 +125,18 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const isValid =
     config.websiteUrl.trim().length > 0 && config.appName.trim().length > 0;
 
+  // ✅ AUTO-GENERATE PACKAGE NAME from app name (only if packageName is empty)
+  useEffect(() => {
+    if (!config.packageName && config.appName.trim()) {
+      const sanitized = config.appName
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "_");
+      const generated = `com.app.${sanitized}`;
+      patch({ packageName: generated });
+    }
+  }, [config.appName, config.packageName]);
+
   // Check auth on mount
   useEffect(() => {
     const check = async () => {
@@ -580,7 +592,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                     <Label htmlFor="packageName">Package Name</Label>
                     <Input
                       id="packageName"
-                      placeholder="com.example.myapp"
+                      placeholder="com.app.your_app"
                       value={config.packageName}
                       onChange={(e) => patch({ packageName: e.target.value })}
                       className="rounded-xl"
