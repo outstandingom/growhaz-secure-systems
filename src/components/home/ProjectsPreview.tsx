@@ -54,7 +54,7 @@ const internalProjects = [
     description:
       "Interactive DNA knowledge graph visualization and query system. Explore genetic relationships, protein interactions, and genomic data through an intuitive interface.",
     icon: Dna,
-    link: "https://dna-modal-frontend.vercel.app/",
+    link: "https://github.com/outstandingom/dna-modal",
     external: true,
   },
 ];
