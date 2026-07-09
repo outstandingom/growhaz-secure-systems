@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { ExternalLink, ArrowRight, Globe, Loader2, Brain, Shield } from "lucide-react";
+import { ExternalLink, ArrowRight, Globe, Loader2, Brain, Shield, Dna } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 
@@ -46,6 +46,16 @@ const internalProjects = [
       "Dual‑hash (file + content) and knowledge‑graph entity extraction to detect tampering and semantic fraud. Flags logical inconsistencies beyond hash‑only checks.",
     icon: Shield,
     link: "#",
+  },
+  {
+    id: "dna-knowledge-graph",
+    title: "DNA Knowledge Graph Platform",
+    category: "Knowledge Graph & AI",
+    description:
+      "Interactive DNA knowledge graph visualization and query system. Explore genetic relationships, protein interactions, and genomic data through an intuitive interface.",
+    icon: Dna,
+    link: "https://dna-modal-frontend.vercel.app/",
+    external: true,
   },
 ];
 
@@ -156,6 +166,16 @@ export function ProjectsPreview() {
                   className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline mt-auto"
                 >
                   Visit Live Site
+                  <ExternalLink className="w-4 h-4" />
+                </a>
+              ) : project.external ? (
+                <a
+                  href={project.link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-primary hover:underline mt-auto"
+                >
+                  Explore Knowledge Graph
                   <ExternalLink className="w-4 h-4" />
                 </a>
               ) : (
