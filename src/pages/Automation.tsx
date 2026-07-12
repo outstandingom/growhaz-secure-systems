@@ -10,13 +10,12 @@ import {
   Search,
   ExternalLink,
   ArrowRight,
-  Sparkles,
   Bot,
-  Workflow,
-  Database,
+  Shield, // <-- added for forensic scanner
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ConverterModal } from "@/components/ConverterModal";
+import { ForensicScannerModal } from "@/components/ForensicScannerModal"; // <-- import
 import { TitleMarquee } from "@/components/TitleMarquee";
 
 type Tool = {
@@ -44,6 +43,17 @@ const tools: Tool[] = [
     status: "new",
   },
   {
+    id: "forensic-scanner", // <-- new tool
+    name: "Forensic File Scanner",
+    description:
+      "Upload an image or PDF for deep forensic analysis – detects tampering, metadata anomalies, AI-generated content, and more.",
+    icon: Shield,
+    price: "Free",
+    category: "automation",
+    internal: true,
+    status: "new",
+  },
+  {
     id: "ai-social-poster",
     name: "AI Social Media Poster",
     description:
@@ -54,12 +64,13 @@ const tools: Tool[] = [
     url: "#",
     status: "coming soon",
   },
-  // ... other tools remain unchanged
+  // ... add any other existing tools here (keep them unchanged)
 ];
 
 export default function Automation() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isConverterOpen, setIsConverterOpen] = useState(false);
+  const [isForensicOpen, setIsForensicOpen] = useState(false); // <-- new state
 
   const filteredTools = tools.filter((tool) =>
     `${tool.name} ${tool.description}`
@@ -69,7 +80,12 @@ export default function Automation() {
 
   const handleToolClick = (tool: Tool) => {
     if (tool.internal) {
-      setIsConverterOpen(true);
+      // Route to the correct modal based on tool id
+      if (tool.id === "web-to-apk") {
+        setIsConverterOpen(true);
+      } else if (tool.id === "forensic-scanner") {
+        setIsForensicOpen(true);
+      }
     } else if (tool.url && tool.url !== "#") {
       window.open(tool.url, "_blank");
     }
@@ -160,7 +176,7 @@ export default function Automation() {
                       onClick={() => handleToolClick(tool)}
                       disabled={tool.url === "#" && !tool.internal}
                     >
-                      {tool.internal ? "Open Converter" : "Use Tool"}
+                      {tool.internal ? "Open Tool" : "Use Tool"}
                       {!tool.internal && tool.url !== "#" && (
                         <ExternalLink className="w-3.5 h-3.5" />
                       )}
@@ -196,10 +212,14 @@ export default function Automation() {
         </div>
       </section>
 
-      {/* Converter Modal – ensure it's mobile-friendly (modal component itself should be responsive) */}
+      {/* Modals */}
       <ConverterModal
         isOpen={isConverterOpen}
         onClose={() => setIsConverterOpen(false)}
+      />
+      <ForensicScannerModal
+        isOpen={isForensicOpen}
+        onClose={() => setIsForensicOpen(false)}
       />
     </Layout>
   );
