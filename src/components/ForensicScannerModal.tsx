@@ -7,14 +7,12 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Loader2,
   Download,
   CheckCircle2,
   AlertCircle,
-  Sparkles,
   FileUp,
   Shield,
   AlertTriangle,
@@ -23,10 +21,7 @@ import {
   EyeOff,
   LogIn,
   Clock,
-  Users,
-  FileText,
   Zap,
-  MessageSquare,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
@@ -43,7 +38,7 @@ interface ForensicReport {
   mode: string;
   status: "pending" | "processing" | "complete" | "failed" | "queued";
   error_message: string | null;
-  risk_score: number | null;        // kept for compatibility, but not displayed
+  risk_score: number | null;
   risk_level: "none" | "low" | "medium" | "high" | null;
   explanation_summary: string | null;
   flags: string[] | null;
@@ -68,8 +63,6 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [showFullReport, setShowFullReport] = useState(false);
-  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
-  const [isAiLoading, setIsAiLoading] = useState(false);
   const navigate = useNavigate();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -129,7 +122,6 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
             stopPolling();
           } else if (r.status === "queued") {
             setStep("queued");
-            // Continue polling
           } else if (r.status === "processing") {
             setStep("processing");
           } else if (attempts >= MAX_ATTEMPTS) {
@@ -197,7 +189,6 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
       if (!data?.report_id) throw new Error("No report_id returned");
 
       setReportId(data.report_id);
-      // If the backend returns a queue status, set step accordingly
       if (data.status === "queued") {
         setStep("queued");
       } else {
@@ -228,8 +219,6 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
     setReport(null);
     setErrorMsg("");
     setShowFullReport(false);
-    setAiExplanation(null);
-    setIsAiLoading(false);
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -247,58 +236,6 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
     }
     handleReset();
     onClose();
-  };
-
-  const getFindingsSummary = (report: ForensicReport): string => {
-    const assessment = report.full_report?.detailed_assessment;
-    if (!assessment) return "No detailed analysis available.";
-
-    const notable = assessment.all_notable_findings || [];
-    if (notable.length === 0) {
-      return "No notable findings – the file appears consistent with genuine content.";
-    }
-
-    // Build a summary from the notable findings
-    const summary = notable.map((item: string) => `• ${item}`).join("\n");
-    return `The forensic analysis found ${notable.length} notable indicators:\n${summary}`;
-  };
-
-  const getAISummary = (report: ForensicReport): string => {
-    // If we already have an AI explanation, use it
-    if (aiExplanation) return aiExplanation;
-
-    // Otherwise, fall back to the built-in summary (or a placeholder)
-    const assessment = report.full_report?.detailed_assessment;
-    if (!assessment) return "No detailed analysis available.";
-    const notable = assessment.all_notable_findings || [];
-    if (notable.length === 0) {
-      return "The file shows no signs of manipulation – it appears to be original.";
-    }
-    // Return a concise version
-    return `The forensic analysis flagged ${notable.length} issues. ${notable.join('. ')}.`;
-  };
-
-  const handleGetAIExplanation = async () => {
-    if (!report || isAiLoading) return;
-
-    setIsAiLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke("explain-report", {
-        body: {
-          report_id: report.id,
-          full_report: report.full_report,
-        },
-      });
-
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-
-      setAiExplanation(data.explanation || "No explanation returned.");
-    } catch (err: any) {
-      setAiExplanation(`Failed to get AI explanation: ${err.message}`);
-    } finally {
-      setIsAiLoading(false);
-    }
   };
 
   const formatFileSize = (bytes: number | null) => {
@@ -578,49 +515,15 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
                 )}
               </div>
 
-              {/* 🤖 AI Explanation Section */}
-              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-semibold flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    AI‑Powered Explanation
-                  </p>
-                  {!aiExplanation && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="text-xs"
-                      onClick={handleGetAIExplanation}
-                      disabled={isAiLoading}
-                    >
-                      {isAiLoading ? (
-                        <>
-                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
-                          Analysing...
-                        </>
-                      ) : (
-                        <>
-                          <MessageSquare className="w-3 h-3 mr-1" />
-                          Get Explanation
-                        </>
-                      )}
-                    </Button>
-                  )}
-                </div>
-                <div className="text-sm text-foreground/90">
-                  {aiExplanation ? (
-                    <div className="whitespace-pre-wrap">{aiExplanation}</div>
-                  ) : isAiLoading ? (
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Generating explanation…
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">
-                      Click “Get Explanation” to have an AI model interpret the forensic findings in plain English.
-                    </p>
-                  )}
-                </div>
+              {/* 📢 Explanation Instruction */}
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 text-center">
+                <p className="text-sm font-medium text-primary">
+                  Need a plain‑English explanation?
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Download the full report (JSON) and upload it to any AI assistant like <strong>ChatGPT</strong>, <strong>Claude</strong>, or <strong>Gemini</strong>.
+                  They can interpret the forensic findings for you.
+                </p>
               </div>
 
               {/* Full Report Toggle */}
