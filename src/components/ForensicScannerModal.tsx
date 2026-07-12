@@ -1,5 +1,3 @@
-// src/components/ForensicScannerModal.tsx
-
 import { useState, useRef, useEffect } from "react";
 import {
   Dialog,
@@ -28,12 +26,13 @@ import {
   Users,
   FileText,
   Zap,
+  MessageSquare,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
-// Types
+// Types (same as before)
 interface ForensicReport {
   id: string;
   user_id: string;
@@ -42,9 +41,9 @@ interface ForensicReport {
   file_type: string | null;
   file_size: number | null;
   mode: string;
-  status: "pending" | "processing" | "complete" | "failed";
+  status: "pending" | "processing" | "complete" | "failed" | "queued";
   error_message: string | null;
-  risk_score: number | null;
+  risk_score: number | null;        // kept for compatibility, but not displayed
   risk_level: "none" | "low" | "medium" | "high" | null;
   explanation_summary: string | null;
   flags: string[] | null;
@@ -58,7 +57,7 @@ interface ForensicScannerModalProps {
   onClose: () => void;
 }
 
-type Step = "idle" | "uploading" | "processing" | "done" | "error";
+type Step = "idle" | "uploading" | "processing" | "done" | "error" | "queued";
 
 export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalProps) {
   const [file, setFile] = useState<File | null>(null);
@@ -69,6 +68,8 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
   const [errorMsg, setErrorMsg] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [showFullReport, setShowFullReport] = useState(false);
+  const [aiExplanation, setAiExplanation] = useState<string | null>(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const navigate = useNavigate();
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +99,7 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
 
   // Poll report status
   useEffect(() => {
-    if (step === "processing" && reportId) {
+    if ((step === "processing" || step === "queued") && reportId) {
       let attempts = 0;
       const MAX_ATTEMPTS = 120; // 10 minutes at 5s intervals
 
@@ -126,6 +127,11 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
             setStep("error");
             setErrorMsg(r.error_message || "Scan failed.");
             stopPolling();
+          } else if (r.status === "queued") {
+            setStep("queued");
+            // Continue polling
+          } else if (r.status === "processing") {
+            setStep("processing");
           } else if (attempts >= MAX_ATTEMPTS) {
             setStep("error");
             setErrorMsg("Scan is taking too long. Check the report later.");
@@ -176,31 +182,27 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
     setErrorMsg("");
 
     try {
-      // Prepare form data
       const formData = new FormData();
       formData.append("file", file);
-      formData.append("user_id", (await supabase.auth.getUser()).data.user?.id || "");
+      const user = (await supabase.auth.getUser()).data.user;
+      formData.append("user_id", user?.id || "");
       formData.append("mode", mode);
 
-      // Call the submit-scan edge function
       const { data, error } = await supabase.functions.invoke("submit-scan", {
         body: formData,
       });
 
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      if (!data?.report_id) {
-        throw new Error("No report_id returned");
-      }
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      if (!data?.report_id) throw new Error("No report_id returned");
 
       setReportId(data.report_id);
-      setStep("processing");
+      // If the backend returns a queue status, set step accordingly
+      if (data.status === "queued") {
+        setStep("queued");
+      } else {
+        setStep("processing");
+      }
     } catch (err: any) {
       setStep("error");
       setErrorMsg(err.message || "Failed to submit scan. Please try again.");
@@ -226,6 +228,8 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
     setReport(null);
     setErrorMsg("");
     setShowFullReport(false);
+    setAiExplanation(null);
+    setIsAiLoading(false);
     if (pollRef.current) {
       clearInterval(pollRef.current);
       pollRef.current = null;
@@ -236,7 +240,7 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
   };
 
   const handleClose = () => {
-    if (step === "processing") {
+    if (step === "processing" || step === "queued") {
       if (!confirm("Scan is in progress. Are you sure you want to close? The scan will continue in the background.")) {
         return;
       }
@@ -245,21 +249,55 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
     onClose();
   };
 
-  const getRiskColor = (level: string | null) => {
-    switch (level) {
-      case "high": return "text-red-500";
-      case "medium": return "text-amber-500";
-      case "low": return "text-blue-500";
-      default: return "text-muted-foreground";
+  const getFindingsSummary = (report: ForensicReport): string => {
+    const assessment = report.full_report?.detailed_assessment;
+    if (!assessment) return "No detailed analysis available.";
+
+    const notable = assessment.all_notable_findings || [];
+    if (notable.length === 0) {
+      return "No notable findings – the file appears consistent with genuine content.";
     }
+
+    // Build a summary from the notable findings
+    const summary = notable.map((item: string) => `• ${item}`).join("\n");
+    return `The forensic analysis found ${notable.length} notable indicators:\n${summary}`;
   };
 
-  const getRiskBg = (level: string | null) => {
-    switch (level) {
-      case "high": return "bg-red-500/10 border-red-500/30";
-      case "medium": return "bg-amber-500/10 border-amber-500/30";
-      case "low": return "bg-blue-500/10 border-blue-500/30";
-      default: return "bg-muted/30 border-border/40";
+  const getAISummary = (report: ForensicReport): string => {
+    // If we already have an AI explanation, use it
+    if (aiExplanation) return aiExplanation;
+
+    // Otherwise, fall back to the built-in summary (or a placeholder)
+    const assessment = report.full_report?.detailed_assessment;
+    if (!assessment) return "No detailed analysis available.";
+    const notable = assessment.all_notable_findings || [];
+    if (notable.length === 0) {
+      return "The file shows no signs of manipulation – it appears to be original.";
+    }
+    // Return a concise version
+    return `The forensic analysis flagged ${notable.length} issues. ${notable.join('. ')}.`;
+  };
+
+  const handleGetAIExplanation = async () => {
+    if (!report || isAiLoading) return;
+
+    setIsAiLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("explain-report", {
+        body: {
+          report_id: report.id,
+          full_report: report.full_report,
+        },
+      });
+
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+
+      setAiExplanation(data.explanation || "No explanation returned.");
+    } catch (err: any) {
+      setAiExplanation(`Failed to get AI explanation: ${err.message}`);
+    } finally {
+      setIsAiLoading(false);
     }
   };
 
@@ -269,6 +307,17 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
     if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB";
     if (bytes < 1073741824) return (bytes / 1048576).toFixed(1) + " MB";
     return (bytes / 1073741824).toFixed(1) + " GB";
+  };
+
+  // Helper to get icon for notable finding
+  const getNotableIcon = (text: string) => {
+    if (text.includes("resampling") || text.includes("geometrically")) return <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />;
+    if (text.includes("noise") || text.includes("PRNU")) return <AlertCircle className="w-4 h-4 text-orange-500 flex-shrink-0 mt-0.5" />;
+    if (text.includes("copy-move") || text.includes("clone")) return <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" />;
+    if (text.includes("ELA") || text.includes("compression")) return <AlertCircle className="w-4 h-4 text-yellow-500 flex-shrink-0 mt-0.5" />;
+    if (text.includes("steganography") || text.includes("RS")) return <AlertTriangle className="w-4 h-4 text-purple-500 flex-shrink-0 mt-0.5" />;
+    if (text.includes("OCR") || text.includes("glyph")) return <AlertCircle className="w-4 h-4 text-blue-500 flex-shrink-0 mt-0.5" />;
+    return <Info className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />;
   };
 
   return (
@@ -291,6 +340,7 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
               "h-full transition-all duration-700 ease-out",
               step === "idle" && "w-0",
               step === "uploading" && "w-1/4",
+              step === "queued" && "w-1/3",
               step === "processing" && "w-2/3",
               step === "done" && "w-full bg-primary",
               step === "error" && "w-full bg-destructive",
@@ -428,6 +478,29 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
             </div>
           )}
 
+          {step === "queued" && (
+            <div className="flex flex-col items-center justify-center py-10 space-y-6">
+              <div className="relative">
+                <div className="w-20 h-20 rounded-2xl bg-amber-500/10 flex items-center justify-center animate-pulse">
+                  <Clock className="w-8 h-8 text-amber-500" />
+                </div>
+                <div className="absolute -inset-3 rounded-3xl border border-amber-500/20 animate-pulse" />
+              </div>
+              <div className="text-center space-y-2">
+                <p className="font-semibold text-lg">Waiting for scanner...</p>
+                <p className="text-sm text-muted-foreground">
+                  Our system is currently busy. Your scan is in the queue.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Report ID: <span className="font-mono">{reportId}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  You can close this window and check the report later.
+                </p>
+              </div>
+            </div>
+          )}
+
           {step === "processing" && (
             <div className="flex flex-col items-center justify-center py-10 space-y-6">
               <div className="relative">
@@ -468,49 +541,87 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
                 </div>
               </div>
 
-              {/* Risk Summary */}
-              <div className={cn(
-                "p-4 rounded-xl border",
-                getRiskBg(report.risk_level)
-              )}>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium">Risk Assessment</p>
-                    <p className={cn("text-2xl font-bold", getRiskColor(report.risk_level))}>
-                      {report.risk_level?.toUpperCase() || "UNKNOWN"}
-                    </p>
-                    <p className="text-sm">
-                      Score: {report.risk_score ?? "—"} / 100
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-muted-foreground">Completed</p>
-                    <p className="text-xs text-muted-foreground">
-                      {report.completed_at ? new Date(report.completed_at).toLocaleString() : "N/A"}
-                    </p>
+              {/* ✅ Findings Summary (replaces risk score) */}
+              <div className="p-4 rounded-xl border bg-muted/10">
+                <div className="flex items-start gap-3">
+                  <Shield className="w-5 h-5 text-primary flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold mb-2">Findings Summary</p>
+                    <div className="space-y-1 max-h-48 overflow-y-auto text-sm">
+                      {(() => {
+                        const assessment = report.full_report?.detailed_assessment;
+                        const notable = assessment?.all_notable_findings || [];
+                        if (notable.length === 0) {
+                          return <p className="text-muted-foreground">No notable findings – the file appears consistent with genuine content.</p>;
+                        }
+                        return notable.map((item: string, idx: number) => (
+                          <div key={idx} className="flex items-start gap-2 py-1 border-b border-border/40 last:border-0">
+                            {getNotableIcon(item)}
+                            <span className="text-xs leading-relaxed">{item}</span>
+                          </div>
+                        ));
+                      })()}
+                    </div>
                   </div>
                 </div>
-                {report.explanation_summary && (
-                  <div className="mt-2 p-2 bg-background/50 rounded-md text-sm">
-                    {report.explanation_summary}
+                {report.flags && report.flags.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-border/40">
+                    <p className="text-xs font-medium">Flags:</p>
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {report.flags.map((flag, idx) => (
+                        <span key={idx} className="text-xs bg-destructive/10 text-destructive px-2 py-0.5 rounded-full">
+                          {flag}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Flags */}
-              {report.flags && report.flags.length > 0 && (
-                <div>
-                  <p className="text-sm font-medium mb-2">Flags ({report.flags.length})</p>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {report.flags.map((flag, idx) => (
-                      <div key={idx} className="flex items-start gap-2 text-sm bg-muted/30 p-2 rounded-md">
-                        <AlertTriangle className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-                        <span>{flag}</span>
-                      </div>
-                    ))}
-                  </div>
+              {/* 🤖 AI Explanation Section */}
+              <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-sm font-semibold flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-primary" />
+                    AI‑Powered Explanation
+                  </p>
+                  {!aiExplanation && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="text-xs"
+                      onClick={handleGetAIExplanation}
+                      disabled={isAiLoading}
+                    >
+                      {isAiLoading ? (
+                        <>
+                          <Loader2 className="w-3 h-3 animate-spin mr-1" />
+                          Analysing...
+                        </>
+                      ) : (
+                        <>
+                          <MessageSquare className="w-3 h-3 mr-1" />
+                          Get Explanation
+                        </>
+                      )}
+                    </Button>
+                  )}
                 </div>
-              )}
+                <div className="text-sm text-foreground/90">
+                  {aiExplanation ? (
+                    <div className="whitespace-pre-wrap">{aiExplanation}</div>
+                  ) : isAiLoading ? (
+                    <div className="flex items-center gap-2 text-muted-foreground">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Generating explanation…
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Click “Get Explanation” to have an AI model interpret the forensic findings in plain English.
+                    </p>
+                  )}
+                </div>
+              </div>
 
               {/* Full Report Toggle */}
               <div>
