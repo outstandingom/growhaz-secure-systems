@@ -50,8 +50,8 @@ serve(async (req) => {
       });
     }
     
-    if (!amount || amount < 100) {
-      return new Response(JSON.stringify({ error: 'Minimum amount is 100 coins (₹100)' }), { 
+    if (!amount || amount < 49) {
+      return new Response(JSON.stringify({ error: 'Minimum amount is ₹49' }), { 
         status: 400, 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
