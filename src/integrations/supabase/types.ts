@@ -14,90 +14,110 @@ export type Database = {
   }
   public: {
     Tables: {
-      build_queue: {
+      apk_builds: {
         Row: {
-          id: string
-          user_id: string
-          build_id: string
-          status: string
-          position: number | null
+          admob_banner_id: string | null
+          admob_interstitial_id: string | null
+          app_name: string
+          artifact_path: string | null
+          artifact_url: string | null
+          build_aab: boolean | null
           created_at: string
-          started_at: string | null
-          completed_at: string | null
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          build_id: string
-          status?: string
-          position?: number | null
-          created_at?: string
-          started_at?: string | null
-          completed_at?: string | null
-        }
-        Update: {
-          id?: string
-          user_id?: string
-          build_id?: string
-          status?: string
-          position?: number | null
-          created_at?: string
-          started_at?: string | null
-          completed_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "build_queue_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
-      }
-      user_titles: {
-        Row: {
+          enable_admob: boolean | null
+          enable_analytics: boolean | null
+          enable_cookies: boolean | null
+          enable_offline: boolean | null
+          enable_push: boolean | null
+          error_message: string | null
+          firebase_server_key: string | null
+          github_run_id: string | null
+          icon_url: string | null
           id: string
-          user_id: string
-          title_key: string
-          title_name: string
-          title_emoji: string
-          cost: number
-          claimed_at: string
-          multiplier: number
-          user_display_name: string | null
+          offline_message: string | null
+          package_name: string | null
+          platform: string
+          proxy_enabled: boolean
+          proxy_host: string | null
+          proxy_password: string | null
+          proxy_port: number | null
+          proxy_type: string | null
+          proxy_username: string | null
+          splash_color: string | null
+          status: Database["public"]["Enums"]["build_status"]
+          status_bar_color: string | null
+          tier: string | null
+          updated_at: string
+          website_url: string
         }
         Insert: {
+          admob_banner_id?: string | null
+          admob_interstitial_id?: string | null
+          app_name: string
+          artifact_path?: string | null
+          artifact_url?: string | null
+          build_aab?: boolean | null
+          created_at?: string
+          enable_admob?: boolean | null
+          enable_analytics?: boolean | null
+          enable_cookies?: boolean | null
+          enable_offline?: boolean | null
+          enable_push?: boolean | null
+          error_message?: string | null
+          firebase_server_key?: string | null
+          github_run_id?: string | null
+          icon_url?: string | null
           id?: string
-          user_id: string
-          title_key: string
-          title_name: string
-          title_emoji: string
-          cost: number
-          claimed_at?: string
-          multiplier?: number
-          user_display_name?: string | null
+          offline_message?: string | null
+          package_name?: string | null
+          platform?: string
+          proxy_enabled?: boolean
+          proxy_host?: string | null
+          proxy_password?: string | null
+          proxy_port?: number | null
+          proxy_type?: string | null
+          proxy_username?: string | null
+          splash_color?: string | null
+          status?: Database["public"]["Enums"]["build_status"]
+          status_bar_color?: string | null
+          tier?: string | null
+          updated_at?: string
+          website_url: string
         }
         Update: {
+          admob_banner_id?: string | null
+          admob_interstitial_id?: string | null
+          app_name?: string
+          artifact_path?: string | null
+          artifact_url?: string | null
+          build_aab?: boolean | null
+          created_at?: string
+          enable_admob?: boolean | null
+          enable_analytics?: boolean | null
+          enable_cookies?: boolean | null
+          enable_offline?: boolean | null
+          enable_push?: boolean | null
+          error_message?: string | null
+          firebase_server_key?: string | null
+          github_run_id?: string | null
+          icon_url?: string | null
           id?: string
-          user_id?: string
-          title_key?: string
-          title_name?: string
-          title_emoji?: string
-          cost?: number
-          claimed_at?: string
-          multiplier?: number
-          user_display_name?: string | null
+          offline_message?: string | null
+          package_name?: string | null
+          platform?: string
+          proxy_enabled?: boolean
+          proxy_host?: string | null
+          proxy_password?: string | null
+          proxy_port?: number | null
+          proxy_type?: string | null
+          proxy_username?: string | null
+          splash_color?: string | null
+          status?: Database["public"]["Enums"]["build_status"]
+          status_bar_color?: string | null
+          tier?: string | null
+          updated_at?: string
+          website_url?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "user_titles_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["id"]
-          }
-        ]
+        Relationships: []
       }
       blockchain_access_grants: {
         Row: {
@@ -464,6 +484,39 @@ export type Database = {
           },
         ]
       }
+      build_queue: {
+        Row: {
+          build_id: string
+          completed_at: string | null
+          created_at: string
+          id: string
+          position: number | null
+          started_at: string | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          build_id: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          position?: number | null
+          started_at?: string | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          build_id?: string
+          completed_at?: string | null
+          created_at?: string
+          id?: string
+          position?: number | null
+          started_at?: string | null
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       coin_balances: {
         Row: {
           balance: number
@@ -691,6 +744,63 @@ export type Database = {
           profession?: string | null
           registered_at?: string
           wallet_address?: string
+        }
+        Relationships: []
+      }
+      forensic_reports: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          explanation_summary: string | null
+          file_name: string | null
+          file_path: string | null
+          file_size: number | null
+          file_type: string | null
+          flags: Json | null
+          full_report: Json | null
+          id: string
+          mode: string | null
+          risk_level: string | null
+          risk_score: number | null
+          status: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          explanation_summary?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          flags?: Json | null
+          full_report?: Json | null
+          id?: string
+          mode?: string | null
+          risk_level?: string | null
+          risk_score?: number | null
+          status?: string
+          user_id: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          explanation_summary?: string | null
+          file_name?: string | null
+          file_path?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          flags?: Json | null
+          full_report?: Json | null
+          id?: string
+          mode?: string | null
+          risk_level?: string | null
+          risk_score?: number | null
+          status?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -1170,6 +1280,42 @@ export type Database = {
         }
         Relationships: []
       }
+      user_titles: {
+        Row: {
+          claimed_at: string
+          cost: number
+          id: string
+          multiplier: number
+          title_emoji: string
+          title_key: string
+          title_name: string
+          user_display_name: string | null
+          user_id: string
+        }
+        Insert: {
+          claimed_at?: string
+          cost: number
+          id?: string
+          multiplier?: number
+          title_emoji: string
+          title_key: string
+          title_name: string
+          user_display_name?: string | null
+          user_id: string
+        }
+        Update: {
+          claimed_at?: string
+          cost?: number
+          id?: string
+          multiplier?: number
+          title_emoji?: string
+          title_key?: string
+          title_name?: string
+          user_display_name?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       verification_logs: {
         Row: {
           content_hash: string
@@ -1331,10 +1477,76 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      forensic_report_summaries: {
+        Row: {
+          completed_at: string | null
+          created_at: string | null
+          duration_seconds: number | null
+          error_message: string | null
+          explanation_summary: string | null
+          file_name: string | null
+          file_size: number | null
+          file_type: string | null
+          flags: Json | null
+          id: string | null
+          mode: string | null
+          risk_level: string | null
+          risk_score: number | null
+          status: string | null
+          user_id: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_seconds?: never
+          error_message?: string | null
+          explanation_summary?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          flags?: Json | null
+          id?: string | null
+          mode?: string | null
+          risk_level?: string | null
+          risk_score?: number | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string | null
+          duration_seconds?: never
+          error_message?: string | null
+          explanation_summary?: string | null
+          file_name?: string | null
+          file_size?: number | null
+          file_type?: string | null
+          flags?: Json | null
+          id?: string | null
+          mode?: string | null
+          risk_level?: string | null
+          risk_score?: number | null
+          status?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       bytea_to_text: { Args: { data: string }; Returns: string }
+      claim_user_title: {
+        Args: {
+          p_cost: number
+          p_display_name: string
+          p_title_emoji: string
+          p_title_key: string
+          p_title_name: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      get_active_build_count: { Args: never; Returns: number }
+      get_queue_position: { Args: { p_queue_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -1469,6 +1681,7 @@ export type Database = {
       }
       text_to_bytea: { Args: { data: string }; Returns: string }
       trigger_security_scan: { Args: { scan_url: string }; Returns: undefined }
+      try_start_build: { Args: { p_queue_id: string }; Returns: boolean }
       update_coin_balance: {
         Args: {
           p_amount: number
@@ -1498,6 +1711,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      build_status: "pending" | "building" | "completed" | "failed"
       learning_request_status:
         | "open"
         | "in_progress"
@@ -1650,6 +1864,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      build_status: ["pending", "building", "completed", "failed"],
       learning_request_status: [
         "open",
         "in_progress",
