@@ -498,9 +498,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   };
 
   // Downloads directly from the signed Supabase Storage URL saved on the build row.
-  // No more calling a separate "download-apk" function — the file is already
-  // extracted and stored the moment the build-callback function ran.
-  const handleDownload = async () => {
+  // We navigate the browser straight to the signed URL instead of using fetch()+blob:
+  // fetch() to a cross-origin Storage host can be blocked/opaque due to CORS, whereas
+  // a plain anchor click is a normal top-level navigation and always works. The signed
+  // URL itself was created with a `download` filename (see build-callback), so the
+  // browser saves it with the right name and forces a download instead of opening inline.
+  const handleDownload = () => {
     if (!downloadUrl) {
       toast({
         title: "Download not ready",
@@ -511,21 +514,15 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
     setIsDownloading(true);
     try {
-      const response = await fetch(downloadUrl);
-      if (!response.ok) throw new Error(`Download failed (${response.status})`);
-      const blob = await response.blob();
-      const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = blobUrl;
+      a.href = downloadUrl;
       a.download = downloadFileName || `${config.appName}.apk`;
+      a.rel = "noopener";
       document.body.appendChild(a);
       a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(blobUrl);
-      }, 100);
+      document.body.removeChild(a);
     } catch (err: any) {
-      toast({ title: "Download failed", description: err.message, variant: "destructive" });
+      toast({ title: "Download failed", description: err?.message || "Please try again", variant: "destructive" });
     } finally {
       setIsDownloading(false);
     }
