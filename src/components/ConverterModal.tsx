@@ -187,6 +187,8 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
   const [packageEdited, setPackageEdited] = useState(false);
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [downloadFileName, setDownloadFileName] = useState<string>("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -269,12 +271,14 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           setPollAttempts((p) => p + 1);
           const { data } = await supabase
             .from("apk_builds")
-            .select("status, error_message, github_run_id")
+            .select("status, error_message, github_run_id, download_url, file_name")
             .eq("id", buildId)
             .single();
           const build = data as any;
           setBuildStatus(build?.status || "");
           if (build?.status === "completed") {
+            setDownloadUrl(build?.download_url || null);
+            setDownloadFileName(build?.file_name || `${config.appName}.apk`);
             setStep("done");
             if (queueEntry) markCompleted(queueEntry.id);
             if (pollRef.current) clearInterval(pollRef.current);
@@ -493,27 +497,27 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
   };
 
+  // Downloads directly from the signed Supabase Storage URL saved on the build row.
+  // No more calling a separate "download-apk" function — the file is already
+  // extracted and stored the moment the build-callback function ran.
   const handleDownload = async () => {
-    if (!buildId) return;
+    if (!downloadUrl) {
+      toast({
+        title: "Download not ready",
+        description: "The file isn't ready yet. Please wait a moment and try again.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsDownloading(true);
     try {
-      const supabaseUrl = (supabase as any).supabaseUrl || "";
-      const projectId = supabaseUrl.match(/https:\/\/([^.]+)\.supabase\.co/)?.[1];
-      if (!projectId) throw new Error("Could not determine Supabase project ID");
-      const url = `https://${projectId}.supabase.co/functions/v1/download-apk?build_id=${buildId}`;
-      const response = await fetch(url);
+      const response = await fetch(downloadUrl);
       if (!response.ok) throw new Error(`Download failed (${response.status})`);
       const blob = await response.blob();
-      const contentDisposition = response.headers.get("Content-Disposition");
-      let filename = `${config.appName}.apk`;
-      if (contentDisposition) {
-        const m = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-        if (m && m[1]) filename = m[1].replace(/['"]/g, "");
-      }
       const blobUrl = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = blobUrl;
-      a.download = filename;
+      a.download = downloadFileName || `${config.appName}.apk`;
       document.body.appendChild(a);
       a.click();
       setTimeout(() => {
@@ -537,6 +541,8 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setPollAttempts(0);
     setIsDownloading(false);
     setBuildStatus("");
+    setDownloadUrl(null);
+    setDownloadFileName("");
     if (pollRef.current) clearInterval(pollRef.current);
     resetQueue();
   };
@@ -917,7 +923,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               size="lg"
               className="rounded-xl gap-2"
               onClick={handleDownload}
-              disabled={isDownloading}
+              disabled={isDownloading || !downloadUrl}
             >
               {isDownloading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               Download {outputLabel}
