@@ -20,10 +20,8 @@ import {
   Globe,
   Smartphone,
   Palette,
-  Settings,
   Bell,
   Wifi,
-  Shield,
   Gauge,
   Cloud,
   LogIn,
@@ -33,6 +31,8 @@ import {
   Lock,
   Crown,
   Zap,
+  Package,
+  Apple,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWallet } from "@/hooks/useWallet";
@@ -49,17 +49,15 @@ interface TierDef {
   price: number; // in ₹ / coins (1 coin = ₹1)
   tagline: string;
   icon: React.ElementType;
-  features: string[];
   unlocks: {
     customIcon: boolean;
     customColors: boolean;
+    ios: boolean;
     push: boolean;
     offline: boolean;
     splashScreen: boolean;
     aab: boolean;
-    ios: boolean;
     admob: boolean;
-    proxy: boolean;
   };
 }
 
@@ -68,102 +66,59 @@ const GROWHAZ_ICON_URL = "https://growhaz-secure-systems.vercel.app/favicon.png"
 const TIERS: TierDef[] = [
   {
     id: "basic",
-    name: "Basic APK",
+    name: "Basic",
     price: 49,
     tagline: "Quick APK with GrowHaz branding",
     icon: Smartphone,
-    features: [
-      "Android APK",
-      "GrowHaz default logo & splash",
-      "Just enter your website URL",
-    ],
     unlocks: {
-      customIcon: false,
-      customColors: false,
-      push: false,
-      offline: false,
-      splashScreen: false,
-      aab: false,
-      ios: false,
-      admob: false,
-      proxy: false,
+      customIcon: false, customColors: false, ios: false,
+      push: false, offline: false, splashScreen: false,
+      aab: false, admob: false,
     },
   },
   {
     id: "logo",
     name: "Custom Branding",
     price: 99,
-    tagline: "Your own logo & colors",
+    tagline: "Your own logo, colors & iOS build",
     icon: Palette,
-    features: [
-      "Everything in Basic",
-      "Custom app icon URL",
-      "Custom splash & status bar colors",
-    ],
     unlocks: {
-      customIcon: true,
-      customColors: true,
-      push: false,
-      offline: false,
-      splashScreen: false,
-      aab: false,
-      ios: false,
-      admob: false,
-      proxy: false,
+      customIcon: true, customColors: true, ios: true,
+      push: false, offline: false, splashScreen: false,
+      aab: false, admob: false,
     },
   },
   {
     id: "advanced",
     name: "Advanced",
     price: 499,
-    tagline: "Splash screen + smart features",
+    tagline: "Splash screen, push & offline",
     icon: Zap,
-    features: [
-      "Everything in Custom Branding",
-      "Custom splash screen",
-      "Push notifications",
-      "Offline support",
-    ],
     unlocks: {
-      customIcon: true,
-      customColors: true,
-      push: true,
-      offline: true,
-      splashScreen: true,
-      aab: false,
-      ios: false,
-      admob: false,
-      proxy: false,
+      customIcon: true, customColors: true, ios: true,
+      push: true, offline: true, splashScreen: true,
+      aab: false, admob: false,
     },
   },
   {
     id: "pro",
-    name: "Pro (Everything)",
+    name: "Pro",
     price: 999,
-    tagline: "All features unlocked",
+    tagline: "AdMob + Play Store AAB",
     icon: Crown,
-    features: [
-      "Everything in Advanced",
-      "iOS build (IPA)",
-      "AAB for Play Store",
-      "AdMob monetization",
-      "Custom proxy support",
-    ],
     unlocks: {
-      customIcon: true,
-      customColors: true,
-      push: true,
-      offline: true,
-      splashScreen: true,
-      aab: true,
-      ios: true,
-      admob: true,
-      proxy: true,
+      customIcon: true, customColors: true, ios: true,
+      push: true, offline: true, splashScreen: true,
+      aab: true, admob: true,
     },
   },
 ];
 
 const getTier = (id: TierId): TierDef => TIERS.find((t) => t.id === id)!;
+const nextTier = (id: TierId): TierDef | null => {
+  const idx = TIERS.findIndex((t) => t.id === id);
+  return idx >= 0 && idx < TIERS.length - 1 ? TIERS[idx + 1] : null;
+};
 
 // ---------- Types ----------
 interface BuildConfig {
@@ -178,17 +133,10 @@ interface BuildConfig {
   enablePush: boolean;
   enableOffline: boolean;
   offlineMessage: string;
-  enableAnalytics: boolean;
   enableCookies: boolean;
   enableAdmob: boolean;
   admobBannerId: string;
   admobInterstitialId: string;
-  proxyEnabled: boolean;
-  proxyType: "http" | "socks5";
-  proxyHost: string;
-  proxyPort: string;
-  proxyUsername: string;
-  proxyPassword: string;
 }
 
 const DEFAULT_CONFIG: BuildConfig = {
@@ -196,24 +144,17 @@ const DEFAULT_CONFIG: BuildConfig = {
   appName: "",
   packageName: "",
   logoPreview: "",
-  splashColor: "#10B981",
-  statusBarColor: "#000000",
+  splashColor: "#FFFFFF",
+  statusBarColor: "#FFFFFF",
   platform: "android",
   buildAab: false,
   enablePush: false,
   enableOffline: false,
   offlineMessage: "You are offline. Please check your connection.",
-  enableAnalytics: false,
   enableCookies: true,
   enableAdmob: false,
   admobBannerId: "",
   admobInterstitialId: "",
-  proxyEnabled: false,
-  proxyType: "http",
-  proxyHost: "",
-  proxyPort: "",
-  proxyUsername: "",
-  proxyPassword: "",
 };
 
 interface ConverterModalProps {
@@ -221,7 +162,7 @@ interface ConverterModalProps {
   onClose: () => void;
 }
 
-type Step = "tier" | "config" | "paying" | "queued" | "generating" | "done" | "error";
+type Step = "config" | "paying" | "queued" | "generating" | "done" | "error";
 
 declare global {
   interface Window {
@@ -229,10 +170,15 @@ declare global {
   }
 }
 
+const PACKAGE_NAME_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,}$/;
+
+const sanitizeForPackage = (s: string) =>
+  s.trim().toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24) || "app";
+
 export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [selectedTier, setSelectedTier] = useState<TierId>("basic");
   const [config, setConfig] = useState<BuildConfig>({ ...DEFAULT_CONFIG });
-  const [step, setStep] = useState<Step>("tier");
+  const [step, setStep] = useState<Step>("config");
   const [buildId, setBuildId] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [pollAttempts, setPollAttempts] = useState(0);
@@ -240,12 +186,14 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [buildStatus, setBuildStatus] = useState<string>("");
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
   const [razorpayLoaded, setRazorpayLoaded] = useState(false);
+  const [packageEdited, setPackageEdited] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { balance, fetchBalance, fetchTransactions } = useWallet();
 
   const tier = getTier(selectedTier);
+  const next = nextTier(selectedTier);
 
   const {
     joinQueue,
@@ -261,8 +209,11 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const patch = (p: Partial<BuildConfig>) =>
     setConfig((c) => ({ ...c, ...p }));
 
+  const packageValid = PACKAGE_NAME_REGEX.test(config.packageName.trim());
   const isValid =
-    config.websiteUrl.trim().length > 0 && config.appName.trim().length > 0;
+    config.websiteUrl.trim().length > 0 &&
+    config.appName.trim().length > 0 &&
+    packageValid;
 
   // Load Razorpay script
   useEffect(() => {
@@ -276,21 +227,17 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     script.async = true;
     script.onload = () => setRazorpayLoaded(true);
     document.body.appendChild(script);
-    return () => {
-      // don't remove; other components may use it
-    };
   }, [isOpen]);
 
-  // Auto-generate package name
+  // Auto-generate package name from app name (until user edits)
   useEffect(() => {
-    if (!config.packageName && config.appName.trim()) {
-      const sanitized = config.appName
-        .trim()
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, "_");
-      patch({ packageName: `com.app.${sanitized}` });
+    if (!packageEdited && config.appName.trim()) {
+      const sanitized = sanitizeForPackage(config.appName);
+      const suffix = Math.random().toString(36).slice(2, 6);
+      setConfig((c) => ({ ...c, packageName: `com.growhaz.${sanitized}${suffix}` }));
     }
-  }, [config.appName, config.packageName]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [config.appName]);
 
   // Auth
   useEffect(() => {
@@ -365,20 +312,19 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
       const u = tier.unlocks;
 
-      // Force GrowHaz branding / defaults for lower tiers
       const iconUrl = u.customIcon && config.logoPreview
         ? config.logoPreview
         : GROWHAZ_ICON_URL;
-      const splashColor = u.customColors ? config.splashColor : "#10B981";
-      const statusBarColor = u.customColors ? config.statusBarColor : "#000000";
+      const splashColor = u.customColors ? config.splashColor : "#FFFFFF";
+      const statusBarColor = u.customColors ? config.statusBarColor : "#FFFFFF";
       const platform = u.ios ? config.platform : "android";
       const buildAab = u.aab ? config.buildAab : false;
 
       const requestBody = {
         website_url: websiteUrl,
         app_name: config.appName.trim(),
+        package_name: config.packageName.trim(),
         icon_url: iconUrl,
-        package_name: config.packageName.trim() || null,
         splash_color: splashColor,
         status_bar_color: statusBarColor,
         enable_push: u.push ? config.enablePush : false,
@@ -387,17 +333,12 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         enable_analytics: false,
         enable_cookies: config.enableCookies,
         enable_admob: u.admob ? config.enableAdmob : false,
-        admob_banner_id: u.admob ? (config.admobBannerId || null) : null,
-        admob_interstitial_id: u.admob ? (config.admobInterstitialId || null) : null,
+        admob_banner_id: u.admob && config.enableAdmob ? (config.admobBannerId || null) : null,
+        admob_interstitial_id: u.admob && config.enableAdmob ? (config.admobInterstitialId || null) : null,
         build_aab: buildAab,
         platform,
         tier: tier.id,
-        proxy_enabled: u.proxy ? config.proxyEnabled : false,
-        proxy_type: config.proxyType,
-        proxy_host: u.proxy ? config.proxyHost.trim() : "",
-        proxy_port: u.proxy && config.proxyPort ? parseInt(config.proxyPort, 10) : null,
-        proxy_username: u.proxy ? config.proxyUsername : "",
-        proxy_password: u.proxy ? config.proxyPassword : "",
+        proxy_enabled: false,
       };
 
       const { data, error } = await supabase.functions.invoke("trigger-build", {
@@ -416,7 +357,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
   };
 
-  // Spend coins then start the build
   const spendAndStartBuild = async () => {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.user) {
@@ -424,7 +364,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       return;
     }
 
-    // Deduct coins
     const { error: spendErr } = await supabase.rpc("update_coin_balance", {
       p_user_id: session.user.id,
       p_amount: tier.price,
@@ -454,7 +393,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
   };
 
-  // Razorpay top-up + build
   const payWithRazorpay = async () => {
     if (!razorpayLoaded || !window.Razorpay) {
       toast({ title: "Payment gateway loading…", description: "Please try again in a moment.", variant: "destructive" });
@@ -499,7 +437,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               throw new Error(verifyData?.error || "Payment verification failed");
             }
             await Promise.all([fetchBalance(), fetchTransactions()]);
-            // Now deduct and start build
             await spendAndStartBuild();
           } catch (err: any) {
             setStep("error");
@@ -533,7 +470,16 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   };
 
   const handleGenerate = async () => {
-    if (!isValid) return;
+    if (!isValid) {
+      if (!packageValid) {
+        toast({
+          title: "Invalid package name",
+          description: "Must look like com.company.appname (lowercase, at least 2 dots)",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
     if (!isLoggedIn) {
       navigate("/auth");
       onClose();
@@ -541,10 +487,8 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
     const currentBalance = balance?.balance ?? 0;
     if (currentBalance >= tier.price) {
-      // Smooth path: use coins directly
       await spendAndStartBuild();
     } else {
-      // Hybrid: pay via Razorpay first, then deduct and build
       await payWithRazorpay();
     }
   };
@@ -584,9 +528,10 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   };
 
   const handleReset = () => {
-    setStep("tier");
+    setStep("config");
     setSelectedTier("basic");
     setConfig({ ...DEFAULT_CONFIG });
+    setPackageEdited(false);
     setBuildId(null);
     setErrorMsg("");
     setPollAttempts(0);
@@ -619,20 +564,20 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
             Website to App Converter
           </DialogTitle>
           <DialogDescription>
-            Turn any website into a native Android app in minutes
+            Enter your website URL and turn it into a real Android app in minutes.
           </DialogDescription>
         </DialogHeader>
 
-        {/* --------- STEP: TIER SELECTION --------- */}
-        {step === "tier" && (
-          <div className="space-y-4 mt-2">
+        {/* --------- STEP: CONFIG --------- */}
+        {step === "config" && (
+          <div className="space-y-5 mt-2">
             {isLoggedIn === false && (
               <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-500/10 border border-amber-500/30">
                 <LogIn className="w-5 h-5 text-amber-500 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="text-sm font-medium">Login Required</p>
                   <p className="text-xs text-muted-foreground">
-                    You need to log in before using this tool
+                    You need to log in before generating an app
                   </p>
                 </div>
                 <Button
@@ -645,89 +590,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               </div>
             )}
 
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <Coins className="w-3.5 h-3.5 text-primary" />
-                <span>Balance: <span className="text-foreground font-medium">{balance?.balance ?? 0}</span> coins</span>
-              </div>
-              <span>1 coin = ₹1</span>
-            </div>
-
-            <p className="text-sm text-muted-foreground">
-              Pick a plan. Higher plans unlock more features.
-            </p>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {TIERS.map((t) => {
-                const Icon = t.icon;
-                const active = selectedTier === t.id;
-                return (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setSelectedTier(t.id)}
-                    className={`text-left p-4 rounded-xl border transition-all ${
-                      active
-                        ? "border-primary bg-primary/5 ring-2 ring-primary/30"
-                        : "border-border hover:border-primary/40 bg-card/50"
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <Icon className="w-4.5 h-4.5" />
-                      </div>
-                      <div className="text-right">
-                        <div className="text-lg font-bold">₹{t.price}</div>
-                        <div className="text-[10px] text-muted-foreground -mt-0.5">one-time</div>
-                      </div>
-                    </div>
-                    <div className="font-semibold text-sm">{t.name}</div>
-                    <div className="text-xs text-muted-foreground mb-2">{t.tagline}</div>
-                    <ul className="space-y-1">
-                      {t.features.map((f) => (
-                        <li key={f} className="text-[11px] flex items-start gap-1.5 text-muted-foreground">
-                          <CheckCircle2 className="w-3 h-3 text-primary flex-shrink-0 mt-0.5" />
-                          <span>{f}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </button>
-                );
-              })}
-            </div>
-
-            <Button
-              variant="hero"
-              size="lg"
-              className="w-full rounded-xl gap-2"
-              disabled={isLoggedIn === false}
-              onClick={() => setStep("config")}
-            >
-              Continue with {tier.name} — ₹{tier.price}
-            </Button>
-          </div>
-        )}
-
-        {/* --------- STEP: CONFIG --------- */}
-        {step === "config" && (
-          <div className="space-y-5 mt-2">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20">
-              <div className="flex items-center gap-2">
-                <tier.icon className="w-4 h-4 text-primary" />
-                <div>
-                  <div className="text-sm font-semibold">{tier.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{tier.tagline}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold">₹{tier.price}</span>
-                <Button variant="ghost" size="sm" onClick={() => setStep("tier")}>
-                  Change
-                </Button>
-              </div>
-            </div>
-
-            {/* Required fields */}
+            {/* Required inputs — always visible */}
             <div className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="websiteUrl" className="flex items-center gap-2">
@@ -735,34 +598,77 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 </Label>
                 <Input
                   id="websiteUrl"
-                  placeholder="https://example.com"
+                  placeholder="https://your-website.com"
                   value={config.websiteUrl}
                   onChange={(e) => patch({ websiteUrl: e.target.value })}
-                  className="rounded-xl"
+                  className="rounded-xl h-11"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="appName" className="flex items-center gap-2">
-                  <Smartphone className="w-4 h-4" /> App Name *
-                </Label>
-                <Input
-                  id="appName"
-                  placeholder="My Awesome App"
-                  value={config.appName}
-                  onChange={(e) => patch({ appName: e.target.value })}
-                  className="rounded-xl"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="appName" className="flex items-center gap-2">
+                    <Smartphone className="w-4 h-4" /> App Name *
+                  </Label>
+                  <Input
+                    id="appName"
+                    placeholder="My App"
+                    value={config.appName}
+                    onChange={(e) => patch({ appName: e.target.value })}
+                    className="rounded-xl"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="packageName" className="flex items-center gap-2">
+                    <Package className="w-4 h-4" /> Package Name *
+                  </Label>
+                  <Input
+                    id="packageName"
+                    placeholder="com.company.appname"
+                    value={config.packageName}
+                    onChange={(e) => {
+                      setPackageEdited(true);
+                      patch({ packageName: e.target.value.toLowerCase() });
+                    }}
+                    className={`rounded-xl font-mono text-xs ${
+                      config.packageName && !packageValid ? "border-destructive" : ""
+                    }`}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Must be unique, e.g. <span className="font-mono">com.growhaz.myapp</span>
+                  </p>
+                </div>
               </div>
             </div>
 
-            {/* Branding (locked below tier=logo) */}
-            <LockableSection
-              title="Custom Branding"
+            {/* Current plan indicator */}
+            <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20">
+              <div className="flex items-center gap-2">
+                <tier.icon className="w-4 h-4 text-primary" />
+                <div>
+                  <div className="text-sm font-semibold">{tier.name} — ₹{tier.price}</div>
+                  <div className="text-[11px] text-muted-foreground">{tier.tagline}</div>
+                </div>
+              </div>
+              {selectedTier !== "basic" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs"
+                  onClick={() => setSelectedTier("basic")}
+                >
+                  Reset to Basic
+                </Button>
+              )}
+            </div>
+
+            {/* ---- Custom Branding (₹99) ---- */}
+            <UpgradeSection
+              title="Set your own logo & colors"
               icon={Palette}
               unlocked={tier.unlocks.customIcon}
-              requiredTier="Custom Branding (₹99)"
-              onUpgrade={() => setStep("tier")}
+              upgradePrice={99}
+              onUpgrade={() => setSelectedTier((t) => (t === "basic" ? "logo" : t))}
             >
               <div className="space-y-2">
                 <Label htmlFor="logoPreview">App Icon URL</Label>
@@ -775,50 +681,59 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 />
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Splash Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={config.splashColor}
-                      onChange={(e) => patch({ splashColor: e.target.value })}
-                      className="w-12 h-10 p-1 rounded-xl"
-                    />
-                    <Input
-                      type="text"
-                      value={config.splashColor}
-                      onChange={(e) => patch({ splashColor: e.target.value })}
-                      className="flex-1 rounded-xl"
-                    />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label>Status Bar Color</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      type="color"
-                      value={config.statusBarColor}
-                      onChange={(e) => patch({ statusBarColor: e.target.value })}
-                      className="w-12 h-10 p-1 rounded-xl"
-                    />
-                    <Input
-                      type="text"
-                      value={config.statusBarColor}
-                      onChange={(e) => patch({ statusBarColor: e.target.value })}
-                      className="flex-1 rounded-xl"
-                    />
-                  </div>
-                </div>
+                <ColorField
+                  label="Splash Color"
+                  value={config.splashColor}
+                  onChange={(v) => patch({ splashColor: v })}
+                />
+                <ColorField
+                  label="Status Bar Color"
+                  value={config.statusBarColor}
+                  onChange={(v) => patch({ statusBarColor: v })}
+                />
               </div>
-            </LockableSection>
+              {tier.unlocks.ios && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-2">
+                    <Apple className="w-3.5 h-3.5" /> Target Platform
+                  </Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => patch({ platform: "android" })}
+                      className={`px-3 py-2 rounded-xl border text-sm flex items-center justify-center gap-2 ${
+                        config.platform === "android"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border"
+                      }`}
+                    >
+                      <Smartphone className="w-4 h-4" /> Android
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => patch({ platform: "ios" })}
+                      className={`px-3 py-2 rounded-xl border text-sm flex items-center justify-center gap-2 ${
+                        config.platform === "ios"
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border"
+                      }`}
+                    >
+                      <Apple className="w-4 h-4" /> iOS
+                    </button>
+                  </div>
+                </div>
+              )}
+            </UpgradeSection>
 
-            {/* Advanced features */}
-            <LockableSection
-              title="Advanced Features"
+            {/* ---- Advanced (₹499) ---- */}
+            <UpgradeSection
+              title="Advanced: splash, push & offline"
               icon={Zap}
               unlocked={tier.unlocks.push}
-              requiredTier="Advanced (₹499)"
-              onUpgrade={() => setStep("tier")}
+              upgradePrice={499}
+              onUpgrade={() =>
+                setSelectedTier((t) => (t === "basic" || t === "logo" ? "advanced" : t))
+              }
             >
               <div className="flex flex-wrap gap-4">
                 <label className="flex items-center gap-2 text-sm">
@@ -840,38 +755,34 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                   <Wifi className="w-3.5 h-3.5" /> Offline Support
                 </label>
               </div>
-            </LockableSection>
+              {config.enableOffline && (
+                <Input
+                  placeholder="Offline message"
+                  value={config.offlineMessage}
+                  onChange={(e) => patch({ offlineMessage: e.target.value })}
+                  className="rounded-xl text-xs"
+                />
+              )}
+            </UpgradeSection>
 
-            {/* Pro features */}
-            <LockableSection
-              title="Pro Features"
+            {/* ---- Pro (₹999) ---- */}
+            <UpgradeSection
+              title="Pro: AdMob & Play Store bundle"
               icon={Crown}
               unlocked={tier.unlocks.aab}
-              requiredTier="Pro (₹999)"
-              onUpgrade={() => setStep("tier")}
+              upgradePrice={999}
+              onUpgrade={() => setSelectedTier("pro")}
             >
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label>Platform</Label>
-                  <select
-                    className="w-full h-10 rounded-xl border border-input bg-background px-3 py-2 text-sm"
-                    value={config.platform}
-                    onChange={(e) => patch({ platform: e.target.value as "android" | "ios" })}
-                  >
-                    <option value="android">Android</option>
-                    <option value="ios">iOS</option>
-                  </select>
-                </div>
-                <label className="flex items-center gap-2 text-sm mt-6">
-                  <input
-                    type="checkbox"
-                    checked={config.buildAab}
-                    onChange={(e) => patch({ buildAab: e.target.checked })}
-                    className="rounded"
-                  />
-                  <Gauge className="w-3.5 h-3.5" /> AAB (Play Store)
-                </label>
-              </div>
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={config.buildAab}
+                  onChange={(e) => patch({ buildAab: e.target.checked })}
+                  className="rounded"
+                />
+                <Gauge className="w-3.5 h-3.5" /> Build AAB (Play Store)
+              </label>
+
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -879,58 +790,47 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                   onChange={(e) => patch({ enableAdmob: e.target.checked })}
                   className="rounded"
                 />
-                <Cloud className="w-3.5 h-3.5" /> Enable AdMob
+                <Cloud className="w-3.5 h-3.5" /> Enable AdMob Monetization
               </label>
               {config.enableAdmob && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Input
-                    placeholder="Banner Ad ID"
-                    value={config.admobBannerId}
-                    onChange={(e) => patch({ admobBannerId: e.target.value })}
-                    className="rounded-xl text-xs"
-                  />
-                  <Input
-                    placeholder="Interstitial Ad ID"
-                    value={config.admobInterstitialId}
-                    onChange={(e) => patch({ admobInterstitialId: e.target.value })}
-                    className="rounded-xl text-xs"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Banner Ad Unit ID</Label>
+                    <Input
+                      placeholder="ca-app-pub-xxx/xxx"
+                      value={config.admobBannerId}
+                      onChange={(e) => patch({ admobBannerId: e.target.value })}
+                      className="rounded-xl text-xs font-mono"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-[11px]">Interstitial Ad Unit ID</Label>
+                    <Input
+                      placeholder="ca-app-pub-xxx/xxx"
+                      value={config.admobInterstitialId}
+                      onChange={(e) => patch({ admobInterstitialId: e.target.value })}
+                      className="rounded-xl text-xs font-mono"
+                    />
+                  </div>
                 </div>
               )}
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={config.proxyEnabled}
-                  onChange={(e) => patch({ proxyEnabled: e.target.checked })}
-                  className="rounded"
-                />
-                Enable Proxy
-              </label>
-              {config.proxyEnabled && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Input placeholder="Host" value={config.proxyHost}
-                    onChange={(e) => patch({ proxyHost: e.target.value })}
-                    className="rounded-xl text-xs" />
-                  <Input placeholder="Port" value={config.proxyPort}
-                    onChange={(e) => patch({ proxyPort: e.target.value })}
-                    className="rounded-xl text-xs" />
-                </div>
-              )}
-            </LockableSection>
+            </UpgradeSection>
 
-            {/* Payment summary */}
+            {/* Balance & payment summary */}
             <div className="p-3 rounded-xl bg-muted/30 border border-border/40 text-xs space-y-1">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">Your balance</span>
+                <span className="text-muted-foreground flex items-center gap-1.5">
+                  <Coins className="w-3.5 h-3.5 text-primary" /> Your balance
+                </span>
                 <span className="font-medium">{balance?.balance ?? 0} coins</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">This build</span>
+                <span className="text-muted-foreground">This build ({tier.name})</span>
                 <span className="font-medium">₹{tier.price}</span>
               </div>
               {(balance?.balance ?? 0) < tier.price && (
                 <p className="text-amber-500 pt-1">
-                  Not enough coins — you'll be redirected to Razorpay to pay ₹{tier.price}. Coins are credited and used automatically.
+                  Not enough coins — you'll pay ₹{tier.price} via Razorpay. Coins are credited & used automatically.
                 </p>
               )}
             </div>
@@ -947,6 +847,16 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
                 ? `Generate ${outputLabel} — spend ${tier.price} coins`
                 : `Pay ₹${tier.price} & Generate ${outputLabel}`}
             </Button>
+
+            {next && (
+              <p className="text-center text-[11px] text-muted-foreground">
+                Want more? Upgrade to <button
+                  type="button"
+                  onClick={() => setSelectedTier(next.id)}
+                  className="text-primary hover:underline font-medium"
+                >{next.name} (₹{next.price})</button> for {next.tagline.toLowerCase()}.
+              </p>
+            )}
           </div>
         )}
 
@@ -1034,47 +944,87 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   );
 }
 
-// ---------- Lockable Section helper ----------
-function LockableSection({
+// ---------- Upgrade Section ----------
+function UpgradeSection({
   title,
   icon: Icon,
   unlocked,
-  requiredTier,
+  upgradePrice,
   onUpgrade,
   children,
 }: {
   title: string;
   icon: React.ElementType;
   unlocked: boolean;
-  requiredTier: string;
+  upgradePrice: number;
   onUpgrade: () => void;
   children: React.ReactNode;
 }) {
-  return (
-    <div className={`border rounded-xl p-4 space-y-3 ${unlocked ? "border-border/60" : "border-dashed border-border/40 bg-muted/20"}`}>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Icon className={`w-4 h-4 ${unlocked ? "text-primary" : "text-muted-foreground"}`} />
-          <span className="text-sm font-semibold">{title}</span>
+  if (!unlocked) {
+    return (
+      <button
+        type="button"
+        onClick={onUpgrade}
+        className="w-full flex items-center justify-between p-3 rounded-xl border border-dashed border-border/60 bg-muted/20 hover:border-primary/40 hover:bg-primary/5 transition-all text-left group"
+      >
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground group-hover:text-primary transition-colors">
+            <Lock className="w-4 h-4" />
+          </div>
+          <div>
+            <div className="text-sm font-semibold flex items-center gap-1.5">
+              <Icon className="w-3.5 h-3.5" /> {title}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              Tap to unlock — adds ₹{upgradePrice} total
+            </div>
+          </div>
         </div>
-        {!unlocked && (
-          <button
-            type="button"
-            onClick={onUpgrade}
-            className="flex items-center gap-1 text-[11px] text-primary hover:underline"
-          >
-            <Lock className="w-3 h-3" />
-            Unlock in {requiredTier}
-          </button>
-        )}
+        <span className="text-xs font-semibold text-primary bg-primary/10 px-2.5 py-1 rounded-full">
+          ₹{upgradePrice}
+        </span>
+      </button>
+    );
+  }
+  return (
+    <div className="border border-primary/30 rounded-xl p-4 space-y-3 bg-primary/[0.02]">
+      <div className="flex items-center gap-2">
+        <Icon className="w-4 h-4 text-primary" />
+        <span className="text-sm font-semibold">{title}</span>
+        <CheckCircle2 className="w-3.5 h-3.5 text-primary ml-auto" />
       </div>
-      {unlocked ? (
-        <div className="space-y-3">{children}</div>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Upgrade to {requiredTier} to enable these options.
-        </p>
-      )}
+      {children}
+    </div>
+  );
+}
+
+// ---------- Color Field ----------
+function ColorField({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <div className="flex gap-2">
+        <Input
+          type="color"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-12 h-10 p-1 rounded-xl"
+        />
+        <Input
+          type="text"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="flex-1 rounded-xl font-mono text-xs"
+        />
+      </div>
     </div>
   );
 }
