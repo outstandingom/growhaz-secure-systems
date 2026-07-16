@@ -486,8 +486,20 @@ export function ForensicScannerModal({ isOpen, onClose }: ForensicScannerModalPr
                     <p className="text-sm font-semibold mb-2">Findings Summary</p>
                     <div className="space-y-1 max-h-48 overflow-y-auto text-sm">
                       {(() => {
-                        const assessment = report.full_report?.detailed_assessment;
-                        const notable = assessment?.all_notable_findings || [];
+                        // Extract factual findings from the new engine structure
+                        const categories = report.full_report?.categories || {};
+                        const notable: string[] = [];
+                        
+                        Object.values(categories).forEach((cat: any) => {
+                          if (cat?.results && Array.isArray(cat.results)) {
+                            cat.results.forEach((res: any) => {
+                              if (res.supports && Array.isArray(res.supports)) {
+                                notable.push(...res.supports);
+                              }
+                            });
+                          }
+                        });
+
                         if (notable.length === 0) {
                           return <p className="text-muted-foreground">No notable findings – the file appears consistent with genuine content.</p>;
                         }
