@@ -8,6 +8,7 @@ const footerLinks = {
     { label: "SEO Optimization", href: "/seo" },
     { label: "Automation", href: "/automation" },
     { label: "Marketing", href: "/marketing" },
+    { label: "Forensic Whitepaper", href: "/forensic-whitepaper" },
   ],
   company: [
     { label: "About Us", href: "/about" },
