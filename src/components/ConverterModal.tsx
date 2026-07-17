@@ -277,8 +277,17 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           const build = data as any;
           setBuildStatus(build?.status || "");
           if (build?.status === "completed") {
-            setDownloadUrl(build?.download_url || null);
-            setDownloadFileName(build?.file_name || `${config.appName}.apk`);
+            let finalUrl: string | null = build?.download_url || null;
+            const fileName = build?.file_name || `${config.appName}.apk`;
+            if (!finalUrl && buildId) {
+              // download_url wasn't written back by the workflow — sign a URL from storage
+              const { data: signed } = await supabase.storage
+                .from("app-builds")
+                .createSignedUrl(`${buildId}/app.apk`, 3600, { download: fileName });
+              finalUrl = signed?.signedUrl || null;
+            }
+            setDownloadUrl(finalUrl);
+            setDownloadFileName(fileName);
             setStep("done");
             if (queueEntry) markCompleted(queueEntry.id);
             if (pollRef.current) clearInterval(pollRef.current);
