@@ -80,6 +80,9 @@ export function useWallet() {
         // FIX 3: Added filters to the real-time subscription.
         // Now it ONLY listens to this specific user's changes, saving huge amounts of performance.
         if (isMounted) {
+          if (channel) {
+            supabase.removeChannel(channel);
+          }
           channel = supabase
             .channel(`wallet_changes_${session.user.id}`)
             .on(
