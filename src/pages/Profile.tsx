@@ -20,6 +20,9 @@ import { ReportViewer } from "@/components/reports/ReportViewer";
 import AlphaG2Report from "@/components/reports/Alphag2report";
 import { MyDocuments } from "@/components/profile/MyDocuments";
 import { VerificationHistory } from "@/components/profile/VerificationHistory";
+import { MyApkBuilds } from "@/components/profile/MyApkBuilds";
+import { MyForensicReports } from "@/components/profile/MyForensicReports";
+import { Smartphone, FileSearch } from "lucide-react";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
 import { BlockchainRegistration } from "@/components/blockchain/BlockchainRegistration";
 
@@ -73,7 +76,7 @@ export default function Profile() {
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history" | "apps" | "forensic">("profile");
   const [userId, setUserId] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -439,6 +442,7 @@ export default function Profile() {
               Verification History
             </button>
             <button
+            <button
               onClick={() => setActiveTab("reports")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "reports"
@@ -449,10 +453,34 @@ export default function Profile() {
               <Shield className="w-4 h-4" />
               Security Reports
             </button>
+            <button
+              onClick={() => setActiveTab("apps")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "apps"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Smartphone className="w-4 h-4" />
+              My Apps
+            </button>
+            <button
+              onClick={() => setActiveTab("forensic")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "forensic"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <FileSearch className="w-4 h-4" />
+              Forensic Reports
+            </button>
           </div>
 
           {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
           {activeTab === "history" && userId && <VerificationHistory userId={userId} />}
+          {activeTab === "apps" && userId && <MyApkBuilds userId={userId} />}
+          {activeTab === "forensic" && userId && <MyForensicReports userId={userId} />}
 
           {/* Profile Tab */}
           {activeTab === "profile" && (

@@ -277,8 +277,17 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           const build = data as any;
           setBuildStatus(build?.status || "");
           if (build?.status === "completed") {
-            setDownloadUrl(build?.download_url || null);
-            setDownloadFileName(build?.file_name || `${config.appName}.apk`);
+            let finalUrl: string | null = build?.download_url || null;
+            const fileName = build?.file_name || `${config.appName}.apk`;
+            if (!finalUrl && buildId) {
+              // download_url wasn't written back by the workflow — sign a URL from storage
+              const { data: signed } = await supabase.storage
+                .from("app-builds")
+                .createSignedUrl(`${buildId}/app.apk`, 3600, { download: fileName });
+              finalUrl = signed?.signedUrl || null;
+            }
+            setDownloadUrl(finalUrl);
+            setDownloadFileName(fileName);
             setStep("done");
             if (queueEntry) markCompleted(queueEntry.id);
             if (pollRef.current) clearInterval(pollRef.current);
@@ -384,6 +393,25 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
     const newBuildId = crypto.randomUUID();
     setBuildId(newBuildId);
+
+    // Pre-create the apk_builds row so it is owned by this user and shows up
+    // in their profile history. The workflow/callback updates the same row.
+    let websiteUrl = config.websiteUrl.trim();
+    if (!websiteUrl.startsWith("http")) websiteUrl = "https://" + websiteUrl;
+    const u = tier.unlocks;
+    const platform = u.ios ? config.platform : "android";
+    await supabase.from("apk_builds").insert({
+      id: newBuildId,
+      user_id: session.user.id,
+      app_name: config.appName.trim(),
+      website_url: websiteUrl,
+      package_name: config.packageName.trim(),
+      platform,
+      tier: tier.id,
+      status: "pending",
+      storage_path: `${newBuildId}/app.apk`,
+      file_name: `${config.appName.trim() || "app"}.apk`,
+    });
     const result = await joinQueue(newBuildId);
     if (!result) {
       setStep("error");

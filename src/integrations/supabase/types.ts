@@ -23,12 +23,14 @@ export type Database = {
           artifact_url: string | null
           build_aab: boolean | null
           created_at: string
+          download_url: string | null
           enable_admob: boolean | null
           enable_analytics: boolean | null
           enable_cookies: boolean | null
           enable_offline: boolean | null
           enable_push: boolean | null
           error_message: string | null
+          file_name: string | null
           firebase_server_key: string | null
           github_run_id: string | null
           icon_url: string | null
@@ -45,8 +47,10 @@ export type Database = {
           splash_color: string | null
           status: Database["public"]["Enums"]["build_status"]
           status_bar_color: string | null
+          storage_path: string | null
           tier: string | null
           updated_at: string
+          user_id: string | null
           website_url: string
         }
         Insert: {
@@ -57,12 +61,14 @@ export type Database = {
           artifact_url?: string | null
           build_aab?: boolean | null
           created_at?: string
+          download_url?: string | null
           enable_admob?: boolean | null
           enable_analytics?: boolean | null
           enable_cookies?: boolean | null
           enable_offline?: boolean | null
           enable_push?: boolean | null
           error_message?: string | null
+          file_name?: string | null
           firebase_server_key?: string | null
           github_run_id?: string | null
           icon_url?: string | null
@@ -79,8 +85,10 @@ export type Database = {
           splash_color?: string | null
           status?: Database["public"]["Enums"]["build_status"]
           status_bar_color?: string | null
+          storage_path?: string | null
           tier?: string | null
           updated_at?: string
+          user_id?: string | null
           website_url: string
         }
         Update: {
@@ -91,12 +99,14 @@ export type Database = {
           artifact_url?: string | null
           build_aab?: boolean | null
           created_at?: string
+          download_url?: string | null
           enable_admob?: boolean | null
           enable_analytics?: boolean | null
           enable_cookies?: boolean | null
           enable_offline?: boolean | null
           enable_push?: boolean | null
           error_message?: string | null
+          file_name?: string | null
           firebase_server_key?: string | null
           github_run_id?: string | null
           icon_url?: string | null
@@ -113,8 +123,10 @@ export type Database = {
           splash_color?: string | null
           status?: Database["public"]["Enums"]["build_status"]
           status_bar_color?: string | null
+          storage_path?: string | null
           tier?: string | null
           updated_at?: string
+          user_id?: string | null
           website_url?: string
         }
         Relationships: []
