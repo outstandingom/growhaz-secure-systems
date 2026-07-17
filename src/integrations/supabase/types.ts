@@ -50,6 +50,7 @@ export type Database = {
           storage_path: string | null
           tier: string | null
           updated_at: string
+          user_id: string | null
           website_url: string
         }
         Insert: {
@@ -87,6 +88,7 @@ export type Database = {
           storage_path?: string | null
           tier?: string | null
           updated_at?: string
+          user_id?: string | null
           website_url: string
         }
         Update: {
@@ -124,6 +126,7 @@ export type Database = {
           storage_path?: string | null
           tier?: string | null
           updated_at?: string
+          user_id?: string | null
           website_url?: string
         }
         Relationships: []
