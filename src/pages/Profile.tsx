@@ -442,7 +442,6 @@ export default function Profile() {
               Verification History
             </button>
             <button
-            <button
               onClick={() => setActiveTab("reports")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "reports"
