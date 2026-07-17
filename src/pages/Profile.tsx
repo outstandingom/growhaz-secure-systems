@@ -76,7 +76,7 @@ export default function Profile() {
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history" | "apps" | "forensic">("profile");
   const [userId, setUserId] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
