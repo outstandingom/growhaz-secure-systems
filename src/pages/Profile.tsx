@@ -20,6 +20,9 @@ import { ReportViewer } from "@/components/reports/ReportViewer";
 import AlphaG2Report from "@/components/reports/Alphag2report";
 import { MyDocuments } from "@/components/profile/MyDocuments";
 import { VerificationHistory } from "@/components/profile/VerificationHistory";
+import { MyApkBuilds } from "@/components/profile/MyApkBuilds";
+import { MyForensicReports } from "@/components/profile/MyForensicReports";
+import { Smartphone, FileSearch } from "lucide-react";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
 import { BlockchainRegistration } from "@/components/blockchain/BlockchainRegistration";
 
