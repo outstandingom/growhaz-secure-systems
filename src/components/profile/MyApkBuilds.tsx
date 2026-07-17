@@ -54,16 +54,40 @@ export function MyApkBuilds({ userId }: Props) {
   const handleDownload = async (build: ApkBuild) => {
     setDownloadingId(build.id);
     try {
+      // If storage_path not set, this is an old build — file was never in storage
+      if (!build.storage_path && !build.download_url) {
+        toast({
+          title: "File Unavailable",
+          description: "This build was created before storage was enabled. Please convert your website again to get a fresh APK.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       let url = build.download_url;
       if (!url) {
-        const path = build.storage_path || `${build.id}/app.apk`;
-        const fileName = build.file_name || `${build.app_name || "app"}.apk`;
+        const path = build.storage_path!;
+        const preferredExt = build.platform === "ios" ? "ipa" : "apk";
+        const fileName = build.file_name || `${(build.app_name || "app").replace(/[^a-z0-9-_]+/gi, "_")}.${preferredExt}`;
         const { data, error } = await supabase.storage
           .from("app-builds")
           .createSignedUrl(path, 3600, { download: fileName });
         if (error) throw error;
+        if (!data?.signedUrl) throw new Error("Could not generate download link");
         url = data.signedUrl;
       }
+
+      // Verify file actually exists before opening (avoids 400 in new tab)
+      const check = await fetch(url, { method: "HEAD" });
+      if (!check.ok) {
+        toast({
+          title: "File Not Found",
+          description: "The APK file was not saved to storage. Please convert your website again.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const a = document.createElement("a");
       a.href = url!;
       a.download = build.file_name || `${build.app_name || "app"}.apk`;
