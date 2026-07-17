@@ -225,6 +225,7 @@ export function MyForensicReports({ userId }: Props) {
             </div>
           )}
         </DialogContent>
+        
       </Dialog>
     </>
   );
