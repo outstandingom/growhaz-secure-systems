@@ -67,10 +67,21 @@ interface SecurityReport {
   report_status?: string;
 }
 
+interface AppBuild {
+  id: string;
+  website_url: string;
+  app_name: string;
+  platform: string;
+  status: string;
+  created_at: string;
+  build_aab?: boolean;
+}
+
 export default function Profile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [reports, setReports] = useState<SecurityReport[]>([]);
+  const [appBuilds, setAppBuilds] = useState<AppBuild[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history">("profile");
@@ -126,7 +137,8 @@ export default function Profile() {
     await Promise.all([
       fetchProfile(session.user.id),
       fetchPurchases(),
-      fetchReports()
+      fetchReports(),
+      fetchAppBuilds(session.user.id)
     ]);
     
     setLoading(false);
@@ -239,6 +251,43 @@ export default function Profile() {
     if (!error && data) {
       setReports(data);
     }
+  };
+
+  const fetchAppBuilds = async (userId: string) => {
+    const { data, error } = await supabase
+      .from("apk_builds")
+      .select("*")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!error && data) {
+      setAppBuilds(data);
+    }
+  };
+
+  const downloadAppBuild = async (buildId: string, platform: string, buildAab: boolean | undefined) => {
+    const ext = platform === "ios" ? "ipa" : (buildAab ? "aab" : "apk");
+    const { data, error } = await supabase.storage
+      .from("app-builds")
+      .download(`${buildId}/app.${ext}`);
+
+    if (error) {
+      toast({
+        title: "Download Failed",
+        description: "The file might not be available or you don't have access.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `app.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const handleLogout = async () => {
@@ -448,6 +497,17 @@ export default function Profile() {
             >
               <Shield className="w-4 h-4" />
               Security Reports
+            </button>
+            <button
+              onClick={() => setActiveTab("appBuilds" as any)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "appBuilds" as any
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Package className="w-4 h-4" />
+              App Converter
             </button>
           </div>
 
@@ -737,6 +797,82 @@ export default function Profile() {
                           >
                             <Trash2 className="w-4 h-4" />
                           </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === "appBuilds" as any && (
+            <div className="space-y-4">
+              {appBuilds.length === 0 ? (
+                <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
+                  <Package className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No App Builds</h3>
+                  <p className="text-muted-foreground mb-6">
+                    You haven't converted any websites to apps yet.
+                  </p>
+                  <Button variant="hero" onClick={() => window.open("https://appify-your-website.vercel.app", "_blank")}>
+                    Convert Website to App
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-4">
+                  {appBuilds.map((build) => (
+                    <div
+                      key={build.id}
+                      className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border card-hover"
+                    >
+                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                        <div className="flex items-start gap-4">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                            build.status === 'completed' ? "bg-emerald-500/10" : "bg-amber-500/10"
+                          }`}>
+                            {build.status === 'completed' ? (
+                              <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                            ) : (
+                              <Clock className="w-6 h-6 text-amber-400" />
+                            )}
+                          </div>
+                          <div>
+                            <h3 className="font-semibold text-lg">{build.app_name}</h3>
+                            <div className="flex items-center gap-2 mb-1 flex-wrap">
+                              <span className="text-sm text-muted-foreground">{build.website_url}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge className={build.status === 'completed' ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-amber-500/20 text-amber-400 border-amber-500/30"}>
+                                {build.status.toUpperCase()}
+                              </Badge>
+                              <Badge variant="outline" className="border-primary/30 text-primary uppercase">
+                                {build.platform}
+                              </Badge>
+                            </div>
+                            <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                              <Clock className="w-3 h-3" />
+                              Created {format(new Date(build.created_at), "MMM d, yyyy 'at' h:mm a")}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {build.status === 'completed' ? (
+                            <Button 
+                              variant="hero" 
+                              size="sm"
+                              className="gap-1"
+                              onClick={() => downloadAppBuild(build.id, build.platform, build.build_aab)}
+                            >
+                              <FileText className="w-4 h-4" />
+                              Download {build.platform === 'ios' ? 'IPA' : (build.build_aab ? 'AAB' : 'APK')}
+                            </Button>
+                          ) : (
+                            <Button variant="outline" size="sm" disabled className="gap-1">
+                              <Clock className="w-4 h-4" />
+                              {build.status === 'pending' ? 'Pending' : 'Building'}
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
