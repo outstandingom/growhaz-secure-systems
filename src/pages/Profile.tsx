@@ -442,6 +442,7 @@ export default function Profile() {
               Verification History
             </button>
             <button
+            <button
               onClick={() => setActiveTab("reports")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
                 activeTab === "reports"
@@ -452,10 +453,34 @@ export default function Profile() {
               <Shield className="w-4 h-4" />
               Security Reports
             </button>
+            <button
+              onClick={() => setActiveTab("apps")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "apps"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Smartphone className="w-4 h-4" />
+              My Apps
+            </button>
+            <button
+              onClick={() => setActiveTab("forensic")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "forensic"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <FileSearch className="w-4 h-4" />
+              Forensic Reports
+            </button>
           </div>
 
           {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
           {activeTab === "history" && userId && <VerificationHistory userId={userId} />}
+          {activeTab === "apps" && userId && <MyApkBuilds userId={userId} />}
+          {activeTab === "forensic" && userId && <MyForensicReports userId={userId} />}
 
           {/* Profile Tab */}
           {activeTab === "profile" && (
