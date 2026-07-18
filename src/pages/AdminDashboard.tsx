@@ -852,7 +852,9 @@ export default function AdminDashboard() {
                           partners.map((partner) => (
                             <TableRow key={partner.user_id}>
                               <TableCell>
-                                <div className="font-medium">{partner.profiles?.full_name || 'Unknown User'}</div>
+                                <div className="font-medium">
+                                  {users.find(u => u.user_id === partner.user_id)?.full_name || partner.profiles?.full_name || 'Unknown User'}
+                                </div>
                                 <div className="text-xs text-muted-foreground">{partner.user_id}</div>
                               </TableCell>
                               <TableCell>
