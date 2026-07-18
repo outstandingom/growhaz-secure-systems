@@ -392,7 +392,23 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       return;
     }
     await Promise.all([fetchBalance(), fetchTransactions()]);
-    toast({ title: "Payment successful", description: `${tier.price} coins deducted` });
+    toast({ title: "Payment successful", description: `${finalPrice} coins deducted` });
+    // Credit 30% of the original tier price to the partner's wallet as coins
+    if (discountApplied && couponCode.trim()) {
+      const partnerReward = Math.floor(tier.price * 0.3);
+      // Fetch the current balance and increment it
+      const { data: pData } = await supabase
+        .from('partner_profiles')
+        .select('wallet_balance')
+        .eq('partner_code', couponCode.trim())
+        .single();
+      if (pData) {
+        await supabase
+          .from('partner_profiles')
+          .update({ wallet_balance: (pData.wallet_balance ?? 0) + partnerReward })
+          .eq('partner_code', couponCode.trim());
+      }
+    }
 
     const newBuildId = crypto.randomUUID();
     setBuildId(newBuildId);
