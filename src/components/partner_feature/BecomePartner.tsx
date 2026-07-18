@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import './BecomePartner.css';
 import { supabase } from '@/integrations/supabase/client';
+import { Loader2 } from "lucide-react";
 
 interface PartnerProfile {
   user_id: string;
   is_partner: boolean;
+  status: 'pending' | 'approved' | 'rejected';
   partner_code: string | null;
   wallet_balance: number;
 }
@@ -51,12 +53,13 @@ export const BecomePartner: React.FC = () => {
     // Generate a unique partner code
     const uniqueCode = 'PARTNER-' + Math.random().toString(36).substring(2, 8).toUpperCase();
 
-    // Save to the database
+    // Save to the database as pending
     const { data, error } = await supabase
       .from('partner_profiles')
       .insert({
         user_id: userId,
-        is_partner: true,
+        is_partner: false,
+        status: 'pending',
         partner_code: uniqueCode,
         wallet_balance: 0,
       })
@@ -86,7 +89,9 @@ export const BecomePartner: React.FC = () => {
         <div className="partner-header">
           <h2>Partner Program</h2>
         </div>
-        <div style={{ textAlign: 'center', padding: '20px', color: '#a0a0b0' }}>Loading...</div>
+        <div style={{ textAlign: 'center', padding: '40px', color: '#a0a0b0', display: 'flex', justifyContent: 'center' }}>
+          <Loader2 className="w-8 h-8 animate-spin" />
+        </div>
       </div>
     );
   }
@@ -106,10 +111,11 @@ export const BecomePartner: React.FC = () => {
     <div className="partner-card">
       <div className="partner-header">
         <h2>Partner Program</h2>
-        {partnerProfile?.is_partner && <span className="badge">Active Partner</span>}
+        {partnerProfile?.status === 'approved' && <span className="badge">Active Partner</span>}
+        {partnerProfile?.status === 'pending' && <span className="badge" style={{ background: '#f59e0b' }}>Pending</span>}
       </div>
 
-      {!partnerProfile?.is_partner ? (
+      {!partnerProfile ? (
         <div className="partner-content unrolled">
           <p>
             Turn your network into income! Become an official partner today.
@@ -121,8 +127,28 @@ export const BecomePartner: React.FC = () => {
             onClick={handleBecomePartner}
             disabled={isLoading}
           >
-            {isLoading ? 'Enrolling...' : 'Become a Partner Now'}
+            {isLoading ? <Loader2 className="w-4 h-4 animate-spin inline mr-2" /> : null}
+            {isLoading ? 'Submitting Application...' : 'Apply to Become a Partner'}
           </button>
+        </div>
+      ) : partnerProfile.status === 'pending' ? (
+        <div className="partner-content unrolled">
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '10px' }}>Application Pending</h3>
+            <p style={{ color: '#a0a0b0' }}>
+              Your application to join the Partner Program is currently under review by our team.
+              We'll notify you once it has been approved, so you can start sharing your code and earning rewards!
+            </p>
+          </div>
+        </div>
+      ) : partnerProfile.status === 'rejected' ? (
+        <div className="partner-content unrolled">
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <h3 style={{ fontSize: '1.2rem', marginBottom: '10px', color: '#ef4444' }}>Application Rejected</h3>
+            <p style={{ color: '#a0a0b0' }}>
+              Unfortunately, your application to join the Partner Program was not approved at this time.
+            </p>
+          </div>
         </div>
       ) : (
         <div className="partner-content enrolled">
@@ -160,3 +186,4 @@ export const BecomePartner: React.FC = () => {
     </div>
   );
 };
+

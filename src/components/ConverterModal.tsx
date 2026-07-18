@@ -453,12 +453,15 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     try {
       const { data, error } = await supabase
         .from("partner_profiles")
-        .select("partner_code")
+        .select("partner_code, status")
         .eq("partner_code", couponCode.trim())
         .single();
       
       if (error || !data) {
         setCouponError("Invalid coupon code");
+        setDiscountApplied(false);
+      } else if (data.status !== 'approved') {
+        setCouponError("This coupon code is not active yet.");
         setDiscountApplied(false);
       } else {
         setDiscountApplied(true);

@@ -51,12 +51,15 @@ export default function AdminDashboard() {
     users, 
     withdrawalRequests, 
     transactions,
+    partners,
     fetchUsers,
     fetchWithdrawalRequests,
     fetchTransactions,
+    fetchPartners,
     processWithdrawal,
     updateUserRole,
-    adjustCoins
+    adjustCoins,
+    updatePartnerStatus
   } = useAdmin();
 
 
@@ -266,6 +269,7 @@ export default function AdminDashboard() {
       fetchTransactions();
       fetchMentorProfiles();
       fetchSecurityReports();
+      fetchPartners();
     }
   }, [isAdmin]);
 
@@ -385,6 +389,14 @@ export default function AdminDashboard() {
               <TabsTrigger value="users">Users</TabsTrigger>
               <TabsTrigger value="mentors">Mentors</TabsTrigger>
               <TabsTrigger value="transactions">Transactions</TabsTrigger>
+              <TabsTrigger value="partners" className="relative">
+                Partners
+                {partners.filter(p => p.status === 'pending').length > 0 && (
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500">
+                    {partners.filter(p => p.status === 'pending').length}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="security" className="relative">
                 Security
                 {securityReports.filter(r => r.report_status === 'pending').length > 0 && (
@@ -806,6 +818,82 @@ export default function AdminDashboard() {
                       ))}
                     </div>
                   )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            <TabsContent value="partners">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Partner Applications</CardTitle>
+                  <CardDescription>Approve or reject users applying to be partners</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>User</TableHead>
+                          <TableHead>Partner Code</TableHead>
+                          <TableHead>Wallet</TableHead>
+                          <TableHead>Applied At</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {partners.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={6} className="text-center h-24 text-muted-foreground">
+                              No partner applications found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          partners.map((partner) => (
+                            <TableRow key={partner.user_id}>
+                              <TableCell>
+                                <div className="font-medium">{partner.profiles?.full_name || 'Unknown User'}</div>
+                                <div className="text-xs text-muted-foreground">{partner.user_id}</div>
+                              </TableCell>
+                              <TableCell>
+                                <code className="text-xs bg-muted p-1 rounded">{partner.partner_code}</code>
+                              </TableCell>
+                              <TableCell>{partner.wallet_balance} coins</TableCell>
+                              <TableCell>{format(new Date(partner.created_at), 'dd MMM yyyy')}</TableCell>
+                              <TableCell>
+                                <Badge 
+                                  variant={partner.status === 'approved' ? 'default' : partner.status === 'rejected' ? 'destructive' : 'secondary'}
+                                  className={partner.status === 'pending' ? 'bg-amber-500 hover:bg-amber-600' : ''}
+                                >
+                                  {partner.status}
+                                </Badge>
+                              </TableCell>
+                              <TableCell className="text-right">
+                                {partner.status === 'pending' && (
+                                  <div className="flex justify-end gap-2">
+                                    <Button 
+                                      size="sm" 
+                                      className="bg-green-600 hover:bg-green-700"
+                                      onClick={() => updatePartnerStatus(partner.user_id, 'approved')}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button 
+                                      size="sm" 
+                                      variant="destructive"
+                                      onClick={() => updatePartnerStatus(partner.user_id, 'rejected')}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </div>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>

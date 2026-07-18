@@ -38,12 +38,25 @@ interface Transaction {
   created_at: string;
 }
 
+interface PartnerAdminProfile {
+  user_id: string;
+  partner_code: string;
+  status: 'pending' | 'approved' | 'rejected';
+  wallet_balance: number;
+  created_at: string;
+  profiles?: {
+    full_name: string;
+    email: string;
+  };
+}
+
 export function useAdmin() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState<User[]>([]);
   const [withdrawalRequests, setWithdrawalRequests] = useState<WithdrawalRequest[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [partners, setPartners] = useState<PartnerAdminProfile[]>([]);
   const { toast } = useToast();
 
   const checkAdminStatus = async () => {
@@ -178,6 +191,38 @@ export function useAdmin() {
     return true;
   };
 
+  const fetchPartners = async () => {
+    // Admin uses supabase client directly for this since RLS allows it
+    const { data, error } = await supabase
+      .from('partner_profiles')
+      .select(`
+        user_id, partner_code, status, wallet_balance, created_at,
+        profiles ( full_name )
+      `)
+      .order('created_at', { ascending: false });
+    
+    if (error) {
+      console.error('Error fetching partners:', error);
+      return;
+    }
+    setPartners(data as any || []);
+  };
+
+  const updatePartnerStatus = async (userId: string, status: 'approved' | 'rejected') => {
+    const { error } = await supabase
+      .from('partner_profiles')
+      .update({ status, is_partner: status === 'approved' })
+      .eq('user_id', userId);
+    
+    if (error) {
+      toast({ title: "Error", description: "Failed to update partner status", variant: "destructive" });
+      return false;
+    }
+    toast({ title: "Success", description: `Partner application ${status}` });
+    await fetchPartners();
+    return true;
+  };
+
   useEffect(() => {
 
     checkAdminStatus();
@@ -189,12 +234,14 @@ export function useAdmin() {
     users,
     withdrawalRequests,
     transactions,
+    partners,
     fetchUsers,
     fetchWithdrawalRequests,
     fetchTransactions,
+    fetchPartners,
     processWithdrawal,
     updateUserRole,
-    adjustCoins
-
+    adjustCoins,
+    updatePartnerStatus
   };
 }

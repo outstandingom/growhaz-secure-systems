@@ -5,11 +5,15 @@
 CREATE TABLE IF NOT EXISTS public.partner_profiles (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   is_partner BOOLEAN DEFAULT false,
+  status VARCHAR(20) DEFAULT 'pending', -- 'pending', 'approved', 'rejected'
   partner_code VARCHAR(50) UNIQUE,
   wallet_balance NUMERIC(10, 2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Note: If you already created this table previously, run this to update it:
+-- ALTER TABLE public.partner_profiles ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'pending';
 
 -- 2. Table to track purchases where a coupon was applied
 CREATE TABLE IF NOT EXISTS public.partner_purchases (
@@ -45,11 +49,11 @@ CREATE POLICY "Users can create their own partner profile"
   WITH CHECK (user_id = auth.uid());
 
 -- Users can update their own partner profile (e.g. wallet_balance is updated by system)
--- We also allow service role to update (for wallet credit)
-CREATE POLICY "Users can update their own partner profile"
+-- Admins can update any profile to approve/reject
+CREATE POLICY "Users and Admins can update partner profiles"
   ON public.partner_profiles FOR UPDATE
   TO authenticated
-  USING (true);
+  USING (user_id = auth.uid() OR has_role(auth.uid(), 'admin'));
 
 -- 5. Enable RLS on partner_purchases
 ALTER TABLE public.partner_purchases ENABLE ROW LEVEL SECURITY;
