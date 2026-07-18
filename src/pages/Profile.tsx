@@ -25,6 +25,7 @@ import { MyForensicReports } from "@/components/profile/MyForensicReports";
 import { Smartphone, FileSearch } from "lucide-react";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
 import { BlockchainRegistration } from "@/components/blockchain/BlockchainRegistration";
+import { BecomePartner } from "@/components/partner_feature/BecomePartner";
 
 interface Certificate {
   name: string;
@@ -76,7 +77,7 @@ export default function Profile() {
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history" | "apps" | "forensic">("profile");
+  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history" | "apps" | "forensic" | "partner">("profile");
   const [userId, setUserId] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -474,12 +475,24 @@ export default function Profile() {
               <FileSearch className="w-4 h-4" />
               Forensic Reports
             </button>
+            <button
+              onClick={() => setActiveTab("partner")}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
+                activeTab === "partner"
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary"
+              }`}
+            >
+              <Zap className="w-4 h-4" />
+              Partner Program
+            </button>
           </div>
 
           {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
           {activeTab === "history" && userId && <VerificationHistory userId={userId} />}
           {activeTab === "apps" && userId && <MyApkBuilds userId={userId} />}
           {activeTab === "forensic" && userId && <MyForensicReports userId={userId} />}
+          {activeTab === "partner" && <div className="mt-6"><BecomePartner /></div>}
 
           {/* Profile Tab */}
           {activeTab === "profile" && (
