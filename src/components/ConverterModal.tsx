@@ -188,6 +188,10 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [packageEdited, setPackageEdited] = useState(false);
   const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
   const [downloadFileName, setDownloadFileName] = useState<string>("");
+  const [couponCode, setCouponCode] = useState("");
+  const [discountApplied, setDiscountApplied] = useState(false);
+  const [couponError, setCouponError] = useState("");
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -424,6 +428,33 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     }
   };
 
+  const finalPrice = discountApplied ? Math.floor(tier.price * 0.8) : tier.price;
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError("");
+    try {
+      const { data, error } = await supabase
+        .from("partner_profiles")
+        .select("partner_code")
+        .eq("partner_code", couponCode.trim())
+        .single();
+      
+      if (error || !data) {
+        setCouponError("Invalid coupon code");
+        setDiscountApplied(false);
+      } else {
+        setDiscountApplied(true);
+        toast({ title: "Coupon Applied!", description: "You get 20% off this build." });
+      }
+    } catch (err) {
+      setCouponError("Error validating coupon");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
   const payWithRazorpay = async () => {
     if (!razorpayLoaded || !window.Razorpay) {
       toast({ title: "Payment gateway loading…", description: "Please try again in a moment.", variant: "destructive" });
@@ -434,9 +465,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error("Session expired. Please log in again.");
 
-      const amount = tier.price;
+      const amount = finalPrice;
       const { data, error } = await supabase.functions.invoke("create-razorpay-order", {
-        body: { amount },
+        body: { amount, couponCode: discountApplied ? couponCode.trim() : null },
         headers: { Authorization: `Bearer ${session.access_token}` },
       });
       if (error || !data?.orderId) throw new Error(data?.error || "Failed to create order");
@@ -517,7 +548,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       return;
     }
     const currentBalance = balance?.balance ?? 0;
-    if (currentBalance >= tier.price) {
+    if (currentBalance >= finalPrice) {
       await spendAndStartBuild();
     } else {
       await payWithRazorpay();
@@ -567,6 +598,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setBuildStatus("");
     setDownloadUrl(null);
     setDownloadFileName("");
+    setCouponCode("");
+    setDiscountApplied(false);
+    setCouponError("");
     if (pollRef.current) clearInterval(pollRef.current);
     resetQueue();
   };
@@ -856,13 +890,45 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">This build ({tier.name})</span>
-                <span className="font-medium">₹{tier.price}</span>
+                <div className="text-right">
+                  {discountApplied && <span className="line-through text-muted-foreground mr-2">₹{tier.price}</span>}
+                  <span className="font-medium">₹{finalPrice}</span>
+                </div>
               </div>
-              {(balance?.balance ?? 0) < tier.price && (
+              {(balance?.balance ?? 0) < finalPrice && (
                 <p className="text-amber-500 pt-1">
-                  Not enough coins — you'll pay ₹{tier.price} via Razorpay. Coins are credited & used automatically.
+                  Not enough coins — you'll pay ₹{finalPrice} via Razorpay. Coins are credited & used automatically.
                 </p>
               )}
+            </div>
+
+            {/* Coupon Code Section */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground">Have a Partner Code?</Label>
+              <div className="flex gap-2">
+                <Input
+                  placeholder="Enter code (e.g. PARTNER-123)"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value);
+                    setDiscountApplied(false);
+                    setCouponError("");
+                  }}
+                  className="rounded-xl h-10 flex-1"
+                  disabled={validatingCoupon || discountApplied}
+                />
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={handleApplyCoupon}
+                  disabled={!couponCode.trim() || validatingCoupon || discountApplied}
+                  className="h-10 rounded-xl"
+                >
+                  {validatingCoupon ? <Loader2 className="w-4 h-4 animate-spin" /> : discountApplied ? "Applied" : "Apply"}
+                </Button>
+              </div>
+              {couponError && <p className="text-[11px] text-destructive">{couponError}</p>}
+              {discountApplied && <p className="text-[11px] text-emerald-500">20% discount applied!</p>}
             </div>
 
             <Button
@@ -873,9 +939,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               onClick={handleGenerate}
             >
               <Sparkles className="w-4 h-4" />
-              {(balance?.balance ?? 0) >= tier.price
-                ? `Generate ${outputLabel} — spend ${tier.price} coins`
-                : `Pay ₹${tier.price} & Generate ${outputLabel}`}
+              {(balance?.balance ?? 0) >= finalPrice
+                ? `Generate ${outputLabel} — spend ${finalPrice} coins`
+                : `Pay ₹${finalPrice} & Generate ${outputLabel}`}
             </Button>
 
             {next && (
@@ -895,7 +961,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           <div className="flex flex-col items-center py-10 space-y-4">
             <Loader2 className="w-10 h-10 text-primary animate-spin" />
             <p className="font-semibold">Opening Razorpay…</p>
-            <p className="text-xs text-muted-foreground">Complete the ₹{tier.price} payment in the popup</p>
+            <p className="text-xs text-muted-foreground">Complete the ₹{finalPrice} payment in the popup</p>
           </div>
         )}
 
