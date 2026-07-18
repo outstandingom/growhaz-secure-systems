@@ -192,20 +192,43 @@ export function useAdmin() {
   };
 
   const fetchPartners = async () => {
-    // Admin uses supabase client directly for this since RLS allows it
-    const { data, error } = await supabase
+    // Fetch partner profiles
+    const { data: partnersData, error: partnersError } = await supabase
       .from('partner_profiles')
-      .select(`
-        user_id, partner_code, status, wallet_balance, created_at,
-        profiles ( full_name )
-      `)
+      .select('user_id, partner_code, status, wallet_balance, created_at')
       .order('created_at', { ascending: false });
     
-    if (error) {
-      console.error('Error fetching partners:', error);
+    if (partnersError) {
+      console.error('Error fetching partners:', partnersError);
       return;
     }
-    setPartners(data as any || []);
+
+    if (!partnersData || partnersData.length === 0) {
+      setPartners([]);
+      return;
+    }
+
+    // Fetch user profiles for the names
+    const userIds = partnersData.map(p => p.user_id);
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles for partners:', profilesError);
+    }
+
+    // Merge the data
+    const mergedData = partnersData.map(p => {
+      const profile = profilesData?.find(prof => prof.id === p.user_id);
+      return {
+        ...p,
+        profiles: { full_name: profile?.full_name || 'Unknown User' }
+      };
+    });
+
+    setPartners(mergedData as any);
   };
 
   const updatePartnerStatus = async (userId: string, status: 'approved' | 'rejected') => {
