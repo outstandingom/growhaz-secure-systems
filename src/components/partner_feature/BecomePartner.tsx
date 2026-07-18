@@ -68,7 +68,7 @@ export const BecomePartner: React.FC = () => {
 
     if (error) {
       console.error('Error creating partner profile:', error);
-      alert('Something went wrong. Please try again.');
+      alert(`Error applying: ${error.message || 'Unknown error'}. Please make sure you ran the SQL update in Supabase.`);
     } else {
       setPartnerProfile(data);
     }
