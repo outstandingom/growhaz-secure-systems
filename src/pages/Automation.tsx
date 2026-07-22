@@ -11,11 +11,12 @@ import {
   ExternalLink,
   ArrowRight,
   Bot,
-  Shield, // <-- added for forensic scanner
+  Shield,
+  Download, // <-- added for meeting assistant
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ConverterModal } from "@/components/ConverterModal";
-import { ForensicScannerModal } from "@/components/ForensicScannerModal"; // <-- import
+import { ForensicScannerModal } from "@/components/ForensicScannerModal";
 import { TitleMarquee } from "@/components/TitleMarquee";
 
 type Tool = {
@@ -43,7 +44,7 @@ const tools: Tool[] = [
     status: "new",
   },
   {
-    id: "forensic-scanner", // <-- new tool
+    id: "forensic-scanner",
     name: "Forensic File Scanner",
     description:
       "Upload an image or PDF for deep forensic analysis – detects tampering, metadata anomalies, AI-generated content, and more.",
@@ -51,6 +52,17 @@ const tools: Tool[] = [
     price: "Free",
     category: "automation",
     internal: true,
+    status: "new",
+  },
+  {
+    id: "meeting-assistant", // <-- new tool
+    name: "AI Meeting Assistant",
+    description:
+      "Download our AI Meeting Assistant Android app. Record meetings, generate AI summaries, OCR documents, and chat with your meeting notes.",
+    icon: Download,
+    price: "Free",
+    category: "automation",
+    url: "https://github.com/outstandingom/meeting_assistent/releases/latest/download/app-debug.apk",
     status: "new",
   },
   {
@@ -70,7 +82,7 @@ const tools: Tool[] = [
 export default function Automation() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isConverterOpen, setIsConverterOpen] = useState(false);
-  const [isForensicOpen, setIsForensicOpen] = useState(false); // <-- new state
+  const [isForensicOpen, setIsForensicOpen] = useState(false);
 
   const filteredTools = tools.filter((tool) =>
     `${tool.name} ${tool.description}`
@@ -80,7 +92,6 @@ export default function Automation() {
 
   const handleToolClick = (tool: Tool) => {
     if (tool.internal) {
-      // Route to the correct modal based on tool id
       if (tool.id === "web-to-apk") {
         setIsConverterOpen(true);
       } else if (tool.id === "forensic-scanner") {
@@ -177,7 +188,7 @@ export default function Automation() {
                       disabled={tool.url === "#" && !tool.internal}
                     >
                       {tool.internal ? "Open Tool" : "Use Tool"}
-                      {!tool.internal && tool.url !== "#" && (
+                      {!tool.internal && tool.url && tool.url !== "#" && (
                         <ExternalLink className="w-3.5 h-3.5" />
                       )}
                     </Button>
