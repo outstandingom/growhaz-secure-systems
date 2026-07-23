@@ -38,7 +38,7 @@ const tools: Tool[] = [
     description:
       "Turn any website into a native Android APK or iOS IPA. Customise with your own branding, splash screen, and features.",
     icon: Smartphone,
-    price: "Free (5 credits)",
+    price: "Paid (starts 49)",
     category: "automation",
     internal: true,
     status: "new",
@@ -60,7 +60,7 @@ const tools: Tool[] = [
     description:
       "Download our AI Meeting Assistant Android app. Record meetings, generate AI summaries, OCR documents, and chat with your meeting notes.",
     icon: Download,
-    price: "Free",
+    price: "Paid",
     category: "automation",
     url: "https://github.com/outstandingom/meeting_assistent/releases/latest/download/app-debug.apk",
     status: "new",
