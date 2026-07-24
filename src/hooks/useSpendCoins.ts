@@ -20,10 +20,9 @@ export function useSpendCoins() {
     }
 
     try {
-      const { error } = await supabase.rpc('update_coin_balance', {
+      const { error } = await supabase.rpc('spend_user_coins', {
         p_user_id: session.user.id,
         p_amount: amount,
-        p_type: 'spend',
         p_description: description,
       });
 

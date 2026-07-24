@@ -380,10 +380,9 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       return;
     }
 
-    const { error: spendErr } = await supabase.rpc("update_coin_balance", {
+    const { error: spendErr } = await supabase.rpc("spend_user_coins", {
       p_user_id: session.user.id,
       p_amount: tier.price,
-      p_type: "spend",
       p_description: `Website to APK — ${tier.name}`,
     });
     if (spendErr) {
