@@ -908,6 +908,74 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_documents: {
+        Row: {
+          created_at: string
+          embedding: string | null
+          extracted_text: string
+          file_name: string | null
+          file_type: string | null
+          id: string
+          meeting_id: string
+        }
+        Insert: {
+          created_at?: string
+          embedding?: string | null
+          extracted_text: string
+          file_name?: string | null
+          file_type?: string | null
+          id?: string
+          meeting_id: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: string | null
+          extracted_text?: string
+          file_name?: string | null
+          file_type?: string | null
+          id?: string
+          meeting_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "meeting_documents_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      meetings: {
+        Row: {
+          action_items: string | null
+          created_at: string
+          decisions: string | null
+          id: string
+          summary: string | null
+          title: string
+          user_id: string
+        }
+        Insert: {
+          action_items?: string | null
+          created_at?: string
+          decisions?: string | null
+          id?: string
+          summary?: string | null
+          title: string
+          user_id: string
+        }
+        Update: {
+          action_items?: string | null
+          created_at?: string
+          decisions?: string | null
+          id?: string
+          summary?: string | null
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       mentors: {
         Row: {
           avatar_url: string | null
@@ -1051,6 +1119,80 @@ export type Database = {
           slug?: string
         }
         Relationships: []
+      }
+      partner_profiles: {
+        Row: {
+          created_at: string | null
+          is_partner: boolean | null
+          partner_code: string | null
+          status: string | null
+          updated_at: string | null
+          user_id: string
+          wallet_balance: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          is_partner?: boolean | null
+          partner_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id: string
+          wallet_balance?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          is_partner?: boolean | null
+          partner_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+          user_id?: string
+          wallet_balance?: number | null
+        }
+        Relationships: []
+      }
+      partner_purchases: {
+        Row: {
+          applied_partner_code: string | null
+          buyer_id: string | null
+          created_at: string | null
+          discount_applied: number | null
+          final_price: number
+          id: string
+          original_price: number
+          partner_reward_coins: number | null
+          product_name: string
+        }
+        Insert: {
+          applied_partner_code?: string | null
+          buyer_id?: string | null
+          created_at?: string | null
+          discount_applied?: number | null
+          final_price: number
+          id?: string
+          original_price: number
+          partner_reward_coins?: number | null
+          product_name: string
+        }
+        Update: {
+          applied_partner_code?: string | null
+          buyer_id?: string | null
+          created_at?: string | null
+          discount_applied?: number | null
+          final_price?: number
+          id?: string
+          original_price?: number
+          partner_reward_coins?: number | null
+          product_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_purchases_applied_partner_code_fkey"
+            columns: ["applied_partner_code"]
+            isOneToOne: false
+            referencedRelation: "partner_profiles"
+            referencedColumns: ["partner_code"]
+          },
+        ]
       }
       private_secrets: {
         Row: {
@@ -1255,6 +1397,47 @@ export type Database = {
           session_completed?: boolean
         }
         Relationships: []
+      }
+      transcripts: {
+        Row: {
+          created_at: string
+          embedding: string | null
+          end_time: string | null
+          id: string
+          meeting_id: string
+          speaker: string | null
+          start_time: string | null
+          text_content: string
+        }
+        Insert: {
+          created_at?: string
+          embedding?: string | null
+          end_time?: string | null
+          id?: string
+          meeting_id: string
+          speaker?: string | null
+          start_time?: string | null
+          text_content: string
+        }
+        Update: {
+          created_at?: string
+          embedding?: string | null
+          end_time?: string | null
+          id?: string
+          meeting_id?: string
+          speaker?: string | null
+          start_time?: string | null
+          text_content?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transcripts_meeting_id_fkey"
+            columns: ["meeting_id"]
+            isOneToOne: false
+            referencedRelation: "meetings"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       trigger_error_log: {
         Row: {
@@ -1557,6 +1740,15 @@ export type Database = {
         }
         Returns: undefined
       }
+      deduct_meeting_coins: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       get_active_build_count: { Args: never; Returns: number }
       get_queue_position: { Args: { p_queue_id: string }; Returns: number }
       has_role: {
@@ -1691,21 +1883,64 @@ export type Database = {
         Args: { curlopt: string; value: string }
         Returns: boolean
       }
+      match_documents: {
+        Args: {
+          match_count: number
+          match_threshold: number
+          p_meeting_id: string
+          query_embedding: string
+        }
+        Returns: {
+          extracted_text: string
+          file_name: string
+          file_type: string
+          id: string
+          meeting_id: string
+          similarity: number
+        }[]
+      }
+      match_transcripts: {
+        Args: {
+          match_count: number
+          match_threshold: number
+          p_meeting_id: string
+          query_embedding: string
+        }
+        Returns: {
+          end_time: string
+          id: string
+          meeting_id: string
+          similarity: number
+          speaker: string
+          start_time: string
+          text_content: string
+        }[]
+      }
       text_to_bytea: { Args: { data: string }; Returns: string }
       trigger_security_scan: { Args: { scan_url: string }; Returns: undefined }
       try_start_build: { Args: { p_queue_id: string }; Returns: boolean }
-      update_coin_balance: {
-        Args: {
-          p_amount: number
-          p_description?: string
-          p_razorpay_order_id?: string
-          p_razorpay_payment_id?: string
-          p_reference_id?: string
-          p_type: Database["public"]["Enums"]["transaction_type"]
-          p_user_id: string
-        }
-        Returns: undefined
-      }
+      update_coin_balance:
+        | {
+            Args: {
+              p_amount: number
+              p_description: string
+              p_type: string
+              p_user_id: string
+            }
+            Returns: undefined
+          }
+        | {
+            Args: {
+              p_amount: number
+              p_description?: string
+              p_razorpay_order_id?: string
+              p_razorpay_payment_id?: string
+              p_reference_id?: string
+              p_type: Database["public"]["Enums"]["transaction_type"]
+              p_user_id: string
+            }
+            Returns: undefined
+          }
       urlencode:
         | { Args: { data: Json }; Returns: string }
         | {
