@@ -1916,6 +1916,10 @@ export type Database = {
           text_content: string
         }[]
       }
+      spend_user_coins: {
+        Args: { p_amount: number; p_description?: string; p_user_id: string }
+        Returns: undefined
+      }
       text_to_bytea: { Args: { data: string }; Returns: string }
       trigger_security_scan: { Args: { scan_url: string }; Returns: undefined }
       try_start_build: { Args: { p_queue_id: string }; Returns: boolean }
