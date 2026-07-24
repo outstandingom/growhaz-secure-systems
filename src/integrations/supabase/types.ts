@@ -1923,28 +1923,27 @@ export type Database = {
       text_to_bytea: { Args: { data: string }; Returns: string }
       trigger_security_scan: { Args: { scan_url: string }; Returns: undefined }
       try_start_build: { Args: { p_queue_id: string }; Returns: boolean }
-      update_coin_balance:
-        | {
-            Args: {
-              p_amount: number
-              p_description: string
-              p_type: string
-              p_user_id: string
-            }
-            Returns: undefined
-          }
-        | {
-            Args: {
-              p_amount: number
-              p_description?: string
-              p_razorpay_order_id?: string
-              p_razorpay_payment_id?: string
-              p_reference_id?: string
-              p_type: Database["public"]["Enums"]["transaction_type"]
-              p_user_id: string
-            }
-            Returns: undefined
-          }
+      update_coin_balance: {
+        Args: {
+          p_amount: number
+          p_description?: string
+          p_razorpay_order_id?: string
+          p_razorpay_payment_id?: string
+          p_reference_id?: string
+          p_type: Database["public"]["Enums"]["transaction_type"]
+          p_user_id: string
+        }
+        Returns: undefined
+      }
+      update_coin_balance_legacy: {
+        Args: {
+          p_amount: number
+          p_description: string
+          p_type: string
+          p_user_id: string
+        }
+        Returns: undefined
+      }
       urlencode:
         | { Args: { data: Json }; Returns: string }
         | {
