@@ -867,6 +867,21 @@ export default function Blockchain() {
       {/* Verification Report Component */}
       {result && <VerificationReport result={result} />}
 
+      {/* Forensic + Hash verification layer (verify mode only) */}
+      {mode === "verify" && file && (
+        <ForensicLayer
+          file={file}
+          userId={userId}
+          fileHash={result?.file_hash}
+          contentHash={result?.content_hash}
+          merkleRoot={result?.merkle?.merkleRoot}
+          leafHashes={result?.merkle?.chunkHashes}
+          fileHashMatch={result?.fileHashMatch}
+          contentHashMatch={result?.contentHashMatch}
+          merkleRootMatch={result?.merkleRootMatch}
+        />
+      )}
+
       {/* How it works */}
       <section className="section-container bg-card/50">
         <div className="text-center mb-12">
