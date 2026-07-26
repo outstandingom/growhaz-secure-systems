@@ -44,6 +44,7 @@ import {
   indexMerkleDocument,
 } from "@/lib/blockchainIndexer";
 import { VerificationReport } from "@/components/blockchain/VerificationReport";
+import { ForensicLayer } from "@/components/blockchain/ForensicLayer";
 import { OnChainRegistryHub } from "@/components/chain/OnChainRegistryHub";
 
 
@@ -865,6 +866,21 @@ export default function Blockchain() {
       </section>
       {/* Verification Report Component */}
       {result && <VerificationReport result={result} />}
+
+      {/* Forensic + Hash verification layer (verify mode only) */}
+      {mode === "verify" && file && (
+        <ForensicLayer
+          file={file}
+          userId={userId}
+          fileHash={result?.file_hash}
+          contentHash={result?.content_hash}
+          merkleRoot={result?.merkle?.merkleRoot}
+          leafHashes={result?.merkle?.chunkHashes}
+          fileHashMatch={result?.fileHashMatch}
+          contentHashMatch={result?.contentHashMatch}
+          merkleRootMatch={result?.merkleRootMatch}
+        />
+      )}
 
       {/* How it works */}
       <section className="section-container bg-card/50">
