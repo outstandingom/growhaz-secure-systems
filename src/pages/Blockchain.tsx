@@ -44,6 +44,7 @@ import {
   indexMerkleDocument,
 } from "@/lib/blockchainIndexer";
 import { VerificationReport } from "@/components/blockchain/VerificationReport";
+import { ForensicLayer } from "@/components/blockchain/ForensicLayer";
 import { OnChainRegistryHub } from "@/components/chain/OnChainRegistryHub";
 
 
