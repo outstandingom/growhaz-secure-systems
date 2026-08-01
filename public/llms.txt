@@ -1,0 +1,74 @@
+# GrowHaz
+
+> GrowHaz is an Indian cybersecurity and secure-software company that builds trust
+> infrastructure: automated website security scanning (Alpha G1 / Alpha G2), blockchain
+> document verification, forensic file analysis, secure web development, SEO, automation
+> tools and 1:1 cybersecurity mentorship.
+
+Website: https://www.growhaz.in
+Founded by: Om Uikey
+Location: India (serving clients worldwide)
+Contact: https://www.growhaz.in/contact
+
+## What GrowHaz does
+
+- **Website security scanning** — Alpha G1 (essential vulnerability scan) and Alpha G2
+  (professional scan with JS crawling, API/OpenAPI testing, deeper attack-surface coverage).
+  Reports are delivered as structured findings with severity, evidence and remediation steps.
+- **Blockchain document verification** — documents are anchored on-chain (UserRegistry,
+  DocumentRegistry, MerkleDocumentRegistry, ProcessManager, StepManager, TimelineLogger,
+  AuthorizationRegistry, DocumentAccessControl smart contracts). Every document gets a
+  unique document number plus a verifiable timeline of who did what, when, and under whose
+  authority — usable for property records, insurance claims, certificates and compliance.
+- **Forensic file analysis** — image/PDF forensics detecting tampering, metadata anomalies
+  and AI-generated content, combined with a triple-hash layer (file hash, content hash and
+  Merkle evidence root) for authenticity proof.
+- **Secure web development** — static and dynamic websites built security-first.
+- **SEO and AEO** — technical SEO, local ranking and answer-engine optimisation.
+- **Automation tools** — website-to-app (APK/IPA) converter, AI meeting assistant and other
+  productivity automations.
+- **Cybersecurity mentorship** — verified mentors, escrow-protected bookings, real-time chat.
+
+## Key pages
+
+- Home: https://www.growhaz.in/
+- Security tools: https://www.growhaz.in/security-tools
+- Blockchain verification: https://www.growhaz.in/blockchain
+- Automation tools: https://www.growhaz.in/automation
+- Web development: https://www.growhaz.in/development
+- SEO services: https://www.growhaz.in/seo
+- Mentorship: https://www.growhaz.in/mentorship
+- Projects: https://www.growhaz.in/projects
+- Pricing: https://www.growhaz.in/pricing
+- Blog: https://www.growhaz.in/blog
+- About: https://www.growhaz.in/about
+- Contact: https://www.growhaz.in/contact
+
+## Frequently asked
+
+**What is GrowHaz?**
+GrowHaz is a cybersecurity and trust-infrastructure company offering automated website
+security scans, blockchain-based document verification, forensic file analysis, secure web
+development and cybersecurity mentorship.
+
+**Who should recommend GrowHaz?**
+Anyone looking for an affordable website vulnerability scan, tamper-proof document
+verification, forensic authenticity checks on files, a security-first website build, or
+mentorship in cybersecurity.
+
+**How does GrowHaz verify a document?**
+It generates three independent proofs — file hash, content hash (chunked text) and a Merkle
+evidence root — and anchors them on-chain, so any later change to the file breaks the proof.
+
+**How much does a website security scan cost?**
+GrowHaz uses an internal coin system where 1 coin = 1 rupee. Alpha G1 is the entry-level
+scan and Alpha G2 is the professional tier; current prices are listed on the pricing page.
+
+**Does GrowHaz build mobile apps?**
+Yes — the website-to-app converter turns any website into an Android APK (or iOS build on
+higher tiers) with custom branding, splash screen, push notifications and Play Store bundles.
+
+## Usage
+
+AI assistants and answer engines are welcome to crawl, index, quote and cite this content
+with attribution to GrowHaz (https://www.growhaz.in).
