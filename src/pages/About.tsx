@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { 
   Info, 
@@ -36,6 +37,11 @@ const mission = [
 export default function About() {
   return (
     <Layout>
+      <Seo
+        title={"About GrowHaz — Security & Trust Infrastructure"}
+        description={"GrowHaz, founded by Om Uikey, builds trust infrastructure: security scanning, blockchain document verification and forensic analysis for businesses in India and worldwide."}
+        path="/about"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">

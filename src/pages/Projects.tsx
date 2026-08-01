@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { 
   Layers, 
@@ -76,6 +77,11 @@ const projects = [
 export default function Projects() {
   return (
     <Layout>
+      <Seo
+        title={"Projects & Case Studies — GrowHaz"}
+        description={"Explore GrowHaz projects across cybersecurity, blockchain verification, automation and secure web development."}
+        path="/projects"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">

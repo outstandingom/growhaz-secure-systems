@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { 
   Megaphone, 
@@ -26,6 +27,11 @@ const approach = [
 export default function Marketing() {
   return (
     <Layout>
+      <Seo
+        title={"Digital Marketing Services — GrowHaz"}
+        description={"Growth-focused digital marketing from GrowHaz: content, performance and brand campaigns backed by security-first engineering."}
+        path="/marketing"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">

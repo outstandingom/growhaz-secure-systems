@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { 
   CreditCard, 
@@ -133,6 +134,11 @@ const otherServices = [
 export default function Pricing() {
   return (
     <Layout>
+      <Seo
+        title={"Pricing — GrowHaz Security Scans, Development & Tools"}
+        description={"Transparent GrowHaz pricing for website security scans, secure development, SEO, automation tools and mentorship. 1 coin = ₹1."}
+        path="/pricing"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">

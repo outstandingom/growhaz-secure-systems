@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Seo } from "@/components/Seo";
 import { Link } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -295,6 +296,11 @@ export default function SecurityTools() {
 
   return (
     <Layout>
+      <Seo
+        title={"GrowHaz Security Tools — Alpha G1 & Alpha G2 Website Vulnerability Scanners"}
+        description={"Run automated website security scans with GrowHaz Alpha G1 and Alpha G2. Get structured vulnerability reports with severity, evidence and remediation steps."}
+        path="/security-tools"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">

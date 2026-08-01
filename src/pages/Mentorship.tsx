@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Seo } from "@/components/Seo";
 import { Layout } from "@/components/layout/Layout";
 import { LearningRequestForm } from "@/components/mentorship/LearningRequestForm";
 import { LearningRequestsList } from "@/components/mentorship/LearningRequestsList";
@@ -205,6 +206,11 @@ export default function Mentorship() {
 
   return (
     <Layout>
+      <Seo
+        title={"Cybersecurity Mentorship — GrowHaz"}
+        description={"Book verified cybersecurity mentors on GrowHaz with escrow-protected payments and real-time chat sessions."}
+        path="/mentorship"
+      />
       {/* Hero Section */}
       <section className="section-container">
         <div className="max-w-6xl mx-auto text-center">

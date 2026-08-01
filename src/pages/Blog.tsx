@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { Seo } from "@/components/Seo";
 import { Layout } from "@/components/layout/Layout";
 import { supabase } from "@/integrations/supabase/client";
 import { Search, BookOpen } from "lucide-react";
@@ -76,6 +77,11 @@ export default function Blog() {
 
   return (
     <Layout>
+      <Seo
+        title={"GrowHaz Blog — Cybersecurity, Blockchain & SEO Insights"}
+        description={"Guides and insights on website security, blockchain document verification, digital forensics and SEO from the GrowHaz team."}
+        path="/blog"
+      />
       <section className="section-container">
         <div className="max-w-6xl mx-auto">
           {/* Header */}

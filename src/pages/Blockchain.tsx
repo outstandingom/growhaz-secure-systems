@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Seo } from "@/components/Seo";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -520,6 +521,11 @@ export default function Blockchain() {
 
   return (
     <Layout>
+      <Seo
+        title={"Blockchain Document Verification — GrowHaz"}
+        description={"Verify document authenticity with GrowHaz: file hash, content hash and Merkle evidence root anchored on-chain, plus a tamper-proof timeline of every process step and approver."}
+        path="/blockchain"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">

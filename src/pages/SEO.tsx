@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { 
   Search, 
@@ -76,6 +77,11 @@ const projects = [
 export default function SEO() {
   return (
     <Layout>
+      <Seo
+        title={"SEO & AEO Services — GrowHaz"}
+        description={"Technical SEO, local ranking and answer-engine optimisation from GrowHaz so your business is found by both search engines and AI assistants."}
+        path="/seo"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">
