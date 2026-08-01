@@ -1,6 +1,7 @@
 // src/pages/Automation.tsx
 
 import { useState } from "react";
+import { Seo } from "@/components/Seo";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -104,6 +105,11 @@ export default function Automation() {
 
   return (
     <Layout>
+      <Seo
+        title={"Automation Tools — Website to App Converter & AI Tools | GrowHaz"}
+        description={"Convert any website into an Android APK or iOS app from ₹49, run forensic file scans, and use AI automation tools built by GrowHaz."}
+        path="/automation"
+      />
       {/* Hero Section – mobile-first padding & text sizing */}
       <section className="section-container px-4 sm:px-6">
         <div className="max-w-4xl mx-auto text-center">

@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { Seo } from "@/components/Seo";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -72,6 +73,11 @@ export default function Contact() {
 
   return (
     <Layout>
+      <Seo
+        title={"Contact GrowHaz"}
+        description={"Talk to GrowHaz about website security scanning, blockchain document verification, secure development or mentorship."}
+        path="/contact"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">

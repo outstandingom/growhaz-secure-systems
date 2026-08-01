@@ -1,4 +1,5 @@
 import { Layout } from "@/components/layout/Layout";
+import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { 
   Code2, 
@@ -33,6 +34,11 @@ const keyFocus = [
 export default function Development() {
   return (
     <Layout>
+      <Seo
+        title={"Secure Website Development — GrowHaz"}
+        description={"GrowHaz builds security-first static and dynamic websites, hardened against common vulnerabilities and optimised for speed and search."}
+        path="/development"
+      />
       {/* Hero */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto text-center">
