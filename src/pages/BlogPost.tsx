@@ -280,24 +280,42 @@ export default function BlogPostPage() {
 
   return (
     <Layout>
-      {/* JSON-LD Schema for SEO */}
-      <script type="application/ld+json">
-        {JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "BlogPosting",
-          headline: post.title,
-          description: post.meta_description || post.excerpt,
-          author: {
-            "@type": "Person",
-            name: post.author_name,
+      <Seo
+        title={`${post.title} | GrowHaz Blog`}
+        description={post.meta_description || post.excerpt || ""}
+        path={`/blog/${post.slug}`}
+        jsonLd={[
+          {
+            "@context": "https://schema.org",
+            "@type": "BlogPosting",
+            headline: post.title,
+            description: post.meta_description || post.excerpt,
+            author: { "@type": "Person", name: post.author_name },
+            datePublished: post.published_at,
+            image: post.featured_image || undefined,
+            mainEntityOfPage: {
+              "@type": "WebPage",
+              "@id": `https://www.growhaz.in/blog/${post.slug}`,
+            },
+            publisher: { "@id": "https://www.growhaz.in/#organization" },
           },
-          datePublished: post.published_at,
-          publisher: {
-            "@type": "Organization",
-            name: "GROWHAZ",
+          {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              { "@type": "ListItem", position: 1, name: "Home", item: "https://www.growhaz.in/" },
+              { "@type": "ListItem", position: 2, name: "Blog", item: "https://www.growhaz.in/blog" },
+              {
+                "@type": "ListItem",
+                position: 3,
+                name: post.title,
+                item: `https://www.growhaz.in/blog/${post.slug}`,
+              },
+            ],
           },
-        })}
-      </script>
+        ]}
+      />
+
 
       <article className="section-container">
         <div className="max-w-4xl mx-auto">
