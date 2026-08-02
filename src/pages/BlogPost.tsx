@@ -6,6 +6,7 @@ import { Calendar, Clock, ArrowLeft, Tag, Share2, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
+import { Seo } from "@/components/Seo";
 
 interface BlogPost {
   id: string;
