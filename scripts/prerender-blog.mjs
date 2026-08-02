@@ -320,7 +320,10 @@ async function main() {
 
   for (const post of posts) {
     if (!post.slug) continue;
-    writeFile(`blog/${post.slug}/index.html`, postHtml(shell, post));
+    const html = postHtml(shell, post);
+    // Both shapes so any host resolves /blog/<slug> to a static file.
+    writeFile(`blog/${post.slug}/index.html`, html);
+    writeFile(`blog/${post.slug}.html`, html);
   }
   writeFile("blog/index.html", blogIndexHtml(shell, posts));
   writeFile("sitemap.xml", sitemapXml(posts));
