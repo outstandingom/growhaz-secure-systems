@@ -111,8 +111,15 @@ async function fetchPublishedPosts() {
 }
 
 /** Replace/insert head tags in the built index.html shell. */
-function buildHtml(shell, { title, description, canonical, headExtra, bodyHtml }) {
+function buildHtml(shell, { title, description, canonical, headExtra, bodyHtml, ogType }) {
   let html = shell;
+
+  if (ogType) {
+    html = html.replace(
+      /<meta property="og:type"[^>]*>/,
+      `<meta property="og:type" content="${escapeAttr(ogType)}" />`,
+    );
+  }
 
   html = html.replace(/<title>[\s\S]*?<\/title>/, `<title>${escapeHtml(title)}</title>`);
   html = html.replace(
@@ -190,7 +197,6 @@ function postHtml(shell, post) {
   };
 
   const headExtra = [
-    `<meta property="og:type" content="article" />`,
     `<meta property="article:published_time" content="${escapeAttr(published)}" />`,
     `<meta property="article:modified_time" content="${escapeAttr(modified)}" />`,
     post.featured_image
@@ -224,6 +230,7 @@ function postHtml(shell, post) {
     canonical,
     headExtra,
     bodyHtml,
+    ogType: "article",
   });
 }
 
