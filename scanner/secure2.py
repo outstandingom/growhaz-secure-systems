@@ -578,9 +578,20 @@ class SecurityTester:
         html_content = response.text.lower()
         block_keywords = [
             'captcha', 'access denied', 'please verify you are a human',
-            'security challenge', 'robot', 'blocked', 'rate limit exceeded'
+            'security challenge', 'robot', 'blocked', 'rate limit exceeded',
+            'one moment, please',          # Cloudflare IUAM challenge
+            'checking your browser',       # Cloudflare alternative phrasing
+            'enable javascript and cookies',  # Cloudflare JS challenge
+            'just a moment',               # Cloudflare variant
+            'cf-browser-verification',     # Cloudflare cookie name
+            'ddos-guard',                  # DDoS-Guard challenge
         ]
         if any(keyword in html_content for keyword in block_keywords):
+            return True
+
+        # Cloudflare IUAM: window.location.reload() inside a <script> with a
+        # setTimeout is the fingerprint of the "One moment, please..." page.
+        if 'window.location.reload' in response.text and 'settimeout' in html_content:
             return True
 
         return False
@@ -954,6 +965,15 @@ class SecurityTester:
 
                     consecutive_blocks = 0
 
+                    # Skip if either response looks like a bot-challenge / WAF
+                    # interstitial (e.g. Cloudflare IUAM).  Those pages have
+                    # dynamic tokens that make every response a different size,
+                    # which would otherwise produce a false positive here.
+                    if self.is_blocked(resp_true) or self.is_blocked(resp_false):
+                        self.log(f"    ⚠️ Skipping boolean check – WAF/challenge page detected.")
+                        consecutive_blocks += 1
+                        continue
+
                     if (resp_true.status_code != resp_false.status_code) or \
                        (len(resp_true.text) != len(resp_false.text)):
                         self.log(f"    ⚠️ Boolean-based SQLi possible at {endpoint}", "WARNING")
@@ -1038,9 +1058,13 @@ class SecurityTester:
                     if self.is_blocked(resp):
                         consecutive_blocks += 1
                         continue
-                        
+
                     db_errors = ["sql", "mysql", "syntax error", "unclosed quotation", "odbc", "driver", "ora-"]
-                    if any(err in resp.text.lower() for err in db_errors):
+                    # Only flag if real DB error keywords are present AND the
+                    # page is not a generic challenge / interstitial page.
+                    if any(err in resp.text.lower() for err in db_errors) and \
+                       'one moment' not in resp.text.lower() and \
+                       'window.location.reload' not in resp.text:
                         self.log(f"    ⚠️ Error-based SQLi possible at {endpoint}", "WARNING")
                         vulnerable = True
                         self.add_vulnerability(
