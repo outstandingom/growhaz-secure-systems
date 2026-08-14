@@ -31,7 +31,7 @@ class SSLDetector(BaseDetector):
                 
             tested_domains.add(domain)
             
-            req_result = engine.send_request("GET", endpoint.url, allow_redirects=False)
+            req_result = engine.request("GET", endpoint.url, allow_redirects=False)
             result.endpoints_tested += 1
 
             if req_result.error:

@@ -33,7 +33,7 @@ class CORSDetector(BaseDetector):
             for origin in origins_to_test:
                 headers = {"Origin": origin}
                 # Also testing preflight
-                req_result = engine.send_request("OPTIONS", endpoint.url, headers=headers)
+                req_result = engine.request("OPTIONS", endpoint.url, headers=headers)
                 
                 result.endpoints_tested += 1
 

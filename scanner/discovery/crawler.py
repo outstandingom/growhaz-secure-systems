@@ -29,7 +29,7 @@ class StaticCrawler:
                 
             self.visited.add(current_url)
             
-            result = self.request_engine.send_request("GET", current_url)
+            result = self.request_engine.request("GET", current_url)
             if result.status_code and result.status_code < 400:
                 pages_crawled += 1
                 content_type = result.headers.get("Content-Type", "")
@@ -46,8 +46,8 @@ class StaticCrawler:
                     continue
                 
                 # Parse HTML
-                if "text/html" in content_type and result.text:
-                    soup = BeautifulSoup(result.text, 'html.parser')
+                if "text/html" in content_type and result.body:
+                    soup = BeautifulSoup(result.body, 'html.parser')
                     
                     # Extract links
                     for a_tag in soup.find_all('a', href=True):

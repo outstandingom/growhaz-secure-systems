@@ -27,7 +27,7 @@ class SensitiveDataDetector(BaseDetector):
         }
 
         for endpoint in endpoints:
-            req_result = engine.send_request("GET", endpoint.url)
+            req_result = engine.request("GET", endpoint.url)
             result.endpoints_tested += 1
 
             if req_result.error:
@@ -38,7 +38,7 @@ class SensitiveDataDetector(BaseDetector):
                 result.endpoints_blocked += 1
                 continue
 
-            body = req_result.text
+            body = req_result.body
             found_sensitive = False
             for p_name, pattern in patterns.items():
                 if p_name == "Email":

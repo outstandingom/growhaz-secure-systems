@@ -36,7 +36,7 @@ class SecurityHeadersDetector(BaseDetector):
                 continue
                 
             tested_domains.add(domain)
-            req_result = engine.send_request("GET", endpoint.url)
+            req_result = engine.request("GET", endpoint.url)
             result.endpoints_tested += 1
 
             if req_result.error:

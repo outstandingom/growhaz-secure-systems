@@ -30,7 +30,7 @@ class OpenRedirectDetector(BaseDetector):
                 # Basic injection at the end of query parameters for demonstration
                 test_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}?redirect={payload}"
                 
-                req_result = engine.send_request("GET", test_url, allow_redirects=False)
+                req_result = engine.request("GET", test_url, allow_redirects=False)
                 result.endpoints_tested += 1
 
                 if req_result.error:

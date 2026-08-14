@@ -34,7 +34,7 @@ class DirectoryTraversalDetector(BaseDetector):
             for payload in payloads:
                 test_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}?file={payload}"
                 
-                req_result = engine.send_request("GET", test_url)
+                req_result = engine.request("GET", test_url)
                 result.endpoints_tested += 1
 
                 if req_result.error:
@@ -45,7 +45,7 @@ class DirectoryTraversalDetector(BaseDetector):
                     result.endpoints_blocked += 1
                     continue
 
-                body = req_result.text
+                body = req_result.body
                 if "root:x:0:0" in body or "[extensions]" in body:
                     confidence = ConfidenceResult(ConfidenceLevel.HIGH, "Found typical OS file content in response")
                     cvss = CVSSInfo(score=7.5, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N")
