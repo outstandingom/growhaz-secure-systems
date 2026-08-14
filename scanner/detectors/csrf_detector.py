@@ -10,7 +10,7 @@ class CSRFDetector(BaseDetector):
     cwe = "CWE-352"
     owasp = "A01:2021-Broken Access Control"
 
-    def run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
+    def _run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
         result = DetectorResult()
         
         state_changing_methods = ["POST", "PUT", "DELETE", "PATCH"]

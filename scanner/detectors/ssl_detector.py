@@ -10,7 +10,7 @@ class SSLDetector(BaseDetector):
     cwe = "CWE-319"
     owasp = "A02:2021-Cryptographic Failures"
 
-    def run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
+    def _run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
         result = DetectorResult()
         
         if not endpoints:

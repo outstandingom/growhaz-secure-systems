@@ -10,7 +10,7 @@ class SecurityHeadersDetector(BaseDetector):
     cwe = "CWE-693"
     owasp = "A05:2021-Security Misconfiguration"
 
-    def run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
+    def _run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
         result = DetectorResult()
         
         if not endpoints:

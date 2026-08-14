@@ -11,7 +11,7 @@ class OpenRedirectDetector(BaseDetector):
     cwe = "CWE-601"
     owasp = "A03:2021-Injection"
 
-    def run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
+    def _run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
         result = DetectorResult()
         
         if not endpoints:

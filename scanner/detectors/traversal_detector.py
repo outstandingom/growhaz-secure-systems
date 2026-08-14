@@ -11,7 +11,7 @@ class DirectoryTraversalDetector(BaseDetector):
     cwe = "CWE-22"
     owasp = "A01:2021-Broken Access Control"
 
-    def run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
+    def _run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
         result = DetectorResult()
         
         if not endpoints:
