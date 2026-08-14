@@ -33,52 +33,61 @@ import {
 
 const scanTiers = [
   {
-    id: "alpha-g1",
-    name: "AlphaG1",
+    id: "alpha-g5",
+    name: "AlphaG5",
     price: 1999,
-    description: "Basic Security Scan",
+    description: "Evidence-Driven Security Scan",
     comingSoon: false,
     requiresApproval: false,
     tests: [
-      { name: "SQL Injection Testing", desc: "Tests login, search & API endpoints with 11+ SQL injection payloads including time-based, boolean-based, and UNION attacks" },
-      { name: "XSS Detection", desc: "Scans for Cross-Site Scripting with 8 payload types across registration, contact & profile endpoints" },
-      { name: "Authentication Flaws", desc: "Checks weak password acceptance, user enumeration via error messages, and rate limiting on login" },
+      { name: "SQL Injection Testing", desc: "Tests endpoints with time-based, boolean-based, UNION, and stacked SQL injection payloads with confidence scoring" },
+      { name: "XSS Detection", desc: "Cross-Site Scripting detection with reflected, stored, and DOM-based payload variants across all discovered endpoints" },
+      { name: "Authentication Flaws", desc: "Checks weak password acceptance, user enumeration, rate limiting, and broken authentication patterns" },
       { name: "IDOR Vulnerability", desc: "Tests Insecure Direct Object Reference by accessing other users' profiles, orders, documents & payments" },
       { name: "CORS Misconfiguration", desc: "Detects dangerous CORS settings allowing arbitrary origins with credentials" },
       { name: "Sensitive Data Exposure", desc: "Scans for exposed .env, config.json, .git/config, backup.sql and more sensitive files" },
       { name: "Security Headers Check", desc: "Validates X-Frame-Options, CSP, HSTS, X-Content-Type-Options, X-XSS-Protection, Referrer-Policy" },
       { name: "SSL/TLS Analysis", desc: "Checks HTTPS enforcement and SSL/TLS certificate configuration" },
+      { name: "CSRF Detection", desc: "Finds missing anti-CSRF tokens and unprotected state-changing endpoints" },
+      { name: "Path Traversal", desc: "Tests for directory traversal and local file inclusion with multiple encoding bypass techniques" },
+      { name: "Open Redirect", desc: "Detects open redirect vulnerabilities that can be used for phishing attacks" },
+      { name: "SSRF Detection", desc: "Tests for Server-Side Request Forgery using out-of-band interaction payloads" },
+      { name: "CVSS v3.1 Scoring", desc: "Industry-standard vulnerability scoring (0-10) based on impact" },
+      { name: "OWASP Top 10 Mapping", desc: "Maps every finding to OWASP categories and CWE identifiers" },
+      { name: "Confidence Scoring", desc: "Each finding is rated Confirmed, Firm, or Tentative to reduce false positives" },
     ],
   },
   {
-    id: "alpha-g2",
-    name: "AlphaG2",
+    id: "alpha-g5-pro",
+    name: "AlphaG5 Pro",
     price: 4999,
-    description: "Advanced Vulnerability Scan",
+    description: "Full DAST Engine + JS Crawling",
     comingSoon: false,
     requiresApproval: false,
     tests: [
-      { name: "All AlphaG1 Tests", desc: "Includes every test from AlphaG1 with enhanced detection" },
+      { name: "All AlphaG5 Tests", desc: "Includes every test from AlphaG5 with enhanced detection" },
       { name: "Deep JavaScript Crawling", desc: "Uses Playwright to crawl React/Next.js SPAs and discover hidden API routes" },
-      { name: "WAF Bypass Engine", desc: "Header rotation, IP spoofing, and randomized throttling to avoid blocking" },
-      { name: "Payload Obfuscation", desc: "SQLi comment injection, mixed case, URL encoding to bypass WAF filters" },
-      { name: "CVSS v3.1 Scoring", desc: "Industry-standard vulnerability scoring (0-10) based on impact" },
-      { name: "OWASP Top 10 Mapping", desc: "Maps findings to OWASP categories (A03:2021-Injection, A01:2021-Broken Access Control)" },
+      { name: "WAF Detection & Bypass", desc: "Automatically detects WAFs and adapts payloads to bypass them" },
+      { name: "JWT Security Testing", desc: "Tests for weak JWT signing, algorithm confusion, and token manipulation" },
+      { name: "GraphQL Introspection", desc: "Discovers and tests GraphQL endpoints for injection and authorization flaws" },
+      { name: "SSTI Detection", desc: "Server-Side Template Injection testing across Jinja2, Twig, Freemarker, and more" },
+      { name: "XXE Injection", desc: "Tests for XML External Entity attacks with multiple payload variants" },
+      { name: "Mass Assignment", desc: "Detects mass assignment vulnerabilities that allow privilege escalation" },
+      { name: "Prototype Pollution", desc: "Tests for JavaScript prototype pollution in query params and JSON bodies" },
+      { name: "Error Disclosure", desc: "Detects stack traces, debug pages, and verbose error messages leaking internals" },
       { name: "Evidence Capture", desc: "Stores raw request/response headers and body for every vulnerability" },
-      { name: "Circuit Breaker", desc: "Stops testing endpoints after 3 consecutive blocks to avoid IP bans" },
-      { name: "Threaded XSS Testing", desc: "Tests 10 payload/parameter combinations simultaneously" },
-      { name: "Deep Site Mapping", desc: "Recursive crawling up to 100 pages, discovers hidden API endpoints" },
+      { name: "Circuit Breaker", desc: "Smart rate limiting that backs off when endpoints are blocked" },
     ],
   },
   {
-    id: "alpha-g3",
-    name: "AlphaG3",
+    id: "alpha-g5-enterprise",
+    name: "AlphaG5 Enterprise",
     price: 9999,
     description: "Full Penetration Testing",
     comingSoon: true,
     requiresApproval: true,
     tests: [
-      { name: "All AlphaG2 Tests", desc: "Includes every test from AlphaG2" },
+      { name: "All AlphaG5 Pro Tests", desc: "Includes every test from AlphaG5 Pro" },
       { name: "Full Pen-Test Simulation", desc: "Automated penetration testing workflow" },
       { name: "Custom Exploit Detection", desc: "Zero-day and custom exploit scanning" },
       { name: "Detailed Remediation Report", desc: "Step-by-step fix guide with code examples" },
@@ -219,15 +228,15 @@ export default function SecurityTools() {
     }
 
     try {
-      // STEP 2: Call the edge function with the report ID and scanner version
+      // STEP 2: Call the edge function — all tiers now use the G5 engine (alpha-g3)
       const payload: any = { 
         url: url,
         reportId: data.id,
-        scannerVersion: selectedTier.id
+        scannerVersion: "alpha-g3"  // always dispatch to the new G5 DAST engine
       };
 
-      // Add Alpha G2 specific options
-      if (selectedTier.id === "alpha-g2" && enableJs) {
+      // Enable JS crawling for Pro tier or if user opted in
+      if (selectedTier.id === "alpha-g5-pro" || enableJs) {
         payload.enableJs = true;
       }
 
@@ -297,8 +306,8 @@ export default function SecurityTools() {
   return (
     <Layout>
       <Seo
-        title={"GrowHaz Security Tools — Alpha G1 & Alpha G2 Website Vulnerability Scanners"}
-        description={"Run automated website security scans with GrowHaz Alpha G1 and Alpha G2. Get structured vulnerability reports with severity, evidence and remediation steps."}
+        title={"GrowHaz Security Tools — AlphaG5 Evidence-Driven DAST Engine"}
+        description={"Run automated website security scans with GrowHaz AlphaG5. 21 detectors, confidence scoring, CVSS v3.1, OWASP mapping — get structured vulnerability reports with severity, evidence and remediation steps."}
         path="/security-tools"
       />
       {/* Hero */}
@@ -424,8 +433,8 @@ export default function SecurityTools() {
                         </Badge>
                       )}
 
-                      {/* Alpha G2 JS Option - NEW */}
-                      {selectedTier.id === "alpha-g2" && !selectedTier.comingSoon && (
+                      {/* AlphaG5 JS Option */}
+                      {selectedTier.id === "alpha-g5" && !selectedTier.comingSoon && (
                         <div className="mb-4 p-3 rounded-lg bg-secondary/50 border border-border">
                           <Label className="flex items-center gap-2 cursor-pointer">
                             <input
@@ -570,14 +579,14 @@ export default function SecurityTools() {
         </section>
       )}
 
-      {/* What AlphaG1 Tests */}
+      {/* What AlphaG5 Tests */}
       <section className="section-container bg-card/50">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">
-            🔐 What Does <span className="gradient-text">AlphaG1</span> Test?
+            🔐 What Does <span className="gradient-text">AlphaG5</span> Test?
           </h2>
           <p className="text-muted-foreground text-center mb-8">
-            Based on our proprietary Python security engine, AlphaG1 performs these automated checks on any website:
+            Powered by our v5.0 Evidence-Driven DAST Engine with 21 detectors, confidence scoring, and false-positive guards:
           </p>
           <div className="grid sm:grid-cols-2 gap-4">
             {scanTiers[0].tests.map((test) => (
@@ -595,14 +604,14 @@ export default function SecurityTools() {
         </div>
       </section>
 
-      {/* AlphaG2 Features */}
+      {/* AlphaG5 Pro Features */}
       <section className="section-container">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold mb-2 text-center">
-            🚀 <span className="gradient-text">AlphaG2</span> Professional Features
+            🚀 <span className="gradient-text">AlphaG5 Pro</span> Advanced Features
           </h2>
           <p className="text-muted-foreground text-center mb-8">
-            For ₹4,999, AlphaG2 includes all AlphaG1 tests plus these advanced capabilities:
+            For ₹4,999, AlphaG5 Pro includes all AlphaG5 tests plus deep JavaScript crawling and these advanced detectors:
           </p>
           <div className="grid sm:grid-cols-2 gap-4">
             {scanTiers[1].tests.slice(1).map((test) => (

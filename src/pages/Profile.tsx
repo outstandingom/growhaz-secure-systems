@@ -298,7 +298,8 @@ export default function Profile() {
   };
 
   const handleViewReport = (report: SecurityReport) => {
-    if (report.scan_type === "alpha-g2") {
+    // Both new G5 Pro and old G2 used the detailed "pro" view
+    if (report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") {
       setSelectedReport(report);
       setShowG2Report(true);
     } else {
@@ -692,11 +693,11 @@ export default function Profile() {
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                             report.report_status === 'completed' ? 
-                              (report.scan_type === "alpha-g2" ? "bg-purple-500/10" : "bg-emerald-500/10") :
+                              ((report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? "bg-purple-500/10" : "bg-emerald-500/10") :
                               "bg-amber-500/10"
                           }`}>
                             {report.report_status === 'completed' ? (
-                              report.scan_type === "alpha-g2" ? (
+                              (report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? (
                                 <Zap className="w-6 h-6 text-purple-400" />
                               ) : (
                                 <CheckCircle2 className="w-6 h-6 text-emerald-400" />
@@ -718,21 +719,21 @@ export default function Profile() {
                               </a>
                             </div>
                             <p className="text-sm text-muted-foreground capitalize flex items-center gap-1">
-                              {report.scan_type === "alpha-g2" ? (
+                              {(report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? (
                                 <>
                                   <Zap className="w-3 h-3 text-purple-400" />
-                                  AlphaG2 Professional Scan
+                                  {report.scan_type === "alpha-g5-pro" ? "AlphaG5 Pro Scan" : "AlphaG2 Professional Scan"}
                                 </>
                               ) : (
                                 <>
                                   <Shield className="w-3 h-3 text-primary" />
-                                  AlphaG1 Basic Scan
+                                  {report.scan_type === "alpha-g5" ? "AlphaG5 Scan" : "AlphaG1 Basic Scan"}
                                 </>
                               )}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
                               {report.report_status === 'completed' ? (
-                                <Badge className={report.scan_type === "alpha-g2" ? 
+                                <Badge className={(report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? 
                                   "bg-purple-500/20 text-purple-400 border-purple-500/30" : 
                                   "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                                 }>
@@ -743,7 +744,7 @@ export default function Profile() {
                                   <Clock className="w-3 h-3 mr-1" /> Waiting for Report
                                 </Badge>
                               )}
-                              {report.scan_type === "alpha-g2" && report.report_status === 'completed' && (
+                              {(report.scan_type === "alpha-g5" || report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") && report.report_status === 'completed' && (
                                 <Badge variant="outline" className="border-purple-500/30 text-purple-400">
                                   CVSS Scored
                                 </Badge>
@@ -760,7 +761,7 @@ export default function Profile() {
                             <Button 
                               variant="hero" 
                               size="sm" 
-                              className={`gap-1 ${report.scan_type === "alpha-g2" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                              className={`gap-1 ${(report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? "bg-purple-600 hover:bg-purple-700" : ""}`}
                               onClick={() => handleViewReport(report)}
                             >
                               <FileText className="w-4 h-4" />
