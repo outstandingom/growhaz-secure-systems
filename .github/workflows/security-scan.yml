@@ -12,11 +12,12 @@ on:
       scanner_version:
         description: 'Scanner version to use'
         required: true
-        default: 'alpha-g2'
+        default: 'alpha-g3'
         type: choice
         options:
           - alpha-g1
           - alpha-g2
+          - alpha-g3
       enable_js:
         description: 'Enable JavaScript crawling (Alpha G2 only)'
         required: false
@@ -60,6 +61,10 @@ jobs:
           fi
           if [ ! -f "scanner/secure2.py" ]; then
             echo "❌ secure2.py (Alpha G2) not found in scanner directory"
+            exit 1
+          fi
+          if [ ! -f "scanner/__main__.py" ]; then
+            echo "❌ scanner/__main__.py (Alpha G3/v5) not found"
             exit 1
           fi
           echo "✅ Scanner files verified"
@@ -114,6 +119,32 @@ jobs:
           if [[ "${{ github.event.inputs.enable_js }}" == "true" ]]; then
             CMD="$CMD --js"
             echo "✅ JavaScript crawling enabled"
+          fi
+          
+          echo "Executing: $CMD"
+          eval $CMD
+
+      - name: Run Alpha G3 Scanner (v5)
+        if: ${{ github.event.inputs.scanner_version == 'alpha-g3' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          REPORT_ID: ${{ github.event.inputs.reportId }}
+          TEST_EMAIL: ${{ github.event.inputs.test_email }}
+        run: |
+          echo "🚀 Running Alpha G3 (v5) Evidence-Driven DAST Engine..."
+          CMD="python3 -m scanner \"${{ github.event.inputs.url }}\" --report-id \"${{ github.event.inputs.reportId }}\""
+          
+          if [ ! -z "${{ github.event.inputs.test_email }}" ]; then
+            CMD="$CMD \"${{ github.event.inputs.test_email }}\""
+          fi
+          
+          if [ ! -z "${{ github.event.inputs.openapi_spec }}" ]; then
+            CMD="$CMD \"${{ github.event.inputs.openapi_spec }}\""
+          fi
+          
+          if [[ "${{ github.event.inputs.enable_js }}" == "true" ]]; then
+            CMD="$CMD --js"
           fi
           
           echo "Executing: $CMD"

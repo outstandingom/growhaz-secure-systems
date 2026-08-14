@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,9 @@ interface Profile {
   bio: string | null;
   is_available_as_mentor: boolean;
   experience_years: number;
+  chain_wallet_address?: string | null;
+  chain_contract_address?: string | null;
+  chain_tx_hash?: string | null;
 }
 
 interface Purchase {

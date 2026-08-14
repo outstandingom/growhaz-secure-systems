@@ -290,24 +290,13 @@ export default function Blockchain() {
           extracted_data: data.extracted_data || {},
         });
       } else {
-        // Issue mode
-        
-        // 1. Pre-check: Does this document already exist?
-        toast.message("Checking if document is already registered...");
-        const { data: existingDocs } = await supabase
-          .from("verified_documents")
-          .select("id, tracking_id")
-          .eq("file_hash", fileHash)
-          .limit(1);
-          
-        if (existingDocs && existingDocs.length > 0) {
-          throw new Error(`This document is already registered on the blockchain! (Tracking ID: ${existingDocs[0].tracking_id || 'Unknown'})`);
-        }
-
+        // ══════════════════════════════════════════════════════════════════
+        // ISSUE MODE: Storage + IPFS + MerkleDocumentRegistry + Index
+        // ══════════════════════════════════════════════════════════════════
         const path = `${userId}/${Date.now()}-${file.name}`;
-        
+
         toast.message("Pinning to IPFS & Saving...");
-        
+
         const [uploadResult, pinResult] = await Promise.all([
           supabase.storage.from("verified-documents").upload(path, file, { upsert: false }),
           supabase.functions.invoke("pinata-upload", {
@@ -327,7 +316,7 @@ export default function Blockchain() {
         toast.message("Registering Merkle root on-chain (1/1)...");
         let merkleReceipt: any = null;
         if (!merkle) throw new Error("Failed to build Merkle tree for document.");
-        
+
         try {
           merkleReceipt = await registerDocumentOnChain({
             merkleRoot: merkle.merkleRoot,
@@ -377,7 +366,7 @@ export default function Blockchain() {
           tracking_id: trackingId,
         });
         if (insErr) throw insErr;
-        
+
         // Populate the AI Result so we can show the report immediately after issue
         data.content_hash = data.content_hash;
         const aiResult: VerifyResult = { ...data, file_hash: fileHash, tracking_id: trackingId };
@@ -428,6 +417,12 @@ export default function Blockchain() {
           }).catch(e => console.warn("[Blockchain] Merkle index failed:", e));
         }
 
+        aiResult.validation = {
+          status: "authentic",
+          explanation: "Document successfully registered on the blockchain.",
+        };
+        data.validation = aiResult.validation;
+
         toast.success("Issued: Merkle root + IPFS + on-chain ✓");
       }
 
@@ -465,23 +460,63 @@ export default function Blockchain() {
         if (data?.error) throw new Error(data.error);
         data.content_hash = extracted.contentHash;
 
+        const merkle = await processDocumentForMerkle(extracted.cleanedText);
+        if (!merkle) throw new Error("Failed to build Merkle tree for document.");
+
+        const onChainDoc = await lookupByMerkleRoot(merkle.merkleRoot);
+        if (onChainDoc?.exists) {
+          results.push({ name: f.name, status: "ok", message: "Already uploaded on blockchain" });
+          setBulkResults([...results]);
+          continue;
+        }
+
         const path = `${userId}/${Date.now()}-${i}-${f.name}`;
-        const { error: upErr } = await supabase.storage
-          .from("verified-documents")
-          .upload(path, f, { upsert: false });
-        if (upErr) throw upErr;
+        const [uploadResult, pinResult] = await Promise.all([
+          supabase.storage.from("verified-documents").upload(path, f, { upsert: false }),
+          supabase.functions.invoke("pinata-upload", {
+            body: { fileBase64: base64, fileName: f.name, mimeType: f.type },
+          })
+        ]);
+        if (uploadResult.error) throw uploadResult.error;
+        if (pinResult.error) throw pinResult.error;
+        if (pinResult.data?.error) throw new Error(pinResult.data.error);
+        const pin = pinResult.data;
 
-        const { data: pin, error: pinErr } = await supabase.functions.invoke("pinata-upload", {
-          body: { fileBase64: base64, fileName: f.name, mimeType: f.type },
-        });
-        if (pinErr) throw pinErr;
-        if (pin?.error) throw new Error(pin.error);
+        if (!(window as any).ethereum) {
+          throw new Error("MetaMask is not installed!");
+        }
 
-        const { data: chain, error: chainErr } = await supabase.functions.invoke("blockchain-register", {
-          body: { action: "register", fileHash, contentHash: data.content_hash, ipfsCid: pin.cid },
-        });
-        if (chainErr) throw chainErr;
-        if (chain?.error) throw new Error(chain.error);
+        let merkleReceipt: any = null;
+        try {
+          merkleReceipt = await registerDocumentOnChain({
+            merkleRoot: merkle.merkleRoot,
+            fileHash,
+            contentHash: data.content_hash,
+            ipfsCid: pin.cid,
+            metadataCid: "",
+            totalChunks: merkle.totalChunks,
+            totalTokens: merkle.totalTokens,
+            docType: data.document_type || "document",
+            documentName: f.name,
+          });
+        } catch (merkleErr: any) {
+          throw new Error("Blockchain registration failed or rejected: " + merkleErr.message);
+        }
+
+        const provider = new ethers.BrowserProvider((window as any).ethereum);
+        const signer = await provider.getSigner();
+
+        const chain = {
+          txHash: merkleReceipt.hash,
+          blockNumber: merkleReceipt.blockNumber,
+          issuer: await signer.getAddress(),
+          contractAddress: MERKLE_DOCUMENT_REGISTRY_ADDRESS,
+        };
+
+        const aiValidation = {
+          status: "authentic",
+          explanation: "Document successfully registered on the blockchain.",
+        };
 
         const { data: inserted, error: insErr } = await supabase
           .from("verified_documents")
@@ -494,8 +529,8 @@ export default function Blockchain() {
             storage_path: path,
             extracted_data: data.extracted_data,
             knowledge_graph: data.knowledge_graph,
-            ai_validation: data.validation,
-            status: data.validation?.status || "authentic",
+            ai_validation: aiValidation,
+            status: "authentic",
             ipfs_cid: pin.cid,
             ipfs_url: pin.url,
             blockchain_tx: chain.txHash,
@@ -507,6 +542,40 @@ export default function Blockchain() {
           .select("id")
           .single();
         if (insErr) throw insErr;
+
+        if (merkle && merkleReceipt) {
+          const rf = extractReceiptFields(merkleReceipt);
+          indexDocumentRegistration({
+            ...rf,
+            contract_address: MERKLE_DOCUMENT_REGISTRY_ADDRESS,
+            wallet_address: chain.issuer,
+            merkle_root: merkle.merkleRoot,
+            file_hash: fileHash,
+            content_hash: data.content_hash,
+            ipfs_cid: pin.cid,
+            ipfs_url: pin.url,
+            document_name: f.name,
+            document_type: data.document_type,
+            contract_version: 'v2',
+            event_type: 'DocumentRegistered',
+          }).catch(e => console.warn("[Blockchain] Index failed:", e));
+
+          indexMerkleDocument({
+            ...rf,
+            contract_address: MERKLE_DOCUMENT_REGISTRY_ADDRESS,
+            wallet_address: chain.issuer,
+            merkle_root: merkle.merkleRoot,
+            file_hash: fileHash,
+            content_hash: data.content_hash,
+            total_chunks: merkle.totalChunks,
+            total_tokens: merkle.totalTokens,
+            ipfs_cid: pin.cid,
+            ipfs_url: pin.url,
+            document_name: f.name,
+            document_type: data.document_type,
+            event_type: 'DocumentRegistered',
+          }).catch(e => console.warn("[Blockchain] Merkle index failed:", e));
+        }
         results.push({ name: f.name, status: "ok", id: inserted?.id });
       } catch (e: any) {
         console.error(e);
@@ -606,36 +675,32 @@ export default function Blockchain() {
           <div className="grid grid-cols-4 gap-2 sm:gap-3 mb-6">
             <button
               onClick={() => { setMode("issue"); setResult(null); clearLookup(); }}
-              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
-                mode === "issue" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
-              }`}
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${mode === "issue" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
+                }`}
             >
               <FileText className="w-5 h-5 sm:w-6 sm:h-6" />
               <span className="text-xs sm:text-sm font-medium">Issue</span>
             </button>
             <button
               onClick={() => { setMode("bulk"); setResult(null); clearLookup(); }}
-              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
-                mode === "bulk" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
-              }`}
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${mode === "bulk" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
+                }`}
             >
               <Upload className="w-5 h-5 sm:w-6 sm:h-6" />
               <span className="text-xs sm:text-sm font-medium">Bulk</span>
             </button>
             <button
               onClick={() => { setMode("verify"); setResult(null); clearLookup(); }}
-              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
-                mode === "verify" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
-              }`}
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${mode === "verify" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
+                }`}
             >
               <Search className="w-5 h-5 sm:w-6 sm:h-6" />
               <span className="text-xs sm:text-sm font-medium">Verify</span>
             </button>
             <button
               onClick={() => { setMode("lookup"); setResult(null); }}
-              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${
-                mode === "lookup" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
-              }`}
+              className={`flex flex-col items-center gap-1.5 sm:gap-2 p-3 sm:p-4 rounded-xl border transition ${mode === "lookup" ? "bg-primary/10 border-primary text-primary" : "bg-card/50 border-border hover:border-primary/40"
+                }`}
             >
               <Link2 className="w-5 h-5 sm:w-6 sm:h-6" />
               <span className="text-xs sm:text-sm font-medium">Lookup</span>
@@ -762,7 +827,7 @@ export default function Blockchain() {
                       {lookupResult.userRegistrations.map((r: any, i: number) => (
                         <div key={i} className="text-xs space-y-1 p-2 rounded-lg bg-background/50 border border-border">
                           <div><span className="text-muted-foreground">Wallet:</span> <code className="break-all">{r.wallet_address}</code></div>
-                          <div><span className="text-muted-foreground">Tx:</span> <a href={`${SEPOLIA_EXPLORER}/tx/${r.transaction_hash}`} target="_blank" className="text-primary hover:underline">{r.transaction_hash?.slice(0,10)}...</a></div>
+                          <div><span className="text-muted-foreground">Tx:</span> <a href={`${SEPOLIA_EXPLORER}/tx/${r.transaction_hash}`} target="_blank" className="text-primary hover:underline">{r.transaction_hash?.slice(0, 10)}...</a></div>
                         </div>
                       ))}
                     </div>
@@ -775,7 +840,7 @@ export default function Blockchain() {
                         <div key={i} className="text-xs space-y-1 p-2 rounded-lg bg-background/50 border border-border">
                           <div><span className="text-muted-foreground">Name:</span> {d.document_name}</div>
                           <div><span className="text-muted-foreground">Type:</span> {d.document_type}</div>
-                          <div><span className="text-muted-foreground">Tx:</span> <a href={`${SEPOLIA_EXPLORER}/tx/${d.transaction_hash}`} target="_blank" className="text-primary hover:underline">{d.transaction_hash?.slice(0,10)}...</a></div>
+                          <div><span className="text-muted-foreground">Tx:</span> <a href={`${SEPOLIA_EXPLORER}/tx/${d.transaction_hash}`} target="_blank" className="text-primary hover:underline">{d.transaction_hash?.slice(0, 10)}...</a></div>
                         </div>
                       ))}
                     </div>
@@ -786,9 +851,8 @@ export default function Blockchain() {
           ) : (
             <div className="space-y-4">
               <div
-                className={`border-2 border-dashed rounded-xl p-8 text-center transition cursor-pointer ${
-                  file ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
-                }`}
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition cursor-pointer ${file ? "border-primary bg-primary/5" : "border-border hover:border-primary/40"
+                  }`}
                 onClick={() => mode === "bulk" ? bulkInputRef.current?.click() : fileInputRef.current?.click()}
               >
                 <Upload className="w-10 h-10 mx-auto text-muted-foreground mb-3" />
@@ -798,8 +862,8 @@ export default function Blockchain() {
                       ? `${bulkFiles.length} documents selected`
                       : "Click to select multiple documents"
                     : file
-                    ? file.name
-                    : "Click to upload document"}
+                      ? file.name
+                      : "Click to upload document"}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
                   {mode === "bulk" ? "PDF, DOCX, images" : "PDF, DOCX, or image"}

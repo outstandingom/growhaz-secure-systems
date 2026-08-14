@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom"; // Add this import
 import { BrowserProvider } from "ethers";
 import bs58 from "bs58";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast"; 
-
+import { useToast } from "@/hooks/use-toast";
 
 declare global {
   interface Window {
@@ -69,7 +68,8 @@ const Web3Login: FC = () => {
       });
 
       if (error) throw error;
-
+      // Persist wallet address AND mark loginMethod as "wallet" so the hook
+      // knows this user authenticated via Web3 (auto-register on blockchain)
       localStorage.setItem(
         "growhaz_wallet",
         JSON.stringify({
@@ -81,12 +81,11 @@ const Web3Login: FC = () => {
 
       toast({
         title: "Connected",
-        description: `${address.slice(0, 6)}...${address.slice(-4)}`,
+        description: `Signed in as ${address.slice(0, 6)}...${address.slice(-4)}`,
       });
 
       // Add redirect here
       navigate("/profile");
-
     } catch (e: any) {
       toast({
         title: "MetaMask Login Failed",
@@ -145,7 +144,7 @@ const Web3Login: FC = () => {
 
         console.log(signature);
       }
-
+      // Persist wallet address for useWeb3Wallet hook — mark as wallet login
       localStorage.setItem(
         "growhaz_wallet",
         JSON.stringify({
@@ -157,12 +156,11 @@ const Web3Login: FC = () => {
 
       toast({
         title: "Connected",
-        description: `${address.slice(0, 6)}...${address.slice(-4)}`,
+        description: "Signed in with Phantom",
       });
 
       // Add redirect here
       navigate("/profile");
-
     } catch (e: any) {
       toast({
         title: "Phantom Login Failed",
