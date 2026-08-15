@@ -298,8 +298,8 @@ export default function Profile() {
   };
 
   const handleViewReport = (report: SecurityReport) => {
-    // Both new G5 Pro and old G2 used the detailed "pro" view
-    if (report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") {
+    // Both new G5 (alpha-g5, alpha-g5-pro) and old G2 use the detailed report view
+    if (report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g5" || report.scan_type === "alpha-g2") {
       setSelectedReport(report);
       setShowG2Report(true);
     } else {
