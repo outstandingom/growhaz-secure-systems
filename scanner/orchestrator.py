@@ -233,8 +233,14 @@ class ScanOrchestrator:
             # Store result
             confidence_str = ""
             if result.findings:
-                max_conf = max(f.confidence.level.value for f in result.findings)
-                confidence_str = max_conf
+                levels = []
+                for f in result.findings:
+                    if hasattr(f.confidence, 'level'):
+                        lvl = f.confidence.level
+                        levels.append(lvl.value if hasattr(lvl, 'value') else str(lvl))
+                    else:
+                        levels.append(str(f.confidence))
+                confidence_str = max(levels) if levels else ""
 
             self.test_results[detector.name] = {
                 "state": result.test_state.value,

@@ -1,3 +1,4 @@
+from urllib.parse import urlparse
 from scanner.detectors.base_detector import BaseDetector, DetectorResult
 from scanner.models.test_state import TestState
 from scanner.models.finding import StandardFinding, CVSSInfo
@@ -13,50 +14,49 @@ class SSLDetector(BaseDetector):
     def _run(self, endpoints, engine, auth_context, baseline_measurer) -> DetectorResult:
         result = DetectorResult()
         
-        if not endpoints:
-            result.test_state = TestState.NOT_APPLICABLE
-            return result
+        urls_to_test = [ep.url for ep in endpoints] if endpoints else []
+        if not urls_to_test:
+            urls_to_test = [engine.session.headers.get("Host", "https://target")]
 
         result.test_state = TestState.PASS
         tested_domains = set()
 
-        for endpoint in endpoints:
-            if not endpoint.url.startswith("http://"):
-                continue
-                
-            from urllib.parse import urlparse
-            domain = urlparse(endpoint.url).netloc
-            if domain in tested_domains:
+        for url in urls_to_test:
+            parsed = urlparse(url)
+            domain = parsed.netloc
+            if not domain or domain in tested_domains:
                 continue
                 
             tested_domains.add(domain)
             
-            req_result = engine.request("GET", endpoint.url, allow_redirects=False)
+            # 1. Test HTTP to HTTPS redirection
+            http_url = f"http://{domain}/"
+            req_result = engine.request("GET", http_url, allow_redirects=False)
             result.endpoints_tested += 1
 
             if req_result.is_error:
-                result.test_state = TestState.ERROR
                 continue
             if req_result.is_blocked:
-                result.test_state = TestState.BLOCKED
                 result.endpoints_blocked += 1
                 continue
 
-            if req_result.status_code not in [301, 302, 307, 308]:
-                confidence = ConfidenceResult(ConfidenceLevel.HIGH, "Endpoint accepts unencrypted HTTP without redirecting to HTTPS.")
-                cvss = CVSSInfo(score=6.5, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N")
+            # If http:// accepts requests without 301/302/307/308 redirect to https://
+            if req_result.status_code and req_result.status_code not in [301, 302, 307, 308]:
+                confidence = ConfidenceResult(ConfidenceLevel.CONFIRMED, f"Plain HTTP endpoint returned status {req_result.status_code} without redirecting to HTTPS.")
+                cvss = CVSSInfo(score=6.5, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:L/A:N", severity="MEDIUM")
                 finding = StandardFinding(
-                    title="Unencrypted Communication (HTTP)",
-                    description="The application does not enforce HTTPS.",
+                    title="Unencrypted HTTP Protocol Exposed",
+                    description=f"The application allows unencrypted HTTP connections on {http_url} without enforcing HTTPS redirection. Attackers on the same network (e.g. public Wi-Fi) can intercept credentials and session cookies.",
                     severity="Medium",
-                    cwe=self.cwe,
+                    cwe="CWE-319",
                     owasp=self.owasp,
                     cvss=cvss,
                     confidence=confidence,
-                    evidence=Evidence(
-                        request=RequestEvidence(method="GET", url=endpoint.url),
+                    remediation="Configure web server to issue a 301 Permanent Redirect from http:// to https:// for all incoming traffic.",
+                    evidence=[Evidence(
+                        request=RequestEvidence(method="GET", url=http_url),
                         response=ResponseEvidence(status_code=req_result.status_code, headers=req_result.headers)
-                    )
+                    )]
                 )
                 result.findings.append(finding)
                 result.test_state = TestState.VULNERABLE

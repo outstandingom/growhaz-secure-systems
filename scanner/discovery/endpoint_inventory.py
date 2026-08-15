@@ -14,6 +14,10 @@ class EndpointInventory:
             existing = self._endpoints[key]
             existing.merge(endpoint)
 
+    def add(self, endpoint: EndpointInfo) -> None:
+        """Alias for add_endpoint."""
+        self.add_endpoint(endpoint)
+
     def add_endpoints(self, endpoints: List[EndpointInfo]) -> None:
         for ep in endpoints:
             self.add_endpoint(ep)

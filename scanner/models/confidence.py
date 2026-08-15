@@ -8,41 +8,71 @@ confidence.
 
 from enum import Enum
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Union, Any
 
 
 class ConfidenceLevel(Enum):
     """Qualitative confidence classification."""
 
     LOW = "LOW"
-    """Single weak signal (e.g., one anomalous response)."""
-
     MEDIUM = "MEDIUM"
-    """Multiple corroborating signals."""
-
     HIGH = "HIGH"
-    """Strong evidence from validated detection (e.g., error signature + reproducible)."""
-
     CONFIRMED = "CONFIRMED"
-    """Exploit behavior confirmed (e.g., DB error string, browser-confirmed XSS)."""
 
 
-@dataclass
 class ConfidenceResult:
     """Captures confidence scoring for a finding."""
 
-    score: float  # 0.0 to 1.0
-    level: ConfidenceLevel
-    signals: List[str] = field(default_factory=list)
-    validation_method: str = ""
+    def __init__(
+        self,
+        arg1: Union[float, ConfidenceLevel, str] = 0.5,
+        arg2: Union[ConfidenceLevel, str, List[str]] = ConfidenceLevel.MEDIUM,
+        signals: List[str] = None,
+        validation_method: str = ""
+    ):
+        if isinstance(arg1, (ConfidenceLevel, str)) and not isinstance(arg1, (int, float)):
+            # Called as ConfidenceResult(level, details_or_signal)
+            self.level = arg1 if isinstance(arg1, ConfidenceLevel) else self._parse_level(arg1)
+            self.score = self._default_score(self.level)
+            if isinstance(arg2, str):
+                self.signals = [arg2]
+            elif isinstance(arg2, list):
+                self.signals = arg2
+            else:
+                self.signals = signals or []
+        else:
+            # Called as ConfidenceResult(score, level, ...)
+            self.score = float(arg1) if isinstance(arg1, (int, float)) else 0.5
+            self.level = arg2 if isinstance(arg2, ConfidenceLevel) else self._parse_level(arg2)
+            self.signals = signals or []
+
+        self.validation_method = validation_method
+
+    @staticmethod
+    def _parse_level(val: Any) -> ConfidenceLevel:
+        if isinstance(val, ConfidenceLevel):
+            return val
+        s = str(val).upper()
+        if "CONFIRM" in s:
+            return ConfidenceLevel.CONFIRMED
+        elif "HIGH" in s:
+            return ConfidenceLevel.HIGH
+        elif "MED" in s:
+            return ConfidenceLevel.MEDIUM
+        return ConfidenceLevel.LOW
+
+    @staticmethod
+    def _default_score(lvl: ConfidenceLevel) -> float:
+        if lvl == ConfidenceLevel.CONFIRMED:
+            return 1.0
+        elif lvl == ConfidenceLevel.HIGH:
+            return 0.85
+        elif lvl == ConfidenceLevel.MEDIUM:
+            return 0.6
+        return 0.3
 
     @staticmethod
     def from_signals(signals: List[str]) -> "ConfidenceResult":
-        """Calculate confidence from a list of evidence signals.
-
-        Each signal is a short description of what was observed.
-        More signals = higher confidence.
-        """
         count = len(signals)
         if count == 0:
             return ConfidenceResult(
@@ -50,7 +80,6 @@ class ConfidenceResult:
                 signals=signals, validation_method="no_signals"
             )
 
-        # Weight known strong signals
         strong_signals = [
             "db_error_signature", "browser_confirmed", "timing_statistical",
             "cross_user_access_confirmed", "template_expression_evaluated",
@@ -82,9 +111,10 @@ class ConfidenceResult:
         )
 
     def to_dict(self) -> dict:
+        level_val = self.level.value if isinstance(self.level, ConfidenceLevel) else str(self.level)
         return {
             "score": self.score,
-            "level": self.level.value,
+            "level": level_val,
             "signals": self.signals,
             "validation_method": self.validation_method,
         }

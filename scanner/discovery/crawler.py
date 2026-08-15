@@ -14,11 +14,25 @@ class StaticCrawler:
         self.endpoints: List[EndpointInfo] = []
         
     def crawl(self, max_pages: int = 100) -> List[EndpointInfo]:
+        # Always ensure base URL is included as the primary endpoint
+        base_endpoint = EndpointInfo(
+            url=self.base_url,
+            method="GET",
+            discovery_source=DiscoverySource.STATIC_CRAWL,
+            is_state_changing=False
+        )
+        self.endpoints.append(base_endpoint)
+
         urls_to_visit = [self.base_url]
         pages_crawled = 0
         
-        # Add common API paths to probe
-        common_paths = ['/api', '/api/v1', '/graphql', '/swagger', '/openapi.json']
+        # High-value path wordlist to probe for endpoints and sensitive exposures
+        common_paths = [
+            '/api', '/api/v1', '/graphql', '/swagger', '/swagger.json', '/openapi.json',
+            '/robots.txt', '/sitemap.xml', '/.well-known/security.txt',
+            '/.env', '/.git/HEAD', '/config.json', '/admin', '/login', '/register',
+            '/health', '/status', '/phpinfo.php', '/backup.sql', '/wp-login.php'
+        ]
         for path in common_paths:
             urls_to_visit.append(urljoin(self.base_url, path))
             
@@ -45,14 +59,14 @@ class StaticCrawler:
                     ))
                     continue
                 
-                # Parse HTML
+                # Parse HTML for links, scripts, and forms
                 if "text/html" in content_type and result.body:
                     soup = BeautifulSoup(result.body, 'html.parser')
                     
-                    # Extract links
+                    # Extract links (<a href>)
                     for a_tag in soup.find_all('a', href=True):
                         href = a_tag['href']
-                        if not href or href.startswith(('javascript:', 'mailto:', 'tel:')):
+                        if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
                             continue
                         full_url = urljoin(current_url, href)
                         
@@ -67,8 +81,21 @@ class StaticCrawler:
                                 discovery_source=DiscoverySource.STATIC_CRAWL,
                                 is_state_changing=False
                             ))
+
+                    # Extract script assets (<script src>)
+                    for script in soup.find_all('script', src=True):
+                        src = script['src']
+                        if src and not src.startswith(('javascript:', 'data:')):
+                            full_js_url = urljoin(current_url, src)
+                            if urlparse(full_js_url).netloc == urlparse(self.base_url).netloc:
+                                self.endpoints.append(EndpointInfo(
+                                    url=full_js_url,
+                                    method="GET",
+                                    discovery_source=DiscoverySource.STATIC_CRAWL,
+                                    is_state_changing=False
+                                ))
                             
-                    # Extract forms
+                    # Extract forms (<form>)
                     for form in soup.find_all('form'):
                         action = form.get('action', '')
                         method = form.get('method', 'GET').upper()
@@ -84,7 +111,7 @@ class StaticCrawler:
                             method=method,
                             body_params=params if is_state_changing else [],
                             query_params=params if not is_state_changing else [],
-                            discovery_source=DiscoverySource.STATIC_CRAWL,
+                            discovery_source=DiscoverySource.FORM,
                             is_state_changing=is_state_changing
                         ))
                         
