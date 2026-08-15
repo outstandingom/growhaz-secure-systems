@@ -64,23 +64,46 @@ class SupabaseReporter:
 
         # Map v5 report format to expected frontend format (compatible with Alphag2report & ReportViewer)
         findings = report.get("findings", [])
-        
+
         # Transform v5 findings into legacy vulnerability format if needed
         vulnerabilities = []
+        informational = []
         for f in findings:
-            if isinstance(f, dict):
-                vulnerabilities.append({
-                    "vulnerability": f.get("vulnerability") or f.get("title") or "Security Finding",
-                    "severity": f.get("severity", "LOW").lower(),
-                    "cvss_score": f.get("cvss", {}).get("score", 0.0) if isinstance(f.get("cvss"), dict) else 0.0,
-                    "endpoint": f.get("endpoint", ""),
-                    "method": f.get("method", ""),
-                    "evidence": f.get("evidence", []),
-                    "cwe": f.get("cwe", ""),
-                    "owasp": f.get("owasp", ""),
-                    "remediation": f.get("remediation", ""),
-                    "details": f.get("description", "")
-                })
+            if not isinstance(f, dict):
+                continue
+            confidence = f.get("confidence")
+            confidence_level = ""
+            confidence_score = 0.0
+            if isinstance(confidence, dict):
+                confidence_level = str(confidence.get("level", ""))
+                try:
+                    confidence_score = float(confidence.get("score", 0.0))
+                except (TypeError, ValueError):
+                    confidence_score = 0.0
+
+            item = {
+                "vulnerability": f.get("vulnerability") or f.get("title") or "Security Finding",
+                "severity": f.get("severity", "LOW").lower(),
+                "cvss_score": f.get("cvss", {}).get("score", 0.0) if isinstance(f.get("cvss"), dict) else 0.0,
+                "endpoint": f.get("endpoint", ""),
+                "method": f.get("method", ""),
+                "evidence": f.get("evidence", []),
+                "cwe": f.get("cwe", ""),
+                "owasp": f.get("owasp", ""),
+                "remediation": f.get("remediation", ""),
+                "details": f.get("description", ""),
+                "confidence": confidence_level,
+                "confidence_score": confidence_score,
+                "status": f.get("status", ""),
+            }
+
+            # Only confirmed/likely issues count as vulnerabilities; everything
+            # else is surfaced separately so the headline count stays accurate.
+            status = str(item["status"]).upper()
+            if status in ("", "VULNERABLE") and confidence_level.upper() != "LOW":
+                vulnerabilities.append(item)
+            else:
+                informational.append(item)
 
         # Build legacy-compatible test_summary dictionary
         v5_test_results = report.get("test_summary", {}).get("tests", {})
@@ -92,16 +115,21 @@ class SupabaseReporter:
                     "details": info.get("details", "")
                 }
 
+        scan_quality = report.get("scan_metadata", {}).get("scan_status", "completed")
+
         legacy_report = {
             "base_url": report.get("scan_metadata", {}).get("target", ""),
             "test_run_id": report.get("scan_metadata", {}).get("test_run_id", self.report_id),
             "timestamp": report.get("scan_metadata", {}).get("start_time", datetime.datetime.now().isoformat()),
             "vulnerabilities": vulnerabilities,
+            "informational": informational,
             "test_summary": legacy_test_summary,
             "summary": {
                 "total_vulnerabilities": len(vulnerabilities),
+                "informational_findings": len(informational),
                 "risk_level": risk_level.lower(),
                 "scan_completed": True,
+                "scan_quality": scan_quality,
                 "blocked_tests": len(report.get("blocked_tests", []))
             },
             # Keep full v5 report embedded for future expandability
@@ -112,11 +140,14 @@ class SupabaseReporter:
 
         data = {
             "report_data": legacy_report,
-            "report_status": report.get("scan_metadata", {}).get("scan_status", "completed"),
+            # The dashboard only renders reports whose status is exactly
+            # "completed" — quality detail lives in report_data.summary.
+            "report_status": "completed",
             "vulnerabilities_found": vuln_count,
             "risk_level": risk_level.lower(),
             "scanned_at": datetime.datetime.now().isoformat(),
         }
+
 
         try:
             log(f"Uploading report to Supabase (ID: {self.report_id})...")

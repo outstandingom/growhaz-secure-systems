@@ -1,3 +1,4 @@
+import { isReportReady } from "@/lib/reportStatus";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
@@ -692,11 +693,11 @@ export default function Profile() {
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                            report.report_status === 'completed' ? 
+                            isReportReady(report.report_status) ? 
                               ((report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? "bg-purple-500/10" : "bg-emerald-500/10") :
                               "bg-amber-500/10"
                           }`}>
-                            {report.report_status === 'completed' ? (
+                            {isReportReady(report.report_status) ? (
                               (report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? (
                                 <Zap className="w-6 h-6 text-purple-400" />
                               ) : (
@@ -732,7 +733,7 @@ export default function Profile() {
                               )}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
-                              {report.report_status === 'completed' ? (
+                              {isReportReady(report.report_status) ? (
                                 <Badge className={(report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? 
                                   "bg-purple-500/20 text-purple-400 border-purple-500/30" : 
                                   "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
@@ -744,7 +745,7 @@ export default function Profile() {
                                   <Clock className="w-3 h-3 mr-1" /> Waiting for Report
                                 </Badge>
                               )}
-                              {(report.scan_type === "alpha-g5" || report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") && report.report_status === 'completed' && (
+                              {(report.scan_type === "alpha-g5" || report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") && isReportReady(report.report_status) && (
                                 <Badge variant="outline" className="border-purple-500/30 text-purple-400">
                                   CVSS Scored
                                 </Badge>
@@ -757,7 +758,7 @@ export default function Profile() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {report.report_status === 'completed' ? (
+                          {isReportReady(report.report_status) ? (
                             <Button 
                               variant="hero" 
                               size="sm" 

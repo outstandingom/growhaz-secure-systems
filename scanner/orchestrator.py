@@ -281,6 +281,82 @@ class ScanOrchestrator:
             logger.info(f"  {emoji} {result.test_state.value} — {result.details} ({elapsed:.1f}s)")
             logger.info("")
 
+        # Post-processing: de-duplicate and reduce false positives
+        before = len(self.all_findings)
+        self.all_findings = self._consolidate_findings(self.all_findings)
+        after = len(self.all_findings)
+        if before != after:
+            logger.info(f"  🧹 Consolidated findings: {before} → {after} (duplicates merged)")
+            logger.info("")
+
+    @staticmethod
+    def _normalize_title(title: str) -> str:
+        """Strip per-instance suffixes so the same issue groups together."""
+        base = title.split(" (")[0].strip()
+        return base or title.strip()
+
+    def _consolidate_findings(self, findings: List[StandardFinding]) -> List[StandardFinding]:
+        """Merge duplicate findings of the same issue class into one finding.
+
+        Detectors emit one finding per endpoint/payload combination, which
+        inflates counts (e.g. the same permissive CORS header on 14 pages).
+        We group by issue class and attach the list of affected endpoints.
+        """
+        grouped: Dict[tuple, StandardFinding] = {}
+        affected: Dict[tuple, List[str]] = {}
+
+        for f in findings:
+            key = (
+                self._normalize_title(f.title or f.vulnerability),
+                (f.cwe or "").strip(),
+                (f.parameter or "").strip(),
+                (f.status.value if isinstance(f.status, TestState) else str(f.status)),
+            )
+            ep = f.endpoint or ""
+            affected.setdefault(key, [])
+            if ep and ep not in affected[key]:
+                affected[key].append(ep)
+
+            existing = grouped.get(key)
+            if existing is None:
+                f.title = self._normalize_title(f.title or f.vulnerability)
+                f.vulnerability = f.title
+                grouped[key] = f
+                continue
+
+            # Keep the highest-scoring / highest-confidence representative
+            if f.cvss.score > existing.cvss.score:
+                existing.cvss = f.cvss
+                existing.severity = f.severity
+                existing.description = f.description
+            try:
+                if f.confidence.score > existing.confidence.score:
+                    existing.confidence = f.confidence
+            except Exception:
+                pass
+            # Cap evidence so reports stay readable
+            if len(existing.evidence) < 3:
+                existing.evidence.extend(f.evidence[: 3 - len(existing.evidence)])
+
+        consolidated: List[StandardFinding] = []
+        for key, f in grouped.items():
+            eps = affected.get(key, [])
+            if len(eps) > 1:
+                shown = ", ".join(eps[:10])
+                more = f" (+{len(eps) - 10} more)" if len(eps) > 10 else ""
+                f.description = (
+                    f"{f.description}\n\nAffected endpoints ({len(eps)}): {shown}{more}"
+                )
+                f.endpoint = eps[0]
+            consolidated.append(f)
+
+        severity_rank = {"CRITICAL": 0, "HIGH": 1, "MEDIUM": 2, "LOW": 3, "INFO": 4}
+        consolidated.sort(
+            key=lambda x: (severity_rank.get(x.severity.upper(), 5), -x.cvss.score)
+        )
+        return consolidated
+
+
     def _calculate_risk(self):
         """Phase 4: Calculate overall risk."""
         if RiskEngine:

@@ -1,3 +1,4 @@
+import { isReportReady } from "@/lib/reportStatus";
 import { useState, useEffect, useRef } from "react";
 import { Seo } from "@/components/Seo";
 import { Link } from "react-router-dom";
@@ -291,7 +292,7 @@ export default function SecurityTools() {
         .limit(1)
         .single();
 
-      if (data && data.report_status === "completed") {
+      if (data && isReportReady(data.report_status)) {
         toast({
           title: "Report Ready!",
           description: `${selectedTier.name} scan completed with ${data.vulnerabilities_found} vulnerabilities found. Risk level: ${data.risk_level}`,
