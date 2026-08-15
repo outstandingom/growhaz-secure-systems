@@ -33,7 +33,7 @@ class JSCrawler:
                     url=url,
                     method=method,
                     discovery_source=DiscoverySource.NETWORK_INTERCEPT,
-                    state_changing=method in ["POST", "PUT", "DELETE", "PATCH"]
+                    is_state_changing=method in ["POST", "PUT", "DELETE", "PATCH"]
                 ))
                 route.continue_()
 

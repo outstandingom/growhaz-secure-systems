@@ -12,14 +12,7 @@ class EndpointInventory:
         else:
             # Merge parameters
             existing = self._endpoints[key]
-            if endpoint.parameters:
-                existing_params = set(existing.parameters) if existing.parameters else set()
-                new_params = set(endpoint.parameters)
-                existing.parameters = list(existing_params.union(new_params))
-            
-            existing.accepts_json = getattr(existing, 'accepts_json', False) or getattr(endpoint, 'accepts_json', False)
-            existing.accepts_xml = getattr(existing, 'accepts_xml', False) or getattr(endpoint, 'accepts_xml', False)
-            existing.state_changing = existing.state_changing or endpoint.state_changing
+            existing.merge(endpoint)
 
     def add_endpoints(self, endpoints: List[EndpointInfo]) -> None:
         for ep in endpoints:
@@ -32,10 +25,10 @@ class EndpointInventory:
         return [ep for ep in self._endpoints.values() if ep.method == method.upper()]
 
     def get_state_changing(self) -> List[EndpointInfo]:
-        return [ep for ep in self._endpoints.values() if ep.state_changing]
+        return [ep for ep in self._endpoints.values() if ep.is_state_changing]
 
     def get_with_params(self) -> List[EndpointInfo]:
-        return [ep for ep in self._endpoints.values() if getattr(ep, 'parameters', None)]
+        return [ep for ep in self._endpoints.values() if ep.all_params]
 
     def get_summary(self) -> Dict[str, int]:
         return {

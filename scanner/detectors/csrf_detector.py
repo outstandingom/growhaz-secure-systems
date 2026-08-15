@@ -21,7 +21,7 @@ class CSRFDetector(BaseDetector):
             result.details = "No state-changing endpoints (POST/PUT/DELETE/PATCH) provided."
             return result
 
-        if not auth_context or not auth_context.is_authenticated():
+        if not auth_context or not auth_context.is_authenticated:
             result.test_state = TestState.NOT_APPLICABLE
             result.details = "CSRF testing requires an authenticated session."
             return result
@@ -34,10 +34,10 @@ class CSRFDetector(BaseDetector):
             req_result = engine.request(endpoint.method, endpoint.url, headers=headers)
             result.endpoints_tested += 1
 
-            if req_result.error:
+            if req_result.is_error:
                 result.test_state = TestState.ERROR
                 continue
-            if req_result.blocked:
+            if req_result.is_blocked:
                 result.test_state = TestState.BLOCKED
                 result.endpoints_blocked += 1
                 continue

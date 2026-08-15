@@ -42,15 +42,18 @@ class OpenAPILoader:
                         accepts_json = True
                     if 'application/xml' in content:
                         accepts_xml = True
+
+                is_state_changing = method_upper in ['POST', 'PUT', 'DELETE', 'PATCH']
                         
                 endpoints.append(EndpointInfo(
                     url=full_path,
                     method=method_upper,
-                    parameters=params,
+                    query_params=params if not is_state_changing else [],
+                    body_params=params if is_state_changing else [],
                     discovery_source=DiscoverySource.OPENAPI,
                     accepts_json=accepts_json,
                     accepts_xml=accepts_xml,
-                    state_changing=method_upper in ['POST', 'PUT', 'DELETE', 'PATCH']
+                    is_state_changing=is_state_changing
                 ))
 
         return endpoints

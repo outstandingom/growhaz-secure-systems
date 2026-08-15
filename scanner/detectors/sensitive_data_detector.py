@@ -30,10 +30,10 @@ class SensitiveDataDetector(BaseDetector):
             req_result = engine.request("GET", endpoint.url)
             result.endpoints_tested += 1
 
-            if req_result.error:
+            if req_result.is_error:
                 result.test_state = TestState.ERROR
                 continue
-            if req_result.blocked:
+            if req_result.is_blocked:
                 result.test_state = TestState.BLOCKED
                 result.endpoints_blocked += 1
                 continue

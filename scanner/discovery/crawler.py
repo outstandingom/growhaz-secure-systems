@@ -41,7 +41,7 @@ class StaticCrawler:
                         method="GET",
                         discovery_source=DiscoverySource.STATIC_CRAWL,
                         accepts_json=True,
-                        state_changing=False
+                        is_state_changing=False
                     ))
                     continue
                 
@@ -65,7 +65,7 @@ class StaticCrawler:
                                 url=full_url,
                                 method="GET",
                                 discovery_source=DiscoverySource.STATIC_CRAWL,
-                                state_changing=False
+                                is_state_changing=False
                             ))
                             
                     # Extract forms
@@ -75,16 +75,17 @@ class StaticCrawler:
                         form_url = urljoin(current_url, action)
                         
                         inputs = form.find_all(['input', 'select', 'textarea'])
-                        params = {inp.get('name'): "" for inp in inputs if inp.get('name')}
+                        params = [inp.get('name') for inp in inputs if inp.get('name')]
                         
-                        state_changing = method in ['POST', 'PUT', 'DELETE', 'PATCH']
+                        is_state_changing = method in ['POST', 'PUT', 'DELETE', 'PATCH']
                         
                         self.endpoints.append(EndpointInfo(
                             url=form_url,
                             method=method,
-                            parameters=list(params.keys()),
+                            body_params=params if is_state_changing else [],
+                            query_params=params if not is_state_changing else [],
                             discovery_source=DiscoverySource.STATIC_CRAWL,
-                            state_changing=state_changing
+                            is_state_changing=is_state_changing
                         ))
                         
         return self.endpoints
