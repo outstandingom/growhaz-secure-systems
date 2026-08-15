@@ -800,36 +800,83 @@ export default function Profile() {
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
           <DialogTitle className="sr-only">Security Report</DialogTitle>
           {selectedReport && showG2Report ? (
-            <AlphaG2Report 
-              report={{
-                base_url: selectedReport.website_url,
-                test_run_id: selectedReport.id,
-                timestamp: selectedReport.scanned_at,
-                vulnerabilities: selectedReport.report_data?.vulnerabilities || [],
-                test_summary: selectedReport.report_data?.test_summary || {},
-                summary: {
-                  total_vulnerabilities: selectedReport.vulnerabilities_found,
-                  risk_level: selectedReport.risk_level as 'low' | 'medium' | 'high',
-                  scan_completed: true,
-                  blocked_tests: selectedReport.report_data?.summary?.blocked_tests || 0
+            (() => {
+              let data: any = selectedReport.report_data || {};
+              if (typeof data === "string") {
+                try {
+                  data = JSON.parse(data);
+                } catch (e) {
+                  console.error("Failed to parse report_data JSON string", e);
+                  data = {};
                 }
-              }}
-              onExport={() => {
-                const dataStr = JSON.stringify(selectedReport.report_data, null, 2);
-                const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-                const exportFileDefaultName = `security-report-${selectedReport.id}.json`;
-                const linkElement = document.createElement('a');
-                linkElement.setAttribute('href', dataUri);
-                linkElement.setAttribute('download', exportFileDefaultName);
-                linkElement.click();
-              }}
-              onShare={() => {
-                toast({
-                  title: "Share Report",
-                  description: "Report sharing feature coming soon!",
-                });
-              }}
-            />
+              }
+
+              const rawVulns = data.vulnerabilities || data.findings || data.v5_raw_report?.findings || [];
+              const vulnerabilities = rawVulns.map((v: any) => ({
+                vulnerability: v.vulnerability || v.title || "Security Finding",
+                cvss_score: typeof v.cvss_score === "number" ? v.cvss_score : (v.cvss?.score || 0.0),
+                severity: (v.severity || "LOW").toLowerCase(),
+                endpoint: v.endpoint || selectedReport.website_url,
+                method: v.method || "GET",
+                parameter: v.parameter || "",
+                payload: v.payload || "",
+                remediation: v.remediation || "",
+                owasp: v.owasp || "Security Audit",
+                cwe: v.cwe || "",
+                raw_request: v.evidence?.[0]?.request || v.raw_request,
+                raw_response: v.evidence?.[0]?.response || v.raw_response
+              }));
+
+              let testSummary: any = {};
+              if (data.test_summary) {
+                if (data.test_summary.tests) {
+                  for (const [name, info] of Object.entries<any>(data.test_summary.tests)) {
+                    testSummary[name] = {
+                      status: info.state || "UNKNOWN",
+                      details: info.details || ""
+                    };
+                  }
+                } else {
+                  testSummary = data.test_summary;
+                }
+              }
+
+              const totalVulns = selectedReport.vulnerabilities_found ?? vulnerabilities.length ?? 0;
+              const blockedCount = data.summary?.blocked_tests ?? data.test_summary?.blocked ?? 0;
+
+              return (
+                <AlphaG2Report 
+                  report={{
+                    base_url: data.base_url || data.scan_metadata?.target || selectedReport.website_url,
+                    test_run_id: data.test_run_id || data.scan_metadata?.test_run_id || selectedReport.id,
+                    timestamp: data.timestamp || data.scan_metadata?.start_time || selectedReport.scanned_at,
+                    vulnerabilities,
+                    test_summary: testSummary,
+                    summary: {
+                      total_vulnerabilities: totalVulns,
+                      risk_level: (selectedReport.risk_level || data.summary?.risk_level || "low").toLowerCase() as 'low' | 'medium' | 'high',
+                      scan_completed: true,
+                      blocked_tests: blockedCount
+                    }
+                  }}
+                  onExport={() => {
+                    const dataStr = JSON.stringify(selectedReport.report_data, null, 2);
+                    const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+                    const exportFileDefaultName = `security-report-${selectedReport.id}.json`;
+                    const linkElement = document.createElement('a');
+                    linkElement.setAttribute('href', dataUri);
+                    linkElement.setAttribute('download', exportFileDefaultName);
+                    linkElement.click();
+                  }}
+                  onShare={() => {
+                    toast({
+                      title: "Share Report",
+                      description: "Report sharing feature coming soon!",
+                    });
+                  }}
+                />
+              );
+            })()
           ) : selectedReport && !showG2Report ? (
             <ReportViewer 
               report={selectedReport} 
