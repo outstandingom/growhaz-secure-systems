@@ -1,3 +1,4 @@
+import { isReportReady } from "@/lib/reportStatus";
 import { useState, useEffect, useRef } from "react";
 import { Seo } from "@/components/Seo";
 import { Link } from "react-router-dom";

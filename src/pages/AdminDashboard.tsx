@@ -1,3 +1,4 @@
+import { isReportReady } from "@/lib/reportStatus";
 import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout/Layout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
