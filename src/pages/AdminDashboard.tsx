@@ -756,8 +756,8 @@ export default function AdminDashboard() {
                               <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-semibold">{report.userName}</span>
                                 {report.userPhone && <span className="text-sm text-muted-foreground">({report.userPhone})</span>}
-                                <Badge variant={report.report_status === 'completed' ? 'default' : 'secondary'}>
-                                  {report.report_status === 'completed' ? 'Report Sent' : 'Pending'}
+                                <Badge variant={isReportReady(report.report_status) ? 'default' : 'secondary'}>
+                                  {isReportReady(report.report_status) ? 'Report Sent' : 'Pending'}
                                 </Badge>
                               </div>
                               <div className="flex items-center gap-2 mt-1">
@@ -771,14 +771,14 @@ export default function AdminDashboard() {
                               </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              {report.report_status === 'completed' && report.report_url && (
+                              {isReportReady(report.report_status) && report.report_url && (
                                 <a href={report.report_url} target="_blank" rel="noopener noreferrer">
                                   <Button size="sm" variant="outline" className="gap-1">
                                     <ExternalLink className="w-3 h-3" /> Open Drive
                                   </Button>
                                 </a>
                               )}
-                              {report.report_status === 'completed' && (
+                              {isReportReady(report.report_status) && (
                                 <Button 
                                   size="sm" 
                                   variant="outline" 
@@ -791,7 +791,7 @@ export default function AdminDashboard() {
                             </div>
                           </div>
                           
-                          {report.report_status !== 'completed' && (
+                          {!isReportReady(report.report_status) && (
                             <div className="flex flex-col sm:flex-row gap-2">
                               <Input
                                 placeholder="Paste Google Drive link here..."
