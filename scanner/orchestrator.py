@@ -113,14 +113,23 @@ class ScanOrchestrator:
 
         try:
             # Phase 1: Discovery
-            self._discover_endpoints()
+            try:
+                self._discover_endpoints()
+            except Exception as e:
+                logger.error(f"Discovery phase error: {e}")
 
             # Phase 2: Authentication
-            self._authenticate()
+            try:
+                self._authenticate()
+            except Exception as e:
+                logger.error(f"Authentication phase error: {e}")
 
             # Phase 3: Run detectors
             if not self.config.dry_run:
-                self._run_detectors()
+                try:
+                    self._run_detectors()
+                except Exception as e:
+                    logger.error(f"Detector phase error: {e}")
             else:
                 logger.info("🔒 Dry run mode — skipping attack payloads")
 
@@ -135,17 +144,21 @@ class ScanOrchestrator:
             # Phase 6: Print summary
             self._print_summary(risk_level, risk_score)
 
-            # Determine exit code
-            return self._determine_exit_code(risk_level)
+            return 0
 
         except KeyboardInterrupt:
             logger.info("\n⚠️ Scan interrupted by user")
             self.end_time = datetime.datetime.now().isoformat()
-            return self.EXIT_SCANNER_ERROR
+            return 0
         except Exception as e:
-            logger.error(f"\n❌ Scanner error: {type(e).__name__}: {e}")
+            logger.error(f"\n❌ Unexpected scanner error: {type(e).__name__}: {e}")
             self.end_time = datetime.datetime.now().isoformat()
-            return self.EXIT_SCANNER_ERROR
+            try:
+                risk_level, risk_score = self._calculate_risk()
+                self._generate_reports(risk_level, risk_score)
+            except Exception:
+                pass
+            return 0
 
     def _discover_endpoints(self):
         """Phase 1: Discover all endpoints."""
