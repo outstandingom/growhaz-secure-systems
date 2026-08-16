@@ -413,8 +413,20 @@ export default function Profile() {
     }
   };
 
+  const isDetailedScan = (scanType: string) =>
+    scanType === "alpha-g2" || scanType === "alpha-g5" || scanType === "alpha-g5-pro";
+
+  const scanLabel = (scanType: string) => {
+    switch (scanType) {
+      case "alpha-g5-pro": return "AlphaG5 Pro Scan";
+      case "alpha-g5": return "AlphaG5 Advanced Scan";
+      case "alpha-g2": return "AlphaG2 Professional Scan";
+      default: return "AlphaG1 Basic Scan";
+    }
+  };
+
   const handleViewReport = (report: SecurityReport) => {
-    if (report.scan_type === "alpha-g2") {
+    if (isDetailedScan(report.scan_type)) {
       setSelectedReport(report);
       setShowG2Report(true);
     } else {
@@ -996,11 +1008,11 @@ export default function Profile() {
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
                             isReportReady(report.report_status) ? 
-                              (report.scan_type === "alpha-g2" ? "bg-purple-500/10" : "bg-emerald-500/10") :
+                              (isDetailedScan(report.scan_type) ? "bg-purple-500/10" : "bg-emerald-500/10") :
                               "bg-amber-500/10"
                           }`}>
                             {isReportReady(report.report_status) ? (
-                              report.scan_type === "alpha-g2" ? (
+                              isDetailedScan(report.scan_type) ? (
                                 <Zap className="w-6 h-6 text-purple-400" />
                               ) : (
                                 <CheckCircle2 className="w-6 h-6 text-emerald-400" />
@@ -1022,21 +1034,21 @@ export default function Profile() {
                               </a>
                             </div>
                             <p className="text-sm text-muted-foreground capitalize flex items-center gap-1">
-                              {report.scan_type === "alpha-g2" ? (
+                              {isDetailedScan(report.scan_type) ? (
                                 <>
                                   <Zap className="w-3 h-3 text-purple-400" />
-                                  AlphaG2 Professional Scan
+                                  {scanLabel(report.scan_type)}
                                 </>
                               ) : (
                                 <>
                                   <Shield className="w-3 h-3 text-primary" />
-                                  AlphaG1 Basic Scan
+                                  {scanLabel(report.scan_type)}
                                 </>
                               )}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
                               {isReportReady(report.report_status) ? (
-                                <Badge className={report.scan_type === "alpha-g2" ? 
+                                <Badge className={isDetailedScan(report.scan_type) ? 
                                   "bg-purple-500/20 text-purple-400 border-purple-500/30" : 
                                   "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
                                 }>
@@ -1047,7 +1059,7 @@ export default function Profile() {
                                   <Clock className="w-3 h-3 mr-1" /> Waiting for Report
                                 </Badge>
                               )}
-                              {report.scan_type === "alpha-g2" && isReportReady(report.report_status) && (
+                              {isDetailedScan(report.scan_type) && isReportReady(report.report_status) && (
                                 <Badge variant="outline" className="border-purple-500/30 text-purple-400">
                                   CVSS Scored
                                 </Badge>
@@ -1064,7 +1076,7 @@ export default function Profile() {
                             <Button 
                               variant="hero" 
                               size="sm" 
-                              className={`gap-1 ${report.scan_type === "alpha-g2" ? "bg-purple-600 hover:bg-purple-700" : ""}`}
+                              className={`gap-1 ${isDetailedScan(report.scan_type) ? "bg-purple-600 hover:bg-purple-700" : ""}`}
                               onClick={() => handleViewReport(report)}
                             >
                               <FileText className="w-4 h-4" />
