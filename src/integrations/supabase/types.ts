@@ -14,6 +14,314 @@ export type Database = {
   }
   public: {
     Tables: {
+      alert_rules: {
+        Row: {
+          channels: Json | null
+          condition: string
+          cooldown_minutes: number | null
+          created_at: string | null
+          description: string | null
+          id: string
+          is_enabled: boolean | null
+          last_triggered: string | null
+          metric_name: string
+          name: string
+          organization_id: string
+          severity: string | null
+          site_id: string
+          threshold: number
+          updated_at: string | null
+          window_minutes: number | null
+        }
+        Insert: {
+          channels?: Json | null
+          condition: string
+          cooldown_minutes?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_triggered?: string | null
+          metric_name: string
+          name: string
+          organization_id: string
+          severity?: string | null
+          site_id: string
+          threshold: number
+          updated_at?: string | null
+          window_minutes?: number | null
+        }
+        Update: {
+          channels?: Json | null
+          condition?: string
+          cooldown_minutes?: number | null
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_enabled?: boolean | null
+          last_triggered?: string | null
+          metric_name?: string
+          name?: string
+          organization_id?: string
+          severity?: string | null
+          site_id?: string
+          threshold?: number
+          updated_at?: string | null
+          window_minutes?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_rules_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alerts: {
+        Row: {
+          acknowledged_by: string | null
+          alert_rule_id: string | null
+          channels_notified: Json | null
+          created_at: string | null
+          id: string
+          is_acknowledged: boolean | null
+          message: string | null
+          metric_name: string | null
+          metric_value: number | null
+          organization_id: string
+          resolved_at: string | null
+          severity: string
+          site_id: string
+          threshold: number | null
+          title: string
+          triggered_at: string
+        }
+        Insert: {
+          acknowledged_by?: string | null
+          alert_rule_id?: string | null
+          channels_notified?: Json | null
+          created_at?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          message?: string | null
+          metric_name?: string | null
+          metric_value?: number | null
+          organization_id: string
+          resolved_at?: string | null
+          severity: string
+          site_id: string
+          threshold?: number | null
+          title: string
+          triggered_at?: string
+        }
+        Update: {
+          acknowledged_by?: string | null
+          alert_rule_id?: string | null
+          channels_notified?: Json | null
+          created_at?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          message?: string | null
+          metric_name?: string | null
+          metric_value?: number | null
+          organization_id?: string
+          resolved_at?: string | null
+          severity?: string
+          site_id?: string
+          threshold?: number | null
+          title?: string
+          triggered_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alerts_alert_rule_id_fkey"
+            columns: ["alert_rule_id"]
+            isOneToOne: false
+            referencedRelation: "alert_rules"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      anomalies: {
+        Row: {
+          actual_value: number | null
+          anomaly_score: number
+          created_at: string | null
+          details: Json | null
+          detected_at: string
+          dimensions: Json | null
+          expected_value: number | null
+          explanation: string | null
+          id: string
+          is_acknowledged: boolean | null
+          metric_name: string
+          resolved_at: string | null
+          severity: string
+          site_id: string
+          z_score: number | null
+        }
+        Insert: {
+          actual_value?: number | null
+          anomaly_score: number
+          created_at?: string | null
+          details?: Json | null
+          detected_at?: string
+          dimensions?: Json | null
+          expected_value?: number | null
+          explanation?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          metric_name: string
+          resolved_at?: string | null
+          severity: string
+          site_id: string
+          z_score?: number | null
+        }
+        Update: {
+          actual_value?: number | null
+          anomaly_score?: number
+          created_at?: string | null
+          details?: Json | null
+          detected_at?: string
+          dimensions?: Json | null
+          expected_value?: number | null
+          explanation?: string | null
+          id?: string
+          is_acknowledged?: boolean | null
+          metric_name?: string
+          resolved_at?: string | null
+          severity?: string
+          site_id?: string
+          z_score?: number | null
+        }
+        Relationships: []
+      }
+      api_endpoints: {
+        Row: {
+          avg_duration_ms: number | null
+          created_at: string | null
+          error_rate: number | null
+          first_seen_at: string
+          id: string
+          last_seen_at: string
+          method: string
+          normalized_path: string
+          p50_duration_ms: number | null
+          p95_duration_ms: number | null
+          p99_duration_ms: number | null
+          request_count: number | null
+          site_id: string
+          status_codes: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          avg_duration_ms?: number | null
+          created_at?: string | null
+          error_rate?: number | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          method: string
+          normalized_path: string
+          p50_duration_ms?: number | null
+          p95_duration_ms?: number | null
+          p99_duration_ms?: number | null
+          request_count?: number | null
+          site_id: string
+          status_codes?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          avg_duration_ms?: number | null
+          created_at?: string | null
+          error_rate?: number | null
+          first_seen_at?: string
+          id?: string
+          last_seen_at?: string
+          method?: string
+          normalized_path?: string
+          p50_duration_ms?: number | null
+          p95_duration_ms?: number | null
+          p99_duration_ms?: number | null
+          request_count?: number | null
+          site_id?: string
+          status_codes?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      api_keys: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          id: string
+          key_hash: string
+          key_prefix: string
+          key_preview: string
+          key_type: string
+          label: string | null
+          last_used_at: string | null
+          organization_id: string
+          permissions: Json | null
+          revoked_at: string | null
+          site_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          key_hash: string
+          key_prefix: string
+          key_preview: string
+          key_type: string
+          label?: string | null
+          last_used_at?: string | null
+          organization_id: string
+          permissions?: Json | null
+          revoked_at?: string | null
+          site_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          id?: string
+          key_hash?: string
+          key_prefix?: string
+          key_preview?: string
+          key_type?: string
+          label?: string | null
+          last_used_at?: string | null
+          organization_id?: string
+          permissions?: Json | null
+          revoked_at?: string | null
+          site_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "api_keys_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "api_keys_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       apk_builds: {
         Row: {
           admob_banner_id: string | null
@@ -128,6 +436,57 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           website_url?: string
+        }
+        Relationships: []
+      }
+      baselines: {
+        Row: {
+          bucket_value: number
+          created_at: string | null
+          dimensions: Json | null
+          ewma_value: number | null
+          id: string
+          last_updated: string | null
+          max_value: number | null
+          mean: number
+          metric_name: string
+          min_value: number | null
+          sample_count: number | null
+          site_id: string
+          stddev: number
+          time_bucket: string
+        }
+        Insert: {
+          bucket_value: number
+          created_at?: string | null
+          dimensions?: Json | null
+          ewma_value?: number | null
+          id?: string
+          last_updated?: string | null
+          max_value?: number | null
+          mean: number
+          metric_name: string
+          min_value?: number | null
+          sample_count?: number | null
+          site_id: string
+          stddev: number
+          time_bucket: string
+        }
+        Update: {
+          bucket_value?: number
+          created_at?: string | null
+          dimensions?: Json | null
+          ewma_value?: number | null
+          id?: string
+          last_updated?: string | null
+          max_value?: number | null
+          mean?: number
+          metric_name?: string
+          min_value?: number | null
+          sample_count?: number | null
+          site_id?: string
+          stddev?: number
+          time_bucket?: string
         }
         Relationships: []
       }
@@ -598,6 +957,63 @@ export type Database = {
         }
         Relationships: []
       }
+      daily_metrics: {
+        Row: {
+          avg_value: number | null
+          count: number | null
+          created_at: string | null
+          day: string
+          dimensions: Json | null
+          id: string
+          max_value: number | null
+          metric_name: string
+          min_value: number | null
+          p50_value: number | null
+          p95_value: number | null
+          p99_value: number | null
+          site_id: string
+          sum_value: number | null
+          unique_sessions: number | null
+          unique_visitors: number | null
+        }
+        Insert: {
+          avg_value?: number | null
+          count?: number | null
+          created_at?: string | null
+          day: string
+          dimensions?: Json | null
+          id?: string
+          max_value?: number | null
+          metric_name: string
+          min_value?: number | null
+          p50_value?: number | null
+          p95_value?: number | null
+          p99_value?: number | null
+          site_id: string
+          sum_value?: number | null
+          unique_sessions?: number | null
+          unique_visitors?: number | null
+        }
+        Update: {
+          avg_value?: number | null
+          count?: number | null
+          created_at?: string | null
+          day?: string
+          dimensions?: Json | null
+          id?: string
+          max_value?: number | null
+          metric_name?: string
+          min_value?: number | null
+          p50_value?: number | null
+          p95_value?: number | null
+          p99_value?: number | null
+          site_id?: string
+          sum_value?: number | null
+          unique_sessions?: number | null
+          unique_visitors?: number | null
+        }
+        Relationships: []
+      }
       demo_chain_wallets: {
         Row: {
           created_at: string
@@ -759,6 +1175,108 @@ export type Database = {
         }
         Relationships: []
       }
+      errors: {
+        Row: {
+          browser: string | null
+          colno: number | null
+          created_at: string | null
+          error_type: string | null
+          filename: string | null
+          fingerprint: string
+          id: string
+          is_unhandled: boolean | null
+          lineno: number | null
+          message: string | null
+          os: string | null
+          release_version: string | null
+          route: string | null
+          session_id: string | null
+          site_id: string
+          stack_trace: string | null
+          timestamp: string
+          url: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          browser?: string | null
+          colno?: number | null
+          created_at?: string | null
+          error_type?: string | null
+          filename?: string | null
+          fingerprint: string
+          id?: string
+          is_unhandled?: boolean | null
+          lineno?: number | null
+          message?: string | null
+          os?: string | null
+          release_version?: string | null
+          route?: string | null
+          session_id?: string | null
+          site_id: string
+          stack_trace?: string | null
+          timestamp?: string
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          browser?: string | null
+          colno?: number | null
+          created_at?: string | null
+          error_type?: string | null
+          filename?: string | null
+          fingerprint?: string
+          id?: string
+          is_unhandled?: boolean | null
+          lineno?: number | null
+          message?: string | null
+          os?: string | null
+          release_version?: string | null
+          route?: string | null
+          session_id?: string | null
+          site_id?: string
+          stack_trace?: string | null
+          timestamp?: string
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: []
+      }
+      events: {
+        Row: {
+          created_at: string | null
+          event_type: string
+          id: string
+          metadata: Json | null
+          route: string | null
+          session_id: string | null
+          site_id: string
+          timestamp: string
+          visitor_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          route?: string | null
+          session_id?: string | null
+          site_id: string
+          timestamp?: string
+          visitor_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          route?: string | null
+          session_id?: string | null
+          site_id?: string
+          timestamp?: string
+          visitor_id?: string | null
+        }
+        Relationships: []
+      }
       forensic_reports: {
         Row: {
           completed_at: string | null
@@ -813,6 +1331,63 @@ export type Database = {
           risk_score?: number | null
           status?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      hourly_metrics: {
+        Row: {
+          avg_value: number | null
+          count: number | null
+          created_at: string | null
+          dimensions: Json | null
+          hour: string
+          id: string
+          max_value: number | null
+          metric_name: string
+          min_value: number | null
+          p50_value: number | null
+          p95_value: number | null
+          p99_value: number | null
+          site_id: string
+          sum_value: number | null
+          unique_sessions: number | null
+          unique_visitors: number | null
+        }
+        Insert: {
+          avg_value?: number | null
+          count?: number | null
+          created_at?: string | null
+          dimensions?: Json | null
+          hour: string
+          id?: string
+          max_value?: number | null
+          metric_name: string
+          min_value?: number | null
+          p50_value?: number | null
+          p95_value?: number | null
+          p99_value?: number | null
+          site_id: string
+          sum_value?: number | null
+          unique_sessions?: number | null
+          unique_visitors?: number | null
+        }
+        Update: {
+          avg_value?: number | null
+          count?: number | null
+          created_at?: string | null
+          dimensions?: Json | null
+          hour?: string
+          id?: string
+          max_value?: number | null
+          metric_name?: string
+          min_value?: number | null
+          p50_value?: number | null
+          p95_value?: number | null
+          p99_value?: number | null
+          site_id?: string
+          sum_value?: number | null
+          unique_sessions?: number | null
+          unique_visitors?: number | null
         }
         Relationships: []
       }
@@ -1120,6 +1695,177 @@ export type Database = {
         }
         Relationships: []
       }
+      network_requests: {
+        Row: {
+          created_at: string | null
+          duration_ms: number | null
+          error_type: string | null
+          id: string
+          initiator_type: string | null
+          is_success: boolean | null
+          method: string
+          normalized_path: string | null
+          request_size: number | null
+          response_size: number | null
+          session_id: string | null
+          site_id: string
+          status_code: number | null
+          timestamp: string
+          url: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_type?: string | null
+          id?: string
+          initiator_type?: string | null
+          is_success?: boolean | null
+          method: string
+          normalized_path?: string | null
+          request_size?: number | null
+          response_size?: number | null
+          session_id?: string | null
+          site_id: string
+          status_code?: number | null
+          timestamp?: string
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duration_ms?: number | null
+          error_type?: string | null
+          id?: string
+          initiator_type?: string | null
+          is_success?: boolean | null
+          method?: string
+          normalized_path?: string | null
+          request_size?: number | null
+          response_size?: number | null
+          session_id?: string | null
+          site_id?: string
+          status_code?: number | null
+          timestamp?: string
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: []
+      }
+      organization_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          organization_id: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          organization_id: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          organization_id?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "organization_members_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "organization_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      organizations: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          plan: string | null
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          plan?: string | null
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          plan?: string | null
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      page_views: {
+        Row: {
+          created_at: string | null
+          duration_ms: number | null
+          id: string
+          is_spa_nav: boolean | null
+          load_time_ms: number | null
+          referrer: string | null
+          route: string | null
+          session_id: string | null
+          site_id: string
+          timestamp: string
+          title: string | null
+          url: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          duration_ms?: number | null
+          id?: string
+          is_spa_nav?: boolean | null
+          load_time_ms?: number | null
+          referrer?: string | null
+          route?: string | null
+          session_id?: string | null
+          site_id: string
+          timestamp?: string
+          title?: string | null
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          duration_ms?: number | null
+          id?: string
+          is_spa_nav?: boolean | null
+          load_time_ms?: number | null
+          referrer?: string | null
+          route?: string | null
+          session_id?: string | null
+          site_id?: string
+          timestamp?: string
+          title?: string | null
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: []
+      }
       partner_profiles: {
         Row: {
           created_at: string | null
@@ -1193,6 +1939,75 @@ export type Database = {
             referencedColumns: ["partner_code"]
           },
         ]
+      }
+      performance_metrics: {
+        Row: {
+          cls: number | null
+          connection_ms: number | null
+          created_at: string | null
+          dns_ms: number | null
+          dom_load_ms: number | null
+          fcp_ms: number | null
+          id: string
+          inp_ms: number | null
+          lcp_ms: number | null
+          page_load_ms: number | null
+          resource_count: number | null
+          route: string | null
+          session_id: string | null
+          site_id: string
+          timestamp: string
+          tls_ms: number | null
+          transfer_size: number | null
+          ttfb_ms: number | null
+          url: string | null
+          visitor_id: string | null
+        }
+        Insert: {
+          cls?: number | null
+          connection_ms?: number | null
+          created_at?: string | null
+          dns_ms?: number | null
+          dom_load_ms?: number | null
+          fcp_ms?: number | null
+          id?: string
+          inp_ms?: number | null
+          lcp_ms?: number | null
+          page_load_ms?: number | null
+          resource_count?: number | null
+          route?: string | null
+          session_id?: string | null
+          site_id: string
+          timestamp?: string
+          tls_ms?: number | null
+          transfer_size?: number | null
+          ttfb_ms?: number | null
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Update: {
+          cls?: number | null
+          connection_ms?: number | null
+          created_at?: string | null
+          dns_ms?: number | null
+          dom_load_ms?: number | null
+          fcp_ms?: number | null
+          id?: string
+          inp_ms?: number | null
+          lcp_ms?: number | null
+          page_load_ms?: number | null
+          resource_count?: number | null
+          route?: string | null
+          session_id?: string | null
+          site_id?: string
+          timestamp?: string
+          tls_ms?: number | null
+          transfer_size?: number | null
+          ttfb_ms?: number | null
+          url?: string | null
+          visitor_id?: string | null
+        }
+        Relationships: []
       }
       private_secrets: {
         Row: {
@@ -1280,6 +2095,38 @@ export type Database = {
           user_id?: string
         }
         Relationships: []
+      }
+      projects: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          organization_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          organization_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          organization_id?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "projects_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       purchases: {
         Row: {
@@ -1398,6 +2245,159 @@ export type Database = {
         }
         Relationships: []
       }
+      sessions: {
+        Row: {
+          browser: string | null
+          browser_version: string | null
+          country_code: string | null
+          created_at: string | null
+          device_type: string | null
+          duration_ms: number | null
+          ended_at: string | null
+          entry_page: string | null
+          event_count: number | null
+          exit_page: string | null
+          id: string
+          is_bounce: boolean | null
+          language: string | null
+          last_activity: string
+          os: string | null
+          os_version: string | null
+          page_count: number | null
+          referrer: string | null
+          referrer_domain: string | null
+          screen_height: number | null
+          screen_width: number | null
+          site_id: string
+          started_at: string
+          timezone: string | null
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
+          visitor_id: string
+        }
+        Insert: {
+          browser?: string | null
+          browser_version?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_ms?: number | null
+          ended_at?: string | null
+          entry_page?: string | null
+          event_count?: number | null
+          exit_page?: string | null
+          id?: string
+          is_bounce?: boolean | null
+          language?: string | null
+          last_activity?: string
+          os?: string | null
+          os_version?: string | null
+          page_count?: number | null
+          referrer?: string | null
+          referrer_domain?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
+          site_id: string
+          started_at?: string
+          timezone?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_id: string
+        }
+        Update: {
+          browser?: string | null
+          browser_version?: string | null
+          country_code?: string | null
+          created_at?: string | null
+          device_type?: string | null
+          duration_ms?: number | null
+          ended_at?: string | null
+          entry_page?: string | null
+          event_count?: number | null
+          exit_page?: string | null
+          id?: string
+          is_bounce?: boolean | null
+          language?: string | null
+          last_activity?: string
+          os?: string | null
+          os_version?: string | null
+          page_count?: number | null
+          referrer?: string | null
+          referrer_domain?: string | null
+          screen_height?: number | null
+          screen_width?: number | null
+          site_id?: string
+          started_at?: string
+          timezone?: string | null
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+          visitor_id?: string
+        }
+        Relationships: []
+      }
+      sites: {
+        Row: {
+          created_at: string | null
+          domain: string
+          id: string
+          last_event_at: string | null
+          last_heartbeat: string | null
+          name: string
+          organization_id: string
+          project_id: string
+          retention_days: number | null
+          sdk_detected: boolean | null
+          settings: Json | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          domain: string
+          id?: string
+          last_event_at?: string | null
+          last_heartbeat?: string | null
+          name: string
+          organization_id: string
+          project_id: string
+          retention_days?: number | null
+          sdk_detected?: boolean | null
+          settings?: Json | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          domain?: string
+          id?: string
+          last_event_at?: string | null
+          last_heartbeat?: string | null
+          name?: string
+          organization_id?: string
+          project_id?: string
+          retention_days?: number | null
+          sdk_detected?: boolean | null
+          settings?: Json | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sites_organization_id_fkey"
+            columns: ["organization_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sites_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       transcripts: {
         Row: {
           created_at: string
@@ -1508,6 +2508,33 @@ export type Database = {
           title_name?: string
           user_display_name?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          name: string
+          password_hash: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          name: string
+          password_hash: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          name?: string
+          password_hash?: string
+          updated_at?: string | null
         }
         Relationships: []
       }
