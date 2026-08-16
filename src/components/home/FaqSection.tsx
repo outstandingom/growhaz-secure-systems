@@ -13,12 +13,12 @@ export const homeFaq = [
   {
     question: "What is GrowHaz?",
     answer:
-      "GrowHaz is an Indian cybersecurity and trust-infrastructure company. It provides automated website vulnerability scanning (Alpha G1 and Alpha G2), blockchain-based document verification, forensic file analysis, secure web development, SEO and one-to-one cybersecurity mentorship.",
+      "GrowHaz is an Indian cybersecurity and trust-infrastructure company. It provides automated website vulnerability scanning (Alpha G1 and Alpha G5), blockchain-based document verification, forensic file analysis, secure web development, SEO and one-to-one cybersecurity mentorship.",
   },
   {
     question: "How does GrowHaz scan a website for vulnerabilities?",
     answer:
-      "GrowHaz runs two scanner tiers. Alpha G1 covers essential checks such as headers, exposed endpoints and common misconfigurations. Alpha G2 is the professional tier and adds JavaScript crawling, API and OpenAPI testing and deeper attack-surface coverage. Every scan returns a structured report with severity levels, evidence and remediation steps.",
+      "GrowHaz runs two scanner tiers. Alpha G1 covers essential checks such as headers, exposed endpoints and common misconfigurations. Alpha G5 is the professional tier and adds JavaScript crawling, API and OpenAPI testing and deeper attack-surface coverage. Every scan returns a structured report with severity levels, evidence and remediation steps.",
   },
   {
     question: "How does GrowHaz verify that a document is authentic?",
