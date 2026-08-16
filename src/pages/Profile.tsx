@@ -723,7 +723,7 @@ export default function Profile() {
                               {(report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? (
                                 <>
                                   <Zap className="w-3 h-3 text-purple-400" />
-                                  {report.scan_type === "alpha-g5-pro" ? "AlphaG5 Pro Scan" : "AlphaG2 Professional Scan"}
+                                  {report.scan_type === "alpha-g5-pro" ? "AlphaG5 Pro Scan" : "AlphaG5 Professional Scan"}
                                 </>
                               ) : (
                                 <>
@@ -847,6 +847,7 @@ export default function Profile() {
 
               return (
                 <AlphaG2Report 
+                  scanType={selectedReport.scan_type}
                   report={{
                     base_url: data.base_url || data.scan_metadata?.target || selectedReport.website_url,
                     test_run_id: data.test_run_id || data.scan_metadata?.test_run_id || selectedReport.id,

@@ -420,7 +420,7 @@ export default function Profile() {
     switch (scanType) {
       case "alpha-g5-pro": return "AlphaG5 Pro Scan";
       case "alpha-g5": return "AlphaG5 Advanced Scan";
-      case "alpha-g2": return "AlphaG2 Professional Scan";
+      case "alpha-g2": return "AlphaG5 Professional Scan";
       default: return "AlphaG1 Basic Scan";
     }
   };
@@ -1116,6 +1116,7 @@ export default function Profile() {
           <DialogTitle className="sr-only">Security Report</DialogTitle>
           {selectedReport && showG2Report ? (
             <AlphaG2Report 
+              scanType={selectedReport.scan_type}
               report={{
                 base_url: selectedReport.website_url,
                 test_run_id: selectedReport.id,

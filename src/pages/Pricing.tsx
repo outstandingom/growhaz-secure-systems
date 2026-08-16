@@ -30,7 +30,7 @@ const securityTools = [
     requiresApproval: false,
   },
   {
-    name: "AlphaG2",
+    name: "AlphaG5",
     price: "₹4,999",
     period: "per scan",
     description: "Advanced security audit for business websites and applications.",
@@ -50,7 +50,7 @@ const securityTools = [
     period: "per scan",
     description: "Enterprise-grade penetration testing for critical systems.",
     features: [
-      "All AlphaG2 features",
+      "All AlphaG5 features",
       "Full penetration testing",
       "Business logic testing",
       "Custom attack vectors",
