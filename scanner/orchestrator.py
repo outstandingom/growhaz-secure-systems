@@ -405,7 +405,7 @@ class ScanOrchestrator:
             test_run_id=self.config.test_run_id,
             start_time=self.start_time,
             end_time=self.end_time or datetime.datetime.now().isoformat(),
-            endpoints_discovered=len(endpoints),
+            discovered_endpoints=endpoints,
             endpoints_tested=sum(r.get("endpoints_tested", 0) for r in self.test_results.values()),
             findings=self.all_findings,
             test_results=self.test_results,

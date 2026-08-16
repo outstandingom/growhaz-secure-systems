@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { MentorProfileSection } from "@/components/profile/MentorProfileSection";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ReportViewer } from "@/components/reports/ReportViewer";
-import AlphaG2Report from "@/components/reports/Alphag2report";
+import AlphaG5Report from "@/components/reports/Alphag5report";
 import { MyDocuments } from "@/components/profile/MyDocuments";
 import { VerificationHistory } from "@/components/profile/VerificationHistory";
 import { MyApkBuilds } from "@/components/profile/MyApkBuilds";
@@ -846,7 +846,7 @@ export default function Profile() {
               const blockedCount = data.summary?.blocked_tests ?? data.test_summary?.blocked ?? 0;
 
               return (
-                <AlphaG2Report 
+                <AlphaG5Report 
                   scanType={selectedReport.scan_type}
                   report={{
                     base_url: data.base_url || data.scan_metadata?.target || selectedReport.website_url,
@@ -854,6 +854,7 @@ export default function Profile() {
                     timestamp: data.timestamp || data.scan_metadata?.start_time || selectedReport.scanned_at,
                     vulnerabilities,
                     test_summary: testSummary,
+                    discovered_endpoints: data.discovered_endpoints || data.scan_metadata?.discovered_endpoints || data.v5_raw_report?.scan_metadata?.discovered_endpoints || [],
                     summary: {
                       total_vulnerabilities: totalVulns,
                       risk_level: (selectedReport.risk_level || data.summary?.risk_level || "low").toLowerCase() as 'low' | 'medium' | 'high',

@@ -22,7 +22,7 @@ class JSONReporter:
         test_run_id: str,
         start_time: str,
         end_time: str,
-        endpoints_discovered: int,
+        discovered_endpoints: List[Any],
         endpoints_tested: int,
         findings: List[StandardFinding],
         test_results: Dict[str, dict],
@@ -83,7 +83,8 @@ class JSONReporter:
                 "start_time": start_time,
                 "end_time": end_time,
                 "scan_status": scan_status,
-                "endpoints_discovered": endpoints_discovered,
+                "endpoints_discovered": len(discovered_endpoints),
+                "discovered_endpoints": [ep.to_dict() if hasattr(ep, 'to_dict') else ep for ep in discovered_endpoints],
                 "endpoints_tested": endpoints_tested,
             },
             "risk_assessment": {

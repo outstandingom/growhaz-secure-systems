@@ -18,7 +18,7 @@ import { format } from "date-fns";
 import { MentorProfileSection } from "@/components/profile/MentorProfileSection";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { ReportViewer } from "@/components/reports/ReportViewer";
-import AlphaG2Report from "@/components/reports/Alphag2report";
+import AlphaG5Report from "@/components/reports/Alphag5report";
 import { MyDocuments } from "@/components/profile/MyDocuments";
 import { VerificationHistory } from "@/components/profile/VerificationHistory";
 import { useWeb3Wallet } from "@/hooks/useWeb3Wallet";
@@ -1115,7 +1115,7 @@ export default function Profile() {
         <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto p-0">
           <DialogTitle className="sr-only">Security Report</DialogTitle>
           {selectedReport && showG2Report ? (
-            <AlphaG2Report 
+            <AlphaG5Report 
               scanType={selectedReport.scan_type}
               report={{
                 base_url: selectedReport.website_url,
@@ -1123,6 +1123,7 @@ export default function Profile() {
                 timestamp: selectedReport.scanned_at,
                 vulnerabilities: selectedReport.report_data?.vulnerabilities || [],
                 test_summary: selectedReport.report_data?.test_summary || {},
+                discovered_endpoints: selectedReport.report_data?.discovered_endpoints || selectedReport.report_data?.scan_metadata?.discovered_endpoints || selectedReport.report_data?.v5_raw_report?.scan_metadata?.discovered_endpoints || [],
                 summary: {
                   total_vulnerabilities: selectedReport.vulnerabilities_found,
                   risk_level: selectedReport.risk_level as 'low' | 'medium' | 'high',

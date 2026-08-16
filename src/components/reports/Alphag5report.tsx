@@ -70,12 +70,40 @@ interface Vulnerability {
   raw_request?: any;
   raw_response?: any;
   remediation?: string;
+  severity?: string;
+  cwe?: string;
+  confidence?: string | { level: string; score: number };
+  evidence?: Array<{ description?: string }>;
+  description?: string;
+  details?: string;
+}
+
+interface DiscoveredEndpoint {
+  url: string;
+  method: string;
+  query_params?: string[];
+  path_params?: string[];
+  body_params?: string[];
+  json_fields?: string[];
+  discovery_source?: string;
+  auth_required?: boolean | null;
+  content_type?: string;
+  is_state_changing?: boolean;
+  has_file_param?: boolean;
+  accepts_xml?: boolean;
+  accepts_json?: boolean;
+  is_graphql?: boolean;
 }
 
 interface TestSummary {
   [key: string]: {
-    status: 'VULNERABLE' | 'SECURE' | 'BLOCKED' | 'ERROR';
+    status: string;
     details: string;
+    endpoints_tested?: number;
+    endpoints_blocked?: number;
+    elapsed_seconds?: number;
+    confidence?: string;
+    findings_count?: number;
   };
 }
 
@@ -85,11 +113,14 @@ interface SecurityReport {
   timestamp: string;
   vulnerabilities: Vulnerability[];
   test_summary: TestSummary;
+  discovered_endpoints?: DiscoveredEndpoint[];
   summary: {
     total_vulnerabilities: number;
-    risk_level: 'low' | 'medium' | 'high';
+    risk_level: 'low' | 'medium' | 'high' | 'critical';
     scan_completed: boolean;
     blocked_tests: number;
+    informational_findings?: number;
+    scan_quality?: string;
   };
 }
 
@@ -128,15 +159,23 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, scanTy
   };
 
   const getStatusBadge = (status: string) => {
-    switch (status) {
+    switch (status?.toUpperCase()) {
       case "VULNERABLE":
         return <Badge variant="destructive" className="gap-1"><XCircle className="w-3 h-3" /> Vulnerable</Badge>;
       case "SECURE":
+      case "PASS":
         return <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30 gap-1"><CheckCircle className="w-3 h-3" /> Secure</Badge>;
       case "BLOCKED":
         return <Badge variant="secondary" className="gap-1"><Shield className="w-3 h-3" /> Blocked</Badge>;
       case "ERROR":
         return <Badge variant="outline" className="text-destructive border-destructive/30 gap-1"><AlertTriangle className="w-3 h-3" /> Error</Badge>;
+      case "INCONCLUSIVE":
+        return <Badge className="bg-amber-500/20 text-amber-400 border-amber-500/30 gap-1"><AlertCircle className="w-3 h-3" /> Inconclusive</Badge>;
+      case "NOT_APPLICABLE":
+        return <Badge variant="outline" className="gap-1">N/A</Badge>;
+      case "NOT_TESTED":
+      case "NOT_IMPLEMENTED":
+        return <Badge variant="outline" className="text-muted-foreground gap-1">Not Tested</Badge>;
       default:
         return <Badge variant="outline">{status || "Unknown"}</Badge>;
     }
@@ -306,31 +345,81 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, scanTy
       });
       y += rowHeight * 2 + 10;
 
+      // ---- Discovered Endpoints Table ----
+      if (report.discovered_endpoints && report.discovered_endpoints.length > 0) {
+        doc.setFontSize(14);
+        doc.text(`Discovered Pages & Endpoints (${report.discovered_endpoints.length})`, margin, y);
+        y += 8;
+
+        const epData = report.discovered_endpoints.map((ep, idx) => {
+          const allParams = [
+            ...(ep.query_params || []),
+            ...(ep.path_params || []),
+            ...(ep.body_params || []),
+            ...(ep.json_fields || []),
+          ];
+          return [
+            String(idx + 1),
+            ep.url.length > 60 ? ep.url.substring(0, 57) + '...' : ep.url,
+            ep.method,
+            allParams.length > 0 ? allParams.join(', ').substring(0, 40) : '—',
+            ep.discovery_source || '—',
+          ];
+        });
+
+        autoTable(doc, {
+          startY: y,
+          head: [['#', 'URL', 'Method', 'Parameters', 'Source']],
+          body: epData,
+          theme: 'striped',
+          headStyles: { fillColor: [60, 60, 60] },
+          columnStyles: {
+            0: { cellWidth: 10 },
+            1: { cellWidth: 'auto' },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 40 },
+            4: { cellWidth: 25 },
+          },
+          styles: { fontSize: 7 },
+          margin: { left: margin, right: margin },
+          didDrawPage: (data) => {
+            y = data.cursor?.y || y + 10;
+          }
+        });
+        y = (doc as any).lastAutoTable.finalY + 10;
+      }
+
       // ---- Test Summary Table ----
       if (Object.keys(report.test_summary).length > 0) {
+        if (y > pageHeight - margin - 40) addNewPage();
         doc.setFontSize(14);
-        doc.text('Test Summary', margin, y);
+        doc.text('Test Methodology & Results', margin, y);
         y += 8;
 
         const tableData = Object.entries(report.test_summary).map(([testName, info]) => [
           testName,
           TEST_DESCRIPTIONS[testName] || 'No description',
           info.status,
+          info.endpoints_tested != null ? String(info.endpoints_tested) : '—',
+          info.elapsed_seconds != null ? `${info.elapsed_seconds}s` : '—',
           info.details || '-'
         ]);
 
         autoTable(doc, {
           startY: y,
-          head: [['Test', 'Description', 'Status', 'Details']],
+          head: [['Test', 'Description', 'Status', 'Endpoints', 'Time', 'Details']],
           body: tableData,
           theme: 'striped',
           headStyles: { fillColor: [60, 60, 60] },
           columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 70 },
-            2: { cellWidth: 30 },
-            3: { cellWidth: 'auto' }
+            0: { cellWidth: 35 },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 22 },
+            3: { cellWidth: 20 },
+            4: { cellWidth: 15 },
+            5: { cellWidth: 'auto' }
           },
+          styles: { fontSize: 7 },
           margin: { left: margin, right: margin },
           didDrawPage: (data) => {
             y = data.cursor?.y || y + 10;
@@ -632,10 +721,76 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, scanTy
           </div>
         </div>
 
+        {/* Discovered Pages & Endpoints */}
+        {report.discovered_endpoints && report.discovered_endpoints.length > 0 && (
+          <div className="space-y-3">
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Globe className="w-5 h-5 text-primary" />
+              Discovered Pages & Endpoints ({report.discovered_endpoints.length})
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              These are all the pages and API endpoints the scanner discovered during crawling. Each one was analyzed and tested for vulnerabilities.
+            </p>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b border-border print:border-gray-300">
+                    <th className="text-left py-2 px-3">#</th>
+                    <th className="text-left py-2 px-3">URL</th>
+                    <th className="text-left py-2 px-3">Method</th>
+                    <th className="text-left py-2 px-3">Parameters</th>
+                    <th className="text-left py-2 px-3">Source</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.discovered_endpoints.map((ep, idx) => {
+                    const allParams = [
+                      ...(ep.query_params || []),
+                      ...(ep.path_params || []),
+                      ...(ep.body_params || []),
+                      ...(ep.json_fields || []),
+                    ];
+                    const sourceLabel: Record<string, string> = {
+                      static_crawl: "Static Crawl",
+                      js_crawl: "JS Crawl",
+                      openapi: "OpenAPI",
+                      form: "Form",
+                      network_intercept: "Network",
+                      common_path: "Common Path",
+                      manual: "Manual",
+                    };
+                    return (
+                      <tr key={idx} className="border-b border-border/50 print:border-gray-200">
+                        <td className="py-2 px-3 text-muted-foreground">{idx + 1}</td>
+                        <td className="py-2 px-3 font-mono text-xs break-all max-w-xs">{ep.url}</td>
+                        <td className="py-2 px-3">
+                          <Badge variant="outline" className="text-xs">{ep.method}</Badge>
+                        </td>
+                        <td className="py-2 px-3 text-xs text-muted-foreground">
+                          {allParams.length > 0 ? allParams.join(', ') : '—'}
+                        </td>
+                        <td className="py-2 px-3 text-xs">
+                          {sourceLabel[ep.discovery_source || ''] || ep.discovery_source || '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
         {/* Test Summary Table */}
         {Object.keys(report.test_summary).length > 0 && (
           <div className="space-y-3">
-            <h3 className="text-lg font-semibold">Test Summary</h3>
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <Target className="w-5 h-5 text-primary" />
+              Test Methodology & Results
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Each security test below was executed against the discovered endpoints. The table shows what was tested, how it performed, and how many endpoints were covered.
+            </p>
             <div className="overflow-x-auto">
               <table className="w-full text-sm border-collapse">
                 <thead>
@@ -643,6 +798,8 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, scanTy
                     <th className="text-left py-2 px-3">Test</th>
                     <th className="text-left py-2 px-3">Description</th>
                     <th className="text-left py-2 px-3">Status</th>
+                    <th className="text-left py-2 px-3">Endpoints Tested</th>
+                    <th className="text-left py-2 px-3">Time</th>
                     <th className="text-left py-2 px-3">Details</th>
                   </tr>
                 </thead>
@@ -654,7 +811,18 @@ const SecurityReportComponent: React.FC<SecurityReportProps> = ({ report, scanTy
                         {TEST_DESCRIPTIONS[testName] || "No description available."}
                       </td>
                       <td className="py-2 px-3">{getStatusBadge(info.status)}</td>
-                      <td className="py-2 px-3 text-muted-foreground">{info.details || "-"}</td>
+                      <td className="py-2 px-3 text-xs">
+                        {info.endpoints_tested != null ? (
+                          <span>
+                            {info.endpoints_tested}
+                            {info.endpoints_blocked ? <span className="text-muted-foreground"> ({info.endpoints_blocked} blocked)</span> : ''}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td className="py-2 px-3 text-xs text-muted-foreground">
+                        {info.elapsed_seconds != null ? `${info.elapsed_seconds}s` : '—'}
+                      </td>
+                      <td className="py-2 px-3 text-muted-foreground text-xs">{info.details || "-"}</td>
                     </tr>
                   ))}
                 </tbody>

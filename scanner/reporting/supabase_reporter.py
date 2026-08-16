@@ -124,6 +124,7 @@ class SupabaseReporter:
             "vulnerabilities": vulnerabilities,
             "informational": informational,
             "test_summary": legacy_test_summary,
+            "discovered_endpoints": report.get("scan_metadata", {}).get("discovered_endpoints", []),
             "summary": {
                 "total_vulnerabilities": len(vulnerabilities),
                 "informational_findings": len(informational),
