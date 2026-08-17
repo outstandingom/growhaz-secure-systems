@@ -87,6 +87,39 @@ export default function About() {
         </div>
       </section>
 
+      {/* Founder */}
+      <section className="section-container pt-0">
+        <div className="max-w-3xl mx-auto">
+          <div className="p-6 md:p-8 rounded-2xl bg-card border border-border flex flex-col md:flex-row items-center gap-6 text-center md:text-left">
+            <div className="relative w-32 h-32 shrink-0 rounded-2xl border border-border bg-card overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-primary/5" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-3xl font-bold gradient-text">OU</span>
+              </div>
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold">Om Uikey</h2>
+              <p className="text-primary font-medium">Founder &amp; CEO — GrowHaz</p>
+              <p className="text-xs text-muted-foreground mt-1 mb-3">
+                Software Developer • AI Builder • Cybersecurity Researcher • Entrepreneur
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+                Om Uikey is the Founder &amp; CEO of GrowHaz, working across software development, artificial
+                intelligence, cybersecurity, blockchain, automation and technology research.
+              </p>
+              <Link to="/founder/om-uikey">
+                <Button variant="hero" size="default">
+                  Meet the Founder
+                  <ArrowRight className="w-4 h-4" />
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+
+
       {/* Values */}
       <section className="section-container bg-card/50">
         <div className="text-center mb-12">

@@ -29,6 +29,7 @@ import Wallet from "./pages/Wallet";
 import AdminDashboard from "./pages/AdminDashboard";
 import NotFound from "./pages/NotFound";
 import ForensicWhitepaper from "./pages/ForensicWhitepaper";
+import FounderOmUikey from "./pages/FounderOmUikey";
 
 import { FloatingInvestButton } from "@/components/FloatingInvestButton";
 
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/wallet" element={<Wallet />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/forensic-whitepaper" element={<ForensicWhitepaper />} />
+          <Route path="/founder/om-uikey" element={<FounderOmUikey />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
