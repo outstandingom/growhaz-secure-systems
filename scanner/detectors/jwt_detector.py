@@ -102,31 +102,37 @@ class JWTDetector(BaseDetector):
                                     evidence=[Evidence(description="JWT with alg=none accepted by server")],
                                 ))
 
-        # --- Test 2: Empty/invalid signature ---
+        # --- Test 2: Empty/invalid signature + signature-strip ---
         parts = jwt_token.split('.')
         if len(parts) == 3:
-            tampered_token = f"{parts[0]}.{parts[1]}.invalidsignature"
-            for ep in protected[:3]:
-                tested += 1
-                resp_valid = engine.request(ep.method, ep.url, headers={"Authorization": f"Bearer {jwt_token}"})
-                if resp_valid.is_blocked or not resp_valid.has_response: continue
-                if resp_valid.status_code >= 400: continue
+            variants = [
+                ("tampered_signature", f"{parts[0]}.{parts[1]}.invalidsignature"),
+                ("stripped_signature", f"{parts[0]}.{parts[1]}."),
+                ("empty_signature", f"{parts[0]}.{parts[1]}"),
+            ]
+            for label, tampered_token in variants:
+                for ep in protected[:3]:
+                    tested += 1
+                    resp_valid = engine.request(ep.method, ep.url, headers={"Authorization": f"Bearer {jwt_token}"})
+                    if resp_valid.is_blocked or not resp_valid.has_response: continue
+                    if resp_valid.status_code >= 400: continue
 
-                resp_tampered = engine.request(ep.method, ep.url, headers={"Authorization": f"Bearer {tampered_token}"})
-                if resp_tampered.is_blocked: blocked += 1; continue
+                    resp_tampered = engine.request(ep.method, ep.url, headers={"Authorization": f"Bearer {tampered_token}"})
+                    if resp_tampered.is_blocked: blocked += 1; continue
 
-                if resp_tampered.has_response and resp_tampered.status_code == 200:
-                    findings.append(StandardFinding(
-                        vulnerability="JWT Missing Signature Validation", category=self.category,
-                        severity="HIGH",
-                        confidence=ConfidenceResult(0.8, ConfidenceLevel.HIGH,
-                            signals=["token_accepted_without_signature: tampered signature accepted"]),
-                        status=TestState.VULNERABLE, endpoint=ep.url, method=ep.method,
-                        cvss=CVSSInfo(score=8.1, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N", severity="HIGH"),
-                        owasp=self.owasp, cwe=self.cwe,
-                        remediation="Always validate JWT signatures server-side. Use strong signing keys.",
-                        evidence=[Evidence(description="JWT with invalid signature accepted")],
-                    ))
+                    if resp_tampered.has_response and resp_tampered.status_code == 200:
+                        findings.append(StandardFinding(
+                            vulnerability=f"JWT Missing Signature Validation ({label})", category=self.category,
+                            severity="HIGH",
+                            confidence=ConfidenceResult(0.85, ConfidenceLevel.HIGH,
+                                signals=[f"token_accepted_without_signature: {label} accepted"]),
+                            status=TestState.VULNERABLE, endpoint=ep.url, method=ep.method,
+                            cvss=CVSSInfo(score=8.1, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:L/A:N", severity="HIGH"),
+                            owasp=self.owasp, cwe=self.cwe,
+                            remediation="Always validate JWT signatures server-side. Reject empty/stripped signatures. Use strong signing keys.",
+                            evidence=[Evidence(description=f"JWT with {label} accepted by server")],
+                        ))
+                        break  # one variant per endpoint is enough
 
         vuln = [f for f in findings if f.status == TestState.VULNERABLE]
         state = TestState.VULNERABLE if vuln else (TestState.BLOCKED if blocked >= tested and tested > 0 else (TestState.PASS if tested > 0 else TestState.NOT_APPLICABLE))

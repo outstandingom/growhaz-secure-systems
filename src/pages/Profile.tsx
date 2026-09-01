@@ -723,12 +723,12 @@ export default function Profile() {
                               {(report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? (
                                 <>
                                   <Zap className="w-3 h-3 text-purple-400" />
-                                  {report.scan_type === "alpha-g5-pro" ? "AlphaG5 Pro Scan" : "AlphaG5 Professional Scan"}
+                                  {report.scan_type === "alpha-g5-pro" ? "AlphaG5 Pro Elite Scan" : "AlphaG5 Pro Professional Scan"}
                                 </>
                               ) : (
                                 <>
                                   <Shield className="w-3 h-3 text-primary" />
-                                  {report.scan_type === "alpha-g5" ? "AlphaG5 Scan" : "AlphaG1 Basic Scan"}
+                                  {report.scan_type === "alpha-g5" ? "AlphaG5 Pro Scan" : "AlphaG1 Basic Scan"}
                                 </>
                               )}
                             </p>

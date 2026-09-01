@@ -21,4 +21,9 @@ from .prototype_pollution_detector import PrototypePollutionDetector
 from .graphql_detector import GraphQLDetector
 from .smuggling_detector import SmugglingDetector
 from .supply_chain_detector import SupplyChainDetector
+from .command_injection_detector import CommandInjectionDetector
+from .file_upload_detector import FileUploadDetector
+from .rate_limit_detector import RateLimitDetector
+from .business_logic_detector import BusinessLogicDetector
+from .race_condition_detector import RaceConditionDetector
 from .registry import TEST_REGISTRY, get_detector, get_all_detectors

@@ -22,6 +22,11 @@ from .prototype_pollution_detector import PrototypePollutionDetector
 from .graphql_detector import GraphQLDetector
 from .smuggling_detector import SmugglingDetector
 from .supply_chain_detector import SupplyChainDetector
+from .command_injection_detector import CommandInjectionDetector
+from .file_upload_detector import FileUploadDetector
+from .rate_limit_detector import RateLimitDetector
+from .business_logic_detector import BusinessLogicDetector
+from .race_condition_detector import RaceConditionDetector
 
 
 # Ordered list of all detectors to run
@@ -29,6 +34,7 @@ TEST_REGISTRY: List[Type[BaseDetector]] = [
     # High-impact injection tests first
     SQLiDetector,
     XSSDetector,
+    CommandInjectionDetector,
     SSTIDetector,
     XXEDetector,
     PrototypePollutionDetector,
@@ -39,6 +45,11 @@ TEST_REGISTRY: List[Type[BaseDetector]] = [
     MassAssignmentDetector,
     JWTDetector,
     CSRFDetector,
+    # Business logic / abuse
+    BusinessLogicDetector,
+    RaceConditionDetector,
+    RateLimitDetector,
+    FileUploadDetector,
     # Configuration
     CORSDetector,
     SecurityHeadersDetector,
