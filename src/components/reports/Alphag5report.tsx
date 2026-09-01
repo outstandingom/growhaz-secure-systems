@@ -133,9 +133,9 @@ interface SecurityReportProps {
 
 const SCAN_LABELS: Record<string, { short: string; full: string }> = {
   "alpha-g1": { short: "Alpha G1", full: "Alpha G1 Essential" },
-  "alpha-g2": { short: "Alpha G5", full: "Alpha G5 Professional" },
-  "alpha-g5": { short: "Alpha G5", full: "Alpha G5 Professional" },
-  "alpha-g5-pro": { short: "Alpha G5 Pro", full: "Alpha G5 Pro" },
+  "alpha-g2": { short: "Alpha G5 Pro", full: "Alpha G5 Pro Professional" },
+  "alpha-g5": { short: "Alpha G5 Pro", full: "Alpha G5 Pro Professional" },
+  "alpha-g5-pro": { short: "Alpha G5 Pro Elite", full: "Alpha G5 Pro Elite (Offensive)" },
   "alpha-g5-enterprise": { short: "Alpha G5 Enterprise", full: "Alpha G5 Enterprise" },
 };
 

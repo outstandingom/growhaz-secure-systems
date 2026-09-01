@@ -418,9 +418,9 @@ export default function Profile() {
 
   const scanLabel = (scanType: string) => {
     switch (scanType) {
-      case "alpha-g5-pro": return "AlphaG5 Pro Scan";
-      case "alpha-g5": return "AlphaG5 Advanced Scan";
-      case "alpha-g2": return "AlphaG5 Professional Scan";
+      case "alpha-g5-pro": return "AlphaG5 Pro Elite Scan";
+      case "alpha-g5": return "AlphaG5 Pro Scan";
+      case "alpha-g2": return "AlphaG5 Pro Professional Scan";
       default: return "AlphaG1 Basic Scan";
     }
   };
