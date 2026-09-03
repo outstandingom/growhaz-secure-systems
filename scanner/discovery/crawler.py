@@ -276,15 +276,30 @@ class StaticCrawler:
     # Validation — probe candidates and keep only those that resolve
     # ------------------------------------------------------------------
 
+    def _spa_fallback_signature(self) -> tuple:
+        """Fetch an unlikely URL; if the site returns 200 with HTML, capture its
+        signature so we can drop SPA catch-all false positives."""
+        probe_url = urljoin(self.base_url + '/', '__lovable_probe_' + '7f3a9c' + '__/x')
+        r = self.request_engine.request("GET", probe_url)
+        if not r.has_response or r.status_code != 200 or not r.body:
+            return (None, None)
+        ct = (r.headers.get("Content-Type", "") or "").lower()
+        if 'html' not in ct:
+            return (None, None)
+        # signature = (approx body length, <title> text)
+        title_m = re.search(r'<title[^>]*>([^<]{0,200})</title>', r.body, re.I)
+        title = (title_m.group(1).strip() if title_m else '')
+        return (len(r.body), title)
+
     def _validate_candidates(self, max_probes: int = 300) -> None:
         # 401/403 mean the route exists but is protected — still confirm.
         alive = {200, 201, 202, 204, 301, 302, 303, 307, 308, 401, 403, 405}
+        spa_len, spa_title = self._spa_fallback_signature()
         probed = 0
         for key, meta in list(self.candidate_meta.items()):
             if probed >= max_probes:
                 break
             url = meta['url']
-            method = meta['method']
             # Skip re-probing state-changing endpoints; trust their form source.
             if meta['state_changing']:
                 self._confirm(meta, content_type='', accepts_json=meta['accepts_json'])
@@ -297,6 +312,18 @@ class StaticCrawler:
             if status not in alive:
                 continue
             ct = (r.headers.get("Content-Type", "") or "").lower()
+
+            # Drop SPA catch-all matches: identical length & title as the 404 fallback.
+            if (spa_len is not None and status == 200 and 'html' in ct and r.body
+                    and abs(len(r.body) - spa_len) < 64):
+                title_m = re.search(r'<title[^>]*>([^<]{0,200})</title>', r.body, re.I)
+                title = (title_m.group(1).strip() if title_m else '')
+                if title == spa_title:
+                    # Only keep if it was independently discovered from HTML/sitemap/JS,
+                    # not from generic COMMON_PATH guessing.
+                    if meta['source'] == DiscoverySource.COMMON_PATH:
+                        continue
+
             self._confirm(meta, content_type=ct,
                           accepts_json=meta['accepts_json'] or 'application/json' in ct)
 
