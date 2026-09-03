@@ -1,40 +1,63 @@
+"""
+Static crawler for endpoint discovery.
+
+Strategy (discover-first, then validate):
+  1. Seed from robots.txt, sitemap.xml (recursive), common paths, and SPA hints.
+  2. Fetch homepage + linked HTML pages, follow <a>, <form>, <script src>.
+  3. Mine JS bundles for React-Router `path:"/..."`, `to="/..."`, and
+     `fetch/axios/request("/api/...")` style calls — NOT every quoted string.
+  4. Validate every candidate URL with a lightweight HEAD/GET; keep only
+     URLs that resolve (2xx / 3xx, or 401/403 which prove the route exists).
+  5. Return a clean, deduplicated endpoint inventory.
+"""
+
 import re
-from typing import List, Set
+from typing import List, Set, Iterable
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, urlunparse
 from xml.etree import ElementTree as ET
 
 from scanner.models.endpoint import EndpointInfo, DiscoverySource
 from scanner.engine.request_engine import RequestEngine
 
 
-# Common SPA/API route names we probe when the site is client-rendered.
+# Client-rendered SPA route hints — probed once, kept only if they resolve.
 SPA_ROUTE_HINTS = [
-    '/', '/about', '/contact', '/pricing', '/blog', '/login', '/signup', '/register',
-    '/auth', '/dashboard', '/profile', '/admin', '/settings', '/search',
-    '/security-tools', '/development', '/seo', '/automation', '/marketing',
-    '/projects', '/blockchain', '/verify-document', '/mentorship', '/wallet',
-    '/terms', '/privacy-policy', '/forensic-whitepaper',
+    '/', '/about', '/contact', '/pricing', '/blog', '/login', '/signup',
+    '/register', '/auth', '/dashboard', '/profile', '/admin', '/settings',
+    '/search', '/terms', '/privacy', '/privacy-policy',
 ]
 
 # High-value fingerprint / exposure paths.
 EXPOSURE_PATHS = [
     '/api', '/api/v1', '/api/v2', '/graphql', '/swagger', '/swagger.json',
     '/openapi.json', '/openapi.yaml', '/api-docs',
-    '/robots.txt', '/sitemap.xml', '/sitemap_index.xml', '/.well-known/security.txt',
+    '/robots.txt', '/sitemap.xml', '/sitemap_index.xml',
+    '/.well-known/security.txt',
     '/.env', '/.env.local', '/.env.production', '/.git/HEAD', '/.git/config',
-    '/config.json', '/config.js', '/package.json', '/composer.json',
+    '/config.json', '/package.json',
     '/admin', '/administrator', '/wp-admin', '/wp-login.php',
-    '/login', '/register', '/health', '/healthz', '/status', '/metrics',
-    '/phpinfo.php', '/info.php', '/backup.sql', '/backup.zip', '/db.sql',
+    '/health', '/healthz', '/status', '/metrics',
+    '/phpinfo.php', '/info.php', '/backup.sql', '/backup.zip',
     '/server-status', '/actuator', '/actuator/health', '/actuator/env',
 ]
 
-# Regex to pull path-like strings out of JS bundles (routes, fetch calls).
-JS_PATH_RE = re.compile(r'["\'`](/[a-zA-Z0-9_\-./]{1,120})["\'`]')
-JS_URL_RE = re.compile(r'["\'`](https?://[^"\'`\s]{6,300})["\'`]')
+# Extra sitemap locations to probe.
+SITEMAP_CANDIDATES = [
+    'sitemap.xml', 'sitemap_index.xml', 'sitemap-index.xml',
+    'sitemap/sitemap.xml', 'sitemaps/sitemap.xml', 'sitemap1.xml',
+]
 
-# Skip binary/asset paths that add noise.
+# JS route extraction — precise patterns, not "every quoted /path".
+# React-Router: {path:"/foo"} or path: '/foo'  ; <Link to="/foo"> or to:"/foo"
+JS_ROUTE_RE = re.compile(r'''(?:\bpath|\bto)\s*[:=]\s*["'`](\/[A-Za-z0-9_\-./:]{0,120})["'`]''')
+# API/fetch calls: fetch("/api/x"), axios.get('/api/x'), request(`/api/x`)
+JS_API_RE = re.compile(
+    r'''(?:fetch|axios(?:\.\w+)?|request|http(?:\.\w+)?|\$\.(?:get|post|ajax))\s*\(\s*["'`]([^"'`]+)["'`]'''
+)
+# Absolute same-host URLs in JS
+JS_URL_RE = re.compile(r'''["'`](https?://[^"'`\s]{6,300})["'`]''')
+
 SKIP_EXT = (
     '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp', '.avif',
     '.woff', '.woff2', '.ttf', '.eot', '.otf',
@@ -43,59 +66,69 @@ SKIP_EXT = (
 )
 
 
+def _normalize(url: str) -> str:
+    """Drop fragment, collapse trailing slash (except root)."""
+    try:
+        p = urlparse(url)
+        path = p.path or '/'
+        if len(path) > 1 and path.endswith('/'):
+            path = path.rstrip('/')
+        return urlunparse((p.scheme, p.netloc.lower(), path, p.params, p.query, ''))
+    except Exception:
+        return url
+
+
 class StaticCrawler:
     def __init__(self, base_url: str, request_engine: RequestEngine):
         self.base_url = base_url.rstrip('/')
         self.request_engine = request_engine
         self.visited: Set[str] = set()
-        self.discovered_paths: Set[str] = set()
-        self.endpoints: List[EndpointInfo] = []
+        self.candidates: Set[str] = set()      # normalized URLs pending validation
+        self.candidate_meta: dict = {}         # url -> dict(method, source, params, state_changing)
+        self.confirmed: dict = {}              # key -> EndpointInfo
 
-    # -----------------------------------------------------------------
+    # ------------------------------------------------------------------
     # Helpers
-    # -----------------------------------------------------------------
+    # ------------------------------------------------------------------
 
     def _same_host(self, url: str) -> bool:
         try:
-            a = urlparse(url).netloc.lower().lstrip('www.')
-            b = urlparse(self.base_url).netloc.lower().lstrip('www.')
+            a = urlparse(url).netloc.lower()
+            b = urlparse(self.base_url).netloc.lower()
+            a = a[4:] if a.startswith('www.') else a
+            b = b[4:] if b.startswith('www.') else b
             return a == b or a.endswith('.' + b) or b.endswith('.' + a)
         except Exception:
             return False
 
-    def _resolved_base(self) -> str:
-        """Follow one redirect on the base URL so www./apex normalisation works."""
-        r = self.request_engine.request("GET", self.base_url)
-        if r.has_response and r.response_evidence:
-            # requests already followed redirects; grab final URL from headers/body isn't reliable,
-            # so we trust self.base_url unless a Location suggests otherwise.
-            pass
-        return self.base_url
-
-    def _add_endpoint(self, url: str, method: str = "GET", source: DiscoverySource = DiscoverySource.STATIC_CRAWL,
-                      state_changing: bool = False, params=None, accepts_json: bool = False) -> None:
-        if not url or url.lower().endswith(SKIP_EXT):
+    def _add_candidate(self, url: str, *, method: str = "GET",
+                       source: DiscoverySource = DiscoverySource.STATIC_CRAWL,
+                       state_changing: bool = False, params=None,
+                       accepts_json: bool = False) -> None:
+        if not url:
             return
-        key = f"{method}:{url}"
-        if key in self.discovered_paths:
+        if url.lower().split('?', 1)[0].endswith(SKIP_EXT):
             return
-        self.discovered_paths.add(key)
-        self.endpoints.append(EndpointInfo(
-            url=url,
-            method=method,
-            discovery_source=source,
-            is_state_changing=state_changing,
-            body_params=params if state_changing else [],
-            query_params=params if (params and not state_changing) else [],
+        if not url.startswith(('http://', 'https://')):
+            return
+        if not self._same_host(url):
+            return
+        norm = _normalize(url)
+        key = f"{method}:{norm}"
+        if key in self.candidate_meta:
+            return
+        self.candidates.add(norm)
+        self.candidate_meta[key] = dict(
+            url=norm, method=method, source=source,
+            state_changing=state_changing, params=list(params or []),
             accepts_json=accepts_json,
-        ))
+        )
 
-    # -----------------------------------------------------------------
-    # Discovery sources
-    # -----------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # Seeding
+    # ------------------------------------------------------------------
 
     def _seed_from_sitemap(self, sitemap_url: str, depth: int = 0) -> int:
-        """Recursively parse sitemap / sitemap-index XML into endpoints."""
         if depth > 2:
             return 0
         r = self.request_engine.request("GET", sitemap_url)
@@ -103,25 +136,22 @@ class StaticCrawler:
             return 0
         added = 0
         try:
-            # Strip default namespace to simplify parsing.
             body = re.sub(r'\sxmlns="[^"]+"', '', r.body, count=1)
             root = ET.fromstring(body)
-            tag = root.tag.lower()
-            if 'sitemapindex' in tag:
+            if 'sitemapindex' in root.tag.lower():
                 for loc in root.findall('.//loc'):
                     if loc.text:
                         added += self._seed_from_sitemap(loc.text.strip(), depth + 1)
             else:
                 for loc in root.findall('.//loc'):
                     if loc.text and self._same_host(loc.text):
-                        self._add_endpoint(loc.text.strip())
+                        self._add_candidate(loc.text.strip())
                         added += 1
         except ET.ParseError:
-            # Fallback: pull <loc>…</loc> with regex.
             for m in re.finditer(r'<loc>\s*([^<]+?)\s*</loc>', r.body):
                 url = m.group(1).strip()
                 if self._same_host(url):
-                    self._add_endpoint(url)
+                    self._add_candidate(url)
                     added += 1
         return added
 
@@ -140,116 +170,191 @@ class StaticCrawler:
             elif low.startswith(('disallow:', 'allow:')):
                 path = line.split(':', 1)[1].strip()
                 if path and path != '/':
-                    self._add_endpoint(urljoin(self.base_url + '/', path.lstrip('/')))
+                    self._add_candidate(urljoin(self.base_url + '/', path.lstrip('/')))
 
     def _seed_common_paths(self) -> None:
         for path in SPA_ROUTE_HINTS + EXPOSURE_PATHS:
-            self._add_endpoint(urljoin(self.base_url + '/', path.lstrip('/')))
+            self._add_candidate(
+                urljoin(self.base_url + '/', path.lstrip('/')),
+                source=DiscoverySource.COMMON_PATH,
+            )
 
-    def _extract_from_js(self, js_body: str) -> None:
-        """Extract SPA routes / API paths from JS bundle content."""
-        # Path strings
-        for m in JS_PATH_RE.finditer(js_body):
+    # ------------------------------------------------------------------
+    # JS mining — precise patterns only
+    # ------------------------------------------------------------------
+
+    def _mine_js(self, js_body: str) -> None:
+        seen = set()
+
+        def keep(path: str) -> bool:
+            if not path or path in seen:
+                return False
+            seen.add(path)
+            if path.startswith('//') or path.startswith('data:'):
+                return False
+            # noise filters
+            bad = ('/node_modules/', '/@vite/', '/src/', '/assets/',
+                   '/*.', '://', '{', '}', '\\', ' ')
+            if any(b in path for b in bad):
+                return False
+            if path.lower().endswith(SKIP_EXT):
+                return False
+            if len(path) < 2 or len(path) > 160:
+                return False
+            # must look route-like (start with / and only URL-safe chars)
+            if not re.match(r'^/[A-Za-z0-9_\-./:]*$', path):
+                return False
+            return True
+
+        for m in JS_ROUTE_RE.finditer(js_body):
             path = m.group(1)
-            if any(path.endswith(ext) for ext in SKIP_EXT):
+            if keep(path):
+                self._add_candidate(
+                    urljoin(self.base_url + '/', path.lstrip('/')),
+                    source=DiscoverySource.JS_CRAWL,
+                )
+        for m in JS_API_RE.finditer(js_body):
+            path = m.group(1)
+            if path.startswith('http'):
+                if self._same_host(path):
+                    self._add_candidate(path, source=DiscoverySource.JS_CRAWL,
+                                        accepts_json=True)
                 continue
-            if len(path) < 2 or path.startswith('//'):
-                continue
-            # skip likely file globs / import specifiers
-            if any(bad in path for bad in ['/node_modules/', '/@', '/*.']):
-                continue
-            self._add_endpoint(urljoin(self.base_url + '/', path.lstrip('/')))
-        # Absolute URLs
+            if keep(path):
+                self._add_candidate(
+                    urljoin(self.base_url + '/', path.lstrip('/')),
+                    source=DiscoverySource.JS_CRAWL, accepts_json=True,
+                )
         for m in JS_URL_RE.finditer(js_body):
             url = m.group(1)
             if self._same_host(url):
-                self._add_endpoint(url)
+                self._add_candidate(url, source=DiscoverySource.JS_CRAWL)
 
-    # -----------------------------------------------------------------
-    # Main crawl loop
-    # -----------------------------------------------------------------
+    # ------------------------------------------------------------------
+    # HTML link/form/script extraction (queue driver)
+    # ------------------------------------------------------------------
 
-    def crawl(self, max_pages: int = 100) -> List[EndpointInfo]:
-        self._resolved_base()
+    def _process_html(self, current_url: str, body: str, queue: List[str],
+                      js_scanned: Set[str]) -> None:
+        soup = BeautifulSoup(body, 'html.parser')
 
-        # Seed: base + robots + sitemap + common paths.
-        self._add_endpoint(self.base_url)
+        for a in soup.find_all('a', href=True):
+            href = a['href']
+            if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
+                continue
+            full = urljoin(current_url, href).split('#', 1)[0]
+            if self._same_host(full):
+                self._add_candidate(full)
+                norm = _normalize(full)
+                if norm not in self.visited and norm not in queue:
+                    queue.append(norm)
+
+        for script in soup.find_all('script', src=True):
+            src = script['src']
+            if not src or src.startswith(('javascript:', 'data:')):
+                continue
+            js_url = urljoin(current_url, src)
+            if not self._same_host(js_url) or js_url in js_scanned:
+                continue
+            js_scanned.add(js_url)
+            jr = self.request_engine.request("GET", js_url)
+            if jr.has_response and jr.status_code < 400 and jr.body:
+                self._mine_js(jr.body)
+
+        for form in soup.find_all('form'):
+            action = form.get('action', '') or current_url
+            method = (form.get('method', 'GET') or 'GET').upper()
+            form_url = urljoin(current_url, action)
+            inputs = form.find_all(['input', 'select', 'textarea'])
+            params = [i.get('name') for i in inputs if i.get('name')]
+            state = method in ('POST', 'PUT', 'DELETE', 'PATCH')
+            self._add_candidate(form_url, method=method,
+                                source=DiscoverySource.FORM,
+                                state_changing=state, params=params)
+
+    # ------------------------------------------------------------------
+    # Validation — probe candidates and keep only those that resolve
+    # ------------------------------------------------------------------
+
+    def _validate_candidates(self, max_probes: int = 300) -> None:
+        # 401/403 mean the route exists but is protected — still confirm.
+        alive = {200, 201, 202, 204, 301, 302, 303, 307, 308, 401, 403, 405}
+        probed = 0
+        for key, meta in list(self.candidate_meta.items()):
+            if probed >= max_probes:
+                break
+            url = meta['url']
+            method = meta['method']
+            # Skip re-probing state-changing endpoints; trust their form source.
+            if meta['state_changing']:
+                self._confirm(meta, content_type='', accepts_json=meta['accepts_json'])
+                continue
+            probed += 1
+            r = self.request_engine.request("GET", url)
+            if not r.has_response:
+                continue
+            status = r.status_code
+            if status not in alive:
+                continue
+            ct = (r.headers.get("Content-Type", "") or "").lower()
+            self._confirm(meta, content_type=ct,
+                          accepts_json=meta['accepts_json'] or 'application/json' in ct)
+
+    def _confirm(self, meta: dict, *, content_type: str, accepts_json: bool) -> None:
+        info = EndpointInfo(
+            url=meta['url'],
+            method=meta['method'],
+            discovery_source=meta['source'],
+            is_state_changing=meta['state_changing'],
+            body_params=meta['params'] if meta['state_changing'] else [],
+            query_params=meta['params'] if (meta['params'] and not meta['state_changing']) else [],
+            accepts_json=accepts_json,
+            content_type=content_type,
+        )
+        key = f"{info.method}:{info.url}"
+        if key not in self.confirmed:
+            self.confirmed[key] = info
+
+    # ------------------------------------------------------------------
+    # Main
+    # ------------------------------------------------------------------
+
+    def crawl(self, max_pages: int = 60) -> List[EndpointInfo]:
+        # 1. Seed from every low-cost source.
+        self._add_candidate(self.base_url + '/')
         self._seed_from_robots()
-        self._seed_from_sitemap(urljoin(self.base_url + '/', 'sitemap.xml'))
+        for sm in SITEMAP_CANDIDATES:
+            self._seed_from_sitemap(urljoin(self.base_url + '/', sm))
         self._seed_common_paths()
 
-        urls_to_visit: List[str] = [ep.url for ep in list(self.endpoints)]
-        pages_crawled = 0
+        # 2. Walk HTML pages breadth-first, mining links + JS bundles.
+        queue: List[str] = [_normalize(self.base_url + '/')]
         js_scanned: Set[str] = set()
-
-        while urls_to_visit and pages_crawled < max_pages:
-            current_url = urls_to_visit.pop(0)
-            if current_url in self.visited:
+        pages = 0
+        while queue and pages < max_pages:
+            url = queue.pop(0)
+            if url in self.visited:
                 continue
-            self.visited.add(current_url)
-
-            result = self.request_engine.request("GET", current_url)
-            if not result.has_response or result.status_code >= 400:
+            self.visited.add(url)
+            r = self.request_engine.request("GET", url)
+            if not r.has_response or r.status_code >= 400:
                 continue
-
-            pages_crawled += 1
-            content_type = (result.headers.get("Content-Type", "") or "").lower()
-            body = result.body or ""
-
-            if "application/json" in content_type:
-                self._add_endpoint(current_url, accepts_json=True)
+            pages += 1
+            ct = (r.headers.get("Content-Type", "") or "").lower()
+            body = r.body or ""
+            if "application/json" in ct:
+                self._add_candidate(url, accepts_json=True)
                 continue
-
-            if "javascript" in content_type or current_url.endswith('.js'):
-                if current_url not in js_scanned:
-                    js_scanned.add(current_url)
-                    self._extract_from_js(body)
+            if "javascript" in ct or url.endswith('.js'):
+                if url not in js_scanned:
+                    js_scanned.add(url)
+                    self._mine_js(body)
                 continue
-
-            if "html" not in content_type:
+            if "html" not in ct:
                 continue
+            self._process_html(url, body, queue, js_scanned)
 
-            soup = BeautifulSoup(body, 'html.parser')
+        # 3. Validate every candidate — keep only resolvable endpoints.
+        self._validate_candidates(max_probes=max_pages * 5)
 
-            # <a href>
-            for a_tag in soup.find_all('a', href=True):
-                href = a_tag['href']
-                if not href or href.startswith(('javascript:', 'mailto:', 'tel:', '#')):
-                    continue
-                full_url = urljoin(current_url, href).split('#', 1)[0]
-                if self._same_host(full_url):
-                    if full_url not in self.visited and full_url not in urls_to_visit:
-                        urls_to_visit.append(full_url)
-                    self._add_endpoint(full_url)
-
-            # <script src> — fetch and mine JS bundles for routes/API paths.
-            for script in soup.find_all('script', src=True):
-                src = script['src']
-                if not src or src.startswith(('javascript:', 'data:')):
-                    continue
-                js_url = urljoin(current_url, src)
-                if not self._same_host(js_url) or js_url in js_scanned:
-                    continue
-                js_scanned.add(js_url)
-                self._add_endpoint(js_url)
-                js_res = self.request_engine.request("GET", js_url)
-                if js_res.has_response and js_res.status_code < 400 and js_res.body:
-                    self._extract_from_js(js_res.body)
-
-            # <form>
-            for form in soup.find_all('form'):
-                action = form.get('action', '') or current_url
-                method = (form.get('method', 'GET') or 'GET').upper()
-                form_url = urljoin(current_url, action)
-                inputs = form.find_all(['input', 'select', 'textarea'])
-                params = [inp.get('name') for inp in inputs if inp.get('name')]
-                state_changing = method in ('POST', 'PUT', 'DELETE', 'PATCH')
-                self._add_endpoint(
-                    form_url,
-                    method=method,
-                    source=DiscoverySource.FORM,
-                    state_changing=state_changing,
-                    params=params,
-                )
-
-        return self.endpoints
+        return list(self.confirmed.values())
