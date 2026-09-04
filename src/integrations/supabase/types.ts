@@ -2583,10 +2583,17 @@ export type Database = {
       verified_documents: {
         Row: {
           ai_validation: Json | null
+          anchor_cost_coins: number | null
+          anchor_error: string | null
+          anchor_status: string
+          anchored_at: string | null
           blockchain_tx: string | null
+          chain_block_hash: string | null
           chain_block_number: number | null
           chain_contract_address: string | null
+          chain_explorer_url: string | null
           chain_issuer_address: string | null
+          chain_network: string | null
           chain_tx_hash: string | null
           content_hash: string
           created_at: string
@@ -2597,8 +2604,10 @@ export type Database = {
           id: string
           ipfs_cid: string | null
           ipfs_url: string | null
+          is_public: boolean
           issuer_name: string | null
           knowledge_graph: Json | null
+          merkle_root: string | null
           status: string
           storage_path: string
           tracking_id: string | null
@@ -2607,10 +2616,17 @@ export type Database = {
         }
         Insert: {
           ai_validation?: Json | null
+          anchor_cost_coins?: number | null
+          anchor_error?: string | null
+          anchor_status?: string
+          anchored_at?: string | null
           blockchain_tx?: string | null
+          chain_block_hash?: string | null
           chain_block_number?: number | null
           chain_contract_address?: string | null
+          chain_explorer_url?: string | null
           chain_issuer_address?: string | null
+          chain_network?: string | null
           chain_tx_hash?: string | null
           content_hash: string
           created_at?: string
@@ -2621,8 +2637,10 @@ export type Database = {
           id?: string
           ipfs_cid?: string | null
           ipfs_url?: string | null
+          is_public?: boolean
           issuer_name?: string | null
           knowledge_graph?: Json | null
+          merkle_root?: string | null
           status?: string
           storage_path: string
           tracking_id?: string | null
@@ -2631,10 +2649,17 @@ export type Database = {
         }
         Update: {
           ai_validation?: Json | null
+          anchor_cost_coins?: number | null
+          anchor_error?: string | null
+          anchor_status?: string
+          anchored_at?: string | null
           blockchain_tx?: string | null
+          chain_block_hash?: string | null
           chain_block_number?: number | null
           chain_contract_address?: string | null
+          chain_explorer_url?: string | null
           chain_issuer_address?: string | null
+          chain_network?: string | null
           chain_tx_hash?: string | null
           content_hash?: string
           created_at?: string
@@ -2645,8 +2670,10 @@ export type Database = {
           id?: string
           ipfs_cid?: string | null
           ipfs_url?: string | null
+          is_public?: boolean
           issuer_name?: string | null
           knowledge_graph?: Json | null
+          merkle_root?: string | null
           status?: string
           storage_path?: string
           tracking_id?: string | null
