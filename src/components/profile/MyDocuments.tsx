@@ -93,6 +93,11 @@ export function MyDocuments({ userId }: { userId: string }) {
                     <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                       {d.status}
                     </Badge>
+                    {d.anchor_status === "anchored" && (
+                      <Badge className="bg-primary/15 text-primary border-primary/30">
+                        <ShieldCheck className="w-3 h-3 mr-1" /> On blockchain
+                      </Badge>
+                    )}
                   </div>
                   <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                     <Hash className="w-3 h-3" />
@@ -103,7 +108,32 @@ export function MyDocuments({ userId }: { userId: string }) {
                   </p>
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 flex-wrap">
+                <AnchorOnChain
+                  documentId={d.id}
+                  documentName={d.document_name}
+                  anchorStatus={d.anchor_status}
+                  txHash={d.chain_tx_hash}
+                  blockHash={d.chain_block_hash}
+                  blockNumber={d.chain_block_number}
+                  explorerUrl={d.chain_explorer_url}
+                  onAnchored={(r) =>
+                    setDocs((prev) =>
+                      prev.map((x) =>
+                        x.id === d.id
+                          ? {
+                              ...x,
+                              anchor_status: "anchored",
+                              chain_tx_hash: r.txHash,
+                              chain_block_hash: r.blockHash,
+                              chain_block_number: r.blockNumber,
+                              chain_explorer_url: r.explorerUrl,
+                            }
+                          : x
+                      )
+                    )
+                  }
+                />
                 <Button variant="outline" size="sm" onClick={() => setQrDoc(d)}>
                   <QrCode className="w-4 h-4 mr-1" /> QR
                 </Button>
