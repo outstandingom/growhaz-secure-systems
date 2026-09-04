@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { FileText, QrCode, ExternalLink, Hash, Loader2 } from "lucide-react";
+import { FileText, QrCode, ExternalLink, Hash, Loader2, ShieldCheck } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
+import { AnchorOnChain } from "@/components/blockchain/AnchorOnChain";
 
 interface Doc {
   id: string;
@@ -18,6 +19,11 @@ interface Doc {
   created_at: string;
   storage_path: string;
   extracted_data: any;
+  anchor_status?: string | null;
+  chain_tx_hash?: string | null;
+  chain_block_hash?: string | null;
+  chain_block_number?: number | null;
+  chain_explorer_url?: string | null;
 }
 
 export function MyDocuments({ userId }: { userId: string }) {
