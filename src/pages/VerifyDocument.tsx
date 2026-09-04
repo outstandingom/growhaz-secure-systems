@@ -84,6 +84,62 @@ export default function VerifyDocument() {
                   </div>
                 </div>
 
+                {doc.chain_tx_hash && (
+                  <div className="p-4 rounded-xl bg-primary/5 border border-primary/30 space-y-3">
+                    <div className="text-sm font-semibold flex items-center gap-2">
+                      <ShieldCheck className="w-4 h-4 text-primary" /> Recorded on the
+                      blockchain
+                      {doc.chain_network && (
+                        <Badge variant="outline" className="ml-auto capitalize">
+                          {doc.chain_network}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      <div className="flex flex-col gap-1">
+                        <span className="text-xs text-muted-foreground">
+                          Transaction hash
+                        </span>
+                        <code className="text-xs break-all">{doc.chain_tx_hash}</code>
+                      </div>
+                      {doc.chain_block_hash && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Block hash</span>
+                          <code className="text-xs break-all">{doc.chain_block_hash}</code>
+                        </div>
+                      )}
+                      {doc.chain_block_number != null && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">Block number</span>
+                          <code className="text-xs break-all">{doc.chain_block_number}</code>
+                        </div>
+                      )}
+                      {doc.chain_contract_address && (
+                        <div className="flex flex-col gap-1">
+                          <span className="text-xs text-muted-foreground">
+                            Registry contract
+                          </span>
+                          <code className="text-xs break-all">
+                            {doc.chain_contract_address}
+                          </code>
+                        </div>
+                      )}
+                    </div>
+                    {doc.chain_explorer_url && (
+                      <a
+                        href={doc.chain_explorer_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-primary inline-flex items-center gap-1"
+                      >
+                        Check this record on the public block explorer
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                )}
+
+
                 {doc.extracted_data && Object.keys(doc.extracted_data).length > 0 && (
                   <div className="p-4 rounded-xl bg-card/50 border border-border">
                     <div className="text-sm font-semibold mb-3 flex items-center gap-2">
