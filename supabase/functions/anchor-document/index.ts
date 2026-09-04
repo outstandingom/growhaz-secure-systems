@@ -173,8 +173,11 @@ Deno.serve(async (req) => {
         await admin.rpc("update_coin_balance", {
           p_user_id: userId,
           p_amount: ANCHOR_PRICE_COINS,
-          p_transaction_type: "refund",
+          p_type: "refund",
           p_description: "Refund: blockchain anchoring failed",
+          p_reference_id: documentId ?? null,
+          p_razorpay_payment_id: null,
+          p_razorpay_order_id: null,
         });
       } catch (_) {
         console.error("refund failed for user", userId);
