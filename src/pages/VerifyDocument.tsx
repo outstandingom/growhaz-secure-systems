@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Layout } from "@/components/layout/Layout";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle2, XCircle, Hash, FileText, Network, ShieldCheck, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Hash, FileText, Network, ShieldCheck, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export default function VerifyDocument() {
