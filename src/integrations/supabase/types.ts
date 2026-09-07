@@ -2128,6 +2128,240 @@ export type Database = {
           },
         ]
       }
+      provenance_attestations: {
+        Row: {
+          actor_wallet: string | null
+          block_number: number | null
+          created_at: string
+          explorer_url: string | null
+          id: string
+          proof_hash: string | null
+          record_id: string
+          role: string
+          statement: string | null
+          tx_hash: string | null
+          user_id: string
+          version: number
+        }
+        Insert: {
+          actor_wallet?: string | null
+          block_number?: number | null
+          created_at?: string
+          explorer_url?: string | null
+          id?: string
+          proof_hash?: string | null
+          record_id: string
+          role?: string
+          statement?: string | null
+          tx_hash?: string | null
+          user_id: string
+          version: number
+        }
+        Update: {
+          actor_wallet?: string | null
+          block_number?: number | null
+          created_at?: string
+          explorer_url?: string | null
+          id?: string
+          proof_hash?: string | null
+          record_id?: string
+          role?: string
+          statement?: string | null
+          tx_hash?: string | null
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provenance_attestations_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "provenance_records"
+            referencedColumns: ["record_id"]
+          },
+        ]
+      }
+      provenance_events: {
+        Row: {
+          actor_wallet: string | null
+          block_hash: string | null
+          block_number: number | null
+          created_at: string
+          details: Json | null
+          event_type: string
+          explorer_url: string | null
+          id: string
+          record_id: string
+          tx_hash: string | null
+          user_id: string | null
+          version: number | null
+        }
+        Insert: {
+          actor_wallet?: string | null
+          block_hash?: string | null
+          block_number?: number | null
+          created_at?: string
+          details?: Json | null
+          event_type: string
+          explorer_url?: string | null
+          id?: string
+          record_id: string
+          tx_hash?: string | null
+          user_id?: string | null
+          version?: number | null
+        }
+        Update: {
+          actor_wallet?: string | null
+          block_hash?: string | null
+          block_number?: number | null
+          created_at?: string
+          details?: Json | null
+          event_type?: string
+          explorer_url?: string | null
+          id?: string
+          record_id?: string
+          tx_hash?: string | null
+          user_id?: string | null
+          version?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provenance_events_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "provenance_records"
+            referencedColumns: ["record_id"]
+          },
+        ]
+      }
+      provenance_records: {
+        Row: {
+          chain_network: string
+          contract_address: string | null
+          created_at: string
+          current_version: number
+          document_id: string | null
+          id: string
+          issuer_wallet: string | null
+          record_id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chain_network?: string
+          contract_address?: string | null
+          created_at?: string
+          current_version?: number
+          document_id?: string | null
+          id?: string
+          issuer_wallet?: string | null
+          record_id: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chain_network?: string
+          contract_address?: string | null
+          created_at?: string
+          current_version?: number
+          document_id?: string | null
+          id?: string
+          issuer_wallet?: string | null
+          record_id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      provenance_versions: {
+        Row: {
+          actor_wallet: string | null
+          block_hash: string | null
+          block_number: number | null
+          chain_network: string
+          chain_timestamp: string | null
+          content_hash: string | null
+          contract_address: string | null
+          created_at: string
+          event_type: string
+          explorer_url: string | null
+          file_hash: string | null
+          id: string
+          issuer_wallet: string | null
+          merkle_root: string | null
+          metadata_uri: string | null
+          previous_version: number | null
+          record_id: string
+          semantic_hash: string | null
+          state: string
+          tx_hash: string | null
+          updated_at: string
+          user_id: string
+          version: number
+        }
+        Insert: {
+          actor_wallet?: string | null
+          block_hash?: string | null
+          block_number?: number | null
+          chain_network?: string
+          chain_timestamp?: string | null
+          content_hash?: string | null
+          contract_address?: string | null
+          created_at?: string
+          event_type?: string
+          explorer_url?: string | null
+          file_hash?: string | null
+          id?: string
+          issuer_wallet?: string | null
+          merkle_root?: string | null
+          metadata_uri?: string | null
+          previous_version?: number | null
+          record_id: string
+          semantic_hash?: string | null
+          state?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id: string
+          version: number
+        }
+        Update: {
+          actor_wallet?: string | null
+          block_hash?: string | null
+          block_number?: number | null
+          chain_network?: string
+          chain_timestamp?: string | null
+          content_hash?: string | null
+          contract_address?: string | null
+          created_at?: string
+          event_type?: string
+          explorer_url?: string | null
+          file_hash?: string | null
+          id?: string
+          issuer_wallet?: string | null
+          merkle_root?: string | null
+          metadata_uri?: string | null
+          previous_version?: number | null
+          record_id?: string
+          semantic_hash?: string | null
+          state?: string
+          tx_hash?: string | null
+          updated_at?: string
+          user_id?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provenance_versions_record_id_fkey"
+            columns: ["record_id"]
+            isOneToOne: false
+            referencedRelation: "provenance_records"
+            referencedColumns: ["record_id"]
+          },
+        ]
+      }
       purchases: {
         Row: {
           created_at: string
