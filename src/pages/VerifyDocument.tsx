@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CheckCircle2, XCircle, Hash, FileText, Network, ShieldCheck, ExternalLink, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { DocumentProvenanceSection } from "@/components/provenance/DocumentProvenanceSection";
 
 export default function VerifyDocument() {
   const { id } = useParams<{ id: string }>();
