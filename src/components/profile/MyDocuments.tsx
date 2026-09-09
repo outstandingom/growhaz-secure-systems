@@ -8,6 +8,8 @@ import { QRCodeSVG } from "qrcode.react";
 import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { AnchorOnChain } from "@/components/blockchain/AnchorOnChain";
+import { ProvenanceActions } from "@/components/provenance/ProvenanceActions";
+import { ProvenanceTimeline } from "@/components/provenance/ProvenanceTimeline";
 
 interface Doc {
   id: string;

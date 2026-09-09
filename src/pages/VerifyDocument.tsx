@@ -140,6 +140,15 @@ export default function VerifyDocument() {
                   </div>
                 )}
 
+                <DocumentProvenanceSection
+                  documentId={doc.id}
+                  computed={{
+                    fileHash: doc.file_hash,
+                    contentHash: doc.content_hash,
+                    merkleRoot: doc.merkle_root,
+                  }}
+                />
+
 
                 {doc.extracted_data && Object.keys(doc.extracted_data).length > 0 && (
                   <div className="p-4 rounded-xl bg-card/50 border border-border">
