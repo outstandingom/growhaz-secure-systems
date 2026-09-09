@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { Link } from "react-router-dom";
 import { AnchorOnChain } from "@/components/blockchain/AnchorOnChain";
 import { ProvenanceActions } from "@/components/provenance/ProvenanceActions";
-import { ProvenanceTimeline } from "@/components/provenance/ProvenanceTimeline";
+
 
 interface Doc {
   id: string;
@@ -147,6 +147,10 @@ export function MyDocuments({ userId }: { userId: string }) {
                   <ExternalLink className="w-4 h-4 mr-1" /> Open
                 </Button>
               </div>
+            </div>
+
+            <div className="mt-4">
+              <ProvenanceActions doc={d as any} userId={userId} />
             </div>
           </div>
         ))}
