@@ -54,6 +54,25 @@ module.exports = {
       accounts: [BLOCKCHAIN_PRIVATE_KEY],
       chainId: 80002,
     },
+    // Document-verification provenance layer (ProvenanceRegistry.sol)
+    arbitrumSepolia: {
+      url:
+        process.env.ARBITRUM_SEPOLIA_RPC_URL ||
+        (ALCHEMY_API_KEY
+          ? `https://arb-sepolia.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
+          : "https://sepolia-rollup.arbitrum.io/rpc"),
+      accounts: [BLOCKCHAIN_PRIVATE_KEY],
+      chainId: 421614,
+    },
+    arbitrumOne: {
+      url:
+        process.env.ARBITRUM_ONE_RPC_URL ||
+        (ALCHEMY_API_KEY
+          ? `https://arb-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}`
+          : "https://arb1.arbitrum.io/rpc"),
+      accounts: [BLOCKCHAIN_PRIVATE_KEY],
+      chainId: 42161,
+    },
   },
   paths: { sources: "./contracts", tests: "./test", cache: "./cache", artifacts: "./artifacts" },
 };

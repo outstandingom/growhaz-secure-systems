@@ -16,7 +16,9 @@
     "contracts:estimate-gas:sepolia": "hardhat run scripts/estimate-gas.ts --network sepolia",
     "contracts:deploy": "hardhat run scripts/deploy.ts --network amoy",
     "contracts:deploy:amoy": "hardhat run scripts/deploy.ts --network amoy",
-    "contracts:deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia"
+    "contracts:deploy:sepolia": "hardhat run scripts/deploy.ts --network sepolia",
+    "contracts:deploy:provenance": "hardhat run scripts/deploy-provenance.ts --network arbitrumSepolia",
+    "contracts:deploy:provenance:mainnet": "hardhat run scripts/deploy-provenance.ts --network arbitrumOne"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
