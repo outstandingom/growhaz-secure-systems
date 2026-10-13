@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.anchor-document]
 verify_jwt = false
+
+[functions.trigger-build]
+verify_jwt = false
+
+[functions.build-callback]
+verify_jwt = false
