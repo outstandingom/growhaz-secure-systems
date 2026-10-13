@@ -118,28 +118,36 @@ serve(async (req: Request) => {
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     
+    let supabase: any = null;
     if (supabaseUrl && supabaseServiceKey) {
-      const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      
-      // Check if this build is already approved to start ('building' status)
+      supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+      // Release stale "building" slots older than 45 minutes so the queue never jams
+      await supabase
+        .from("build_queue")
+        .update({ status: "failed", completed_at: new Date().toISOString() })
+        .eq("status", "building")
+        .lt("started_at", new Date(Date.now() - 45 * 60 * 1000).toISOString());
+
       const { data: queueEntry } = await supabase
-        .from('build_queue')
-        .select('status')
-        .eq('build_id', finalBuildId)
-        .single();
-        
-      if (!queueEntry || queueEntry.status !== 'building') {
-        // If not explicitly approved, check if we're under the limit
-        const { data: activeCount } = await supabase.rpc('get_active_build_count');
-        
-        if (typeof activeCount === 'number' && activeCount >= 20) {
-           return new Response(
-             JSON.stringify({ 
-               error: "Build queue is full (max 20). Please use the queue system.",
-               status: "queued" 
-             }),
-             { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
-           );
+        .from("build_queue")
+        .select("id, status")
+        .eq("build_id", finalBuildId)
+        .maybeSingle();
+
+      if (!queueEntry || queueEntry.status !== "building") {
+        const { data: activeCount } = await supabase.rpc("get_active_build_count");
+        if (typeof activeCount === "number" && activeCount >= 20) {
+          return new Response(
+            JSON.stringify({ error: "Build queue is full (max 20). Please try again in a few minutes.", status: "queued" }),
+            { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
+        }
+        if (queueEntry) {
+          await supabase
+            .from("build_queue")
+            .update({ status: "building", started_at: new Date().toISOString() })
+            .eq("id", queueEntry.id);
         }
       }
     }

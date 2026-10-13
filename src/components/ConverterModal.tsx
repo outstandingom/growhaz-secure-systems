@@ -431,16 +431,10 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
       file_name: `${config.appName.trim() || "app"}.apk`,
     });
     const result = await joinQueue(newBuildId);
-    if (!result) {
-      setStep("error");
-      setErrorMsg("Failed to join build queue");
-      return;
-    }
-    if (result.canStart) {
-      triggerActualBuild(newBuildId, result.entry.id);
-    } else {
-      setStep("queued");
-    }
+    // Always hand off to the server: trigger-build decides if a slot is free
+    // and marks the queue entry as building itself. This avoids builds getting
+    // stuck in "waiting" when the browser-side queue check fails silently.
+    triggerActualBuild(newBuildId, result?.entry.id || "");
   };
 
   const finalPrice = discountApplied ? Math.floor(tier.price * 0.8) : tier.price;
