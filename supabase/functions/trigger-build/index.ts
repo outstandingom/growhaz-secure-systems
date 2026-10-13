@@ -1,6 +1,5 @@
 // supabase/functions/trigger-build/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { v4 as uuid } from "https://deno.land/std@0.168.0/uuid/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.3";
 
 const corsHeaders = {
@@ -100,7 +99,7 @@ serve(async (req: Request) => {
     }
 
     // Generate build_id if not provided
-    const finalBuildId = build_id || uuid.generate();
+    const finalBuildId = build_id || crypto.randomUUID();
     console.log("📦 Build ID:", finalBuildId);
 
     // GitHub token & repo
