@@ -217,12 +217,19 @@ serve(async (req: Request) => {
       } catch {
         errorMessage += `: ${errorText}`;
       }
+      if (supabase) {
+        await supabase.from("apk_builds").update({ status: "failed", error_message: errorMessage }).eq("id", finalBuildId);
+        await supabase.from("build_queue").update({ status: "failed", completed_at: new Date().toISOString() }).eq("build_id", finalBuildId);
+      }
       return new Response(
         JSON.stringify({ error: errorMessage }),
         { status: 500, headers: { "Content-Type": "application/json", ...corsHeaders } }
       );
     }
 
+    if (supabase) {
+      await supabase.from("apk_builds").update({ status: "building" }).eq("id", finalBuildId);
+    }
     console.log("✅ Build workflow triggered successfully");
 
     return new Response(
