@@ -72,7 +72,6 @@ serve(async (req: Request) => {
       build_id,
     } = body;
 
-    // Validate required fields
     if (!website_url || !app_name) {
       return new Response(
         JSON.stringify({ error: "website_url and app_name are required" }),
@@ -80,7 +79,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Validate website_url is a valid URL
     try {
       new URL(website_url.startsWith("http") ? website_url : `https://${website_url}`);
     } catch {
@@ -90,7 +88,6 @@ serve(async (req: Request) => {
       );
     }
 
-    // Validate platform
     const validPlatforms = ["android", "ios"];
     if (!validPlatforms.includes(platform.toLowerCase())) {
       return new Response(
@@ -99,13 +96,12 @@ serve(async (req: Request) => {
       );
     }
 
-    // Generate build_id if not provided
     const finalBuildId = build_id || uuid.generate();
     console.log("📦 Build ID:", finalBuildId);
 
-    // GitHub token & repo
     const githubToken = Deno.env.get("GITHUB_TOKEN");
-    const githubRepo = Deno.env.get("GITHUB_REPO"); // e.g., "owner/repo"
+    // ✅ Must be "outstandingom/appify-your-website" — that's the repo holding build.yml
+    const githubRepo = Deno.env.get("GITHUB_REPO");
 
     if (!githubToken || !githubRepo) {
       return new Response(
@@ -114,45 +110,46 @@ serve(async (req: Request) => {
       );
     }
 
-    // --- Build Queue Check ---
     const supabaseUrl = Deno.env.get("SUPABASE_URL");
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
-    
+
+    // --- Build Queue Check ---
     if (supabaseUrl && supabaseServiceKey) {
       const supabase = createClient(supabaseUrl, supabaseServiceKey);
-      
-      // Check if this build is already approved to start ('building' status)
+
       const { data: queueEntry } = await supabase
-        .from('build_queue')
-        .select('status')
-        .eq('build_id', finalBuildId)
+        .from("build_queue")
+        .select("status")
+        .eq("build_id", finalBuildId)
         .single();
-        
-      if (!queueEntry || queueEntry.status !== 'building') {
-        // If not explicitly approved, check if we're under the limit
-        const { data: activeCount } = await supabase.rpc('get_active_build_count');
-        
-        if (typeof activeCount === 'number' && activeCount >= 20) {
-           return new Response(
-             JSON.stringify({ 
-               error: "Build queue is full (max 20). Please use the queue system.",
-               status: "queued" 
-             }),
-             { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
-           );
+
+      if (!queueEntry || queueEntry.status !== "building") {
+        const { data: activeCount } = await supabase.rpc("get_active_build_count");
+
+        if (typeof activeCount === "number" && activeCount >= 20) {
+          return new Response(
+            JSON.stringify({
+              error: "Build queue is full (max 20). Please use the queue system.",
+              status: "queued",
+            }),
+            { status: 429, headers: { "Content-Type": "application/json", ...corsHeaders } }
+          );
         }
       }
     }
     // -------------------------
 
-    // Workflow filename (as it appears in .github/workflows/)
     const workflowId = "build.yml";
     const githubApi = `https://api.github.com/repos/${githubRepo}/actions/workflows/${workflowId}/dispatches`;
 
     console.log("📡 Triggering workflow:", githubApi);
 
-    // Map inputs exactly to the workflow's workflow_dispatch inputs
-    // All values must be strings for GitHub API
+    // ✅ FIX: callback_url is the single missing piece — without it the workflow
+    //         never notifies Supabase that the build finished.
+    const callbackUrl = supabaseUrl
+      ? `${supabaseUrl}/functions/v1/build-callback`
+      : "";
+
     const inputs: Record<string, string> = {
       website_url: website_url,
       app_name: app_name,
@@ -178,7 +175,12 @@ serve(async (req: Request) => {
       proxy_username: proxy_username || "",
       proxy_password: proxy_password || "",
       build_id: finalBuildId,
+      callback_url: callbackUrl, // ✅ ADDED
     };
+
+    if (!callbackUrl) {
+      console.warn("⚠️ SUPABASE_URL not set — callback_url will be empty, build status will never update!");
+    }
 
     const response = await fetch(githubApi, {
       method: "POST",
@@ -188,7 +190,7 @@ serve(async (req: Request) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        ref: "main", // or the branch you want to use (e.g., "main")
+        ref: "main",
         inputs,
       }),
     });
@@ -199,11 +201,17 @@ serve(async (req: Request) => {
       const errorText = await response.text();
       console.error("❌ GitHub API error:", errorText);
       let errorMessage = `GitHub API error (${response.status})`;
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.message || errorMessage;
-      } catch {
-        errorMessage += `: ${errorText}`;
+      if (response.status === 401 || response.status === 403) {
+        errorMessage = "GitHub token is invalid or expired. Renew GITHUB_TOKEN in Supabase secrets.";
+      } else if (response.status === 404) {
+        errorMessage = "Workflow not found. Check GITHUB_REPO secret points to 'outstandingom/appify-your-website' and build.yml exists on 'main'.";
+      } else {
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorMessage;
+        } catch {
+          errorMessage += `: ${errorText}`;
+        }
       }
       return new Response(
         JSON.stringify({ error: errorMessage }),
@@ -213,18 +221,29 @@ serve(async (req: Request) => {
 
     console.log("✅ Build workflow triggered successfully");
 
+    // Pre-create / update the apk_builds row so MyApkBuilds.tsx shows it immediately
+    if (supabaseUrl && supabaseServiceKey) {
+      const supabase = createClient(supabaseUrl, supabaseServiceKey);
+      await supabase.from("apk_builds").upsert({
+        id: finalBuildId,
+        website_url,
+        app_name,
+        package_name: package_name || null,
+        platform: platform.toLowerCase(),
+        tier,
+        build_aab,
+        status: "building",
+        updated_at: new Date().toISOString(),
+      });
+    }
+
     return new Response(
       JSON.stringify({
         status: "build_started",
         build_id: finalBuildId,
         platform: platform.toLowerCase(),
         message: "Build triggered successfully",
-        details: {
-          website_url,
-          app_name,
-          platform,
-          tier,
-        },
+        details: { website_url, app_name, platform, tier },
       }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
