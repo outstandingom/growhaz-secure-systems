@@ -32,8 +32,6 @@ import {
   Zap,
   Package,
   Apple,
-  UploadCloud,
-  AlertTriangle,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWallet } from "@/hooks/useWallet";
@@ -132,16 +130,6 @@ interface BuildConfig {
   platform: "android" | "ios";
   buildAab: boolean;
   enablePush: boolean;
-  // Client-side Firebase config — baked into the APK so the device
-  // can register with FCM and obtain a token. One Firebase project
-  // per converted app (same granularity as a site's own VAPID keys
-  // for browser Web Push — this isn't extra overhead, it's the same
-  // pattern, just a different credential format for WebView/FCM).
-  googleServicesJson: string;
-  // Server-side Firebase Admin credential — used once by the build
-  // pipeline to register this app with the push server. NEVER baked
-  // into the APK.
-  firebaseServiceAccountJson: string;
   enableOffline: boolean;
   offlineMessage: string;
   enableCookies: boolean;
@@ -160,8 +148,6 @@ const DEFAULT_CONFIG: BuildConfig = {
   platform: "android",
   buildAab: false,
   enablePush: false,
-  googleServicesJson: "",
-  firebaseServiceAccountJson: "",
   enableOffline: false,
   offlineMessage: "You are offline. Please check your connection.",
   enableCookies: true,
@@ -187,23 +173,6 @@ const PACKAGE_NAME_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,}$/;
 
 const sanitizeForPackage = (s: string) =>
   s.trim().toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 24) || "app";
-
-// Reads a JSON file from a <input type="file"> event and hands its raw
-// text content back via onLoaded, validating it parses as JSON first.
-function readJsonFile(file: File, onLoaded: (text: string) => void, onError: (msg: string) => void) {
-  const reader = new FileReader();
-  reader.onload = () => {
-    const text = String(reader.result || "");
-    try {
-      JSON.parse(text);
-      onLoaded(text);
-    } catch {
-      onError("That file doesn't look like valid JSON — please re-download it from Firebase.");
-    }
-  };
-  reader.onerror = () => onError("Could not read that file.");
-  reader.readAsText(file);
-}
 
 export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [selectedTier, setSelectedTier] = useState<TierId>("basic");
@@ -376,14 +345,6 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
         splash_color: splashColor,
         status_bar_color: statusBarColor,
         enable_push: pushEnabled,
-        // Client-side cred, baked into the APK by orchestrator.py so
-        // the device can register with FCM and obtain a token.
-        google_services_json: pushEnabled ? (config.googleServicesJson || null) : null,
-        // Server-side cred. Never embedded in the APK — the build
-        // pipeline uses this once, after the Android project is
-        // generated, to register this app's Firebase project with
-        // the push server, then discards it.
-        firebase_service_account_json: pushEnabled ? (config.firebaseServiceAccountJson || null) : null,
         enable_offline: u.offline ? config.enableOffline : false,
         offline_message: config.offlineMessage,
         enable_analytics: false,
@@ -1194,52 +1155,6 @@ function ColorField({
           className="flex-1 rounded-xl font-mono text-xs"
         />
       </div>
-    </div>
-  );
-}
-
-// ---------- Firebase File Field ----------
-function FirebaseFileField({
-  label,
-  helpText,
-  value,
-  onFile,
-}: {
-  label: string;
-  helpText: string;
-  value: string;
-  onFile: (text: string) => void;
-}) {
-  const hasValue = value.trim().length > 0;
-
-  return (
-    <div className="space-y-1.5">
-      <Label className="text-xs flex items-center gap-1.5">
-        {label}
-        {hasValue && <CheckCircle2 className="w-3.5 h-3.5 text-primary" />}
-      </Label>
-      <label
-        className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs cursor-pointer transition-colors ${
-          hasValue
-            ? "border-primary/40 bg-primary/5 text-foreground"
-            : "border-border bg-muted/20 text-muted-foreground hover:text-foreground"
-        }`}
-      >
-        <UploadCloud className="w-3.5 h-3.5 shrink-0" />
-        <span className="truncate">{hasValue ? "File loaded — click to replace" : "Click to upload .json file"}</span>
-        <input
-          type="file"
-          accept=".json,application/json"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (!file) return;
-            readJsonFile(file, onFile, (msg) => alert(msg));
-            e.target.value = "";
-          }}
-        />
-      </label>
-      <p className="text-[11px] text-muted-foreground leading-relaxed">{helpText}</p>
     </div>
   );
 }
