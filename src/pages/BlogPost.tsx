@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { useToast } from "@/hooks/use-toast";
 import { Seo } from "@/components/Seo";
+import { FALLBACK_BLOG_POSTS } from "@/data/blogFallbacks";
 
 interface BlogPost {
   id: string;
@@ -54,12 +55,20 @@ export default function BlogPostPage() {
       .eq("is_published", true)
       .maybeSingle();
 
-    if (error || !data) {
+    let postData = data;
+    if (!postData) {
+      const fallback = FALLBACK_BLOG_POSTS.find((p) => p.slug === postSlug);
+      if (fallback) {
+        postData = fallback as any;
+      }
+    }
+
+    if (!postData) {
       navigate("/blog");
       return;
     }
 
-    setPost(data);
+    setPost(postData);
     
     // Fetch related posts based on tags
     if (data.tags.length > 0) {

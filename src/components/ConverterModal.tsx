@@ -246,16 +246,10 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
     setConfig((c) => ({ ...c, ...p }));
 
   const packageValid = PACKAGE_NAME_REGEX.test(config.packageName.trim());
-  const pushCredentialsOk =
-    !config.enablePush ||
-    !tier.unlocks.push ||
-    (config.googleServicesJson.trim().length > 0 &&
-      config.firebaseServiceAccountJson.trim().length > 0);
   const isValid =
     config.websiteUrl.trim().length > 0 &&
     config.appName.trim().length > 0 &&
-    packageValid &&
-    pushCredentialsOk;
+    packageValid;
 
   // Load Razorpay script
   useEffect(() => {
@@ -893,30 +887,17 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               )}
               {config.enablePush && (
                 <div className="space-y-3 pt-1">
-                  <div className="flex items-start gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                    <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
-                    <p className="text-[11px] text-amber-700 dark:text-amber-400 leading-relaxed">
-                      Push requires your own free Firebase project (one per app — WebView apps
-                      can't use browser push, so this is the Android equivalent). Create one at{" "}
-                      <a href="https://console.firebase.google.com" target="_blank" rel="noreferrer" className="underline font-medium">
-                        console.firebase.google.com
-                      </a>, then upload both files below.
-                    </p>
+                  <div className="flex items-start gap-2.5 px-3.5 py-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <div className="space-y-1 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                      <p className="font-semibold text-emerald-950 dark:text-emerald-100 flex items-center gap-1.5">
+                        Zero-Setup Native Push Engine
+                      </p>
+                      <p className="text-[11px] text-muted-foreground dark:text-muted-foreground/90">
+                        <strong>100% Private & Autonomous:</strong> You do NOT need to create a Firebase account or upload any sensitive private keys. GrowHaz bakes an automated native notification channel directly into your APK, allowing your mobile app to display alerts on the user's phone with zero setup!
+                      </p>
+                    </div>
                   </div>
-
-                  <FirebaseFileField
-                    label="google-services.json"
-                    helpText="Project Settings → General → Your apps → download. Gets baked into the app."
-                    value={config.googleServicesJson}
-                    onFile={(text) => patch({ googleServicesJson: text })}
-                  />
-
-                  <FirebaseFileField
-                    label="Firebase service account key"
-                    helpText="Project Settings → Service accounts → Generate new private key. Used only to register your app with the push server — never stored in the APK."
-                    value={config.firebaseServiceAccountJson}
-                    onFile={(text) => patch({ firebaseServiceAccountJson: text })}
-                  />
                 </div>
               )}
             </UpgradeSection>

@@ -6,6 +6,7 @@ import { Search, BookOpen } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { BlogCategories, BLOG_CATEGORIES } from "@/components/blog/BlogCategories";
 import { BlogCard } from "@/components/blog/BlogCard";
+import { FALLBACK_BLOG_POSTS } from "@/data/blogFallbacks";
 
 interface BlogPost {
   id: string;
@@ -36,9 +37,27 @@ export default function Blog() {
       .eq("is_published", true)
       .order("published_at", { ascending: false });
 
-    if (!error && data) {
-      setPosts(data as BlogPost[]);
-    }
+    const fetchedPosts = (!error && data) ? (data as BlogPost[]) : [];
+    const merged = [...fetchedPosts];
+    
+    // Add fallback posts if not present in DB
+    FALLBACK_BLOG_POSTS.forEach((fb) => {
+      if (!merged.some((p) => p.slug === fb.slug)) {
+        merged.unshift({
+          id: fb.id,
+          title: fb.title,
+          slug: fb.slug,
+          excerpt: fb.excerpt,
+          featured_image: fb.featured_image,
+          author_name: fb.author_name,
+          tags: fb.tags,
+          category: fb.category,
+          published_at: fb.published_at,
+        });
+      }
+    });
+
+    setPosts(merged);
     setLoading(false);
   };
 

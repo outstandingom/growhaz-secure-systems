@@ -16,6 +16,8 @@ interface BuildRequest {
   splash_color?: string;
   status_bar_color?: string;
   enable_push?: boolean;
+  google_services_json?: string;
+  firebase_service_account_json?: string;
   enable_offline?: boolean;
   offline_message?: string;
   enable_analytics?: boolean;
@@ -52,6 +54,8 @@ serve(async (req: Request) => {
       splash_color = "#10B981",
       status_bar_color = "#000000",
       enable_push = false,
+      google_services_json,
+      firebase_service_account_json,
       enable_offline = false,
       offline_message = "You are offline. Please check your connection.",
       enable_analytics = false,
@@ -168,6 +172,8 @@ serve(async (req: Request) => {
       splash_color: splash_color,
       status_bar_color: status_bar_color,
       enable_push: String(enable_push),
+      google_services_json: google_services_json || "",
+      firebase_service_account_json: firebase_service_account_json || "",
       enable_offline: String(enable_offline),
       offline_message: offline_message,
       enable_analytics: String(enable_analytics),
