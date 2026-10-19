@@ -32,6 +32,9 @@ import {
   Zap,
   Package,
   Apple,
+  Upload,
+  Link2,
+  Image as ImageIcon,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useWallet } from "@/hooks/useWallet";
@@ -193,9 +196,21 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const [couponError, setCouponError] = useState("");
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const logoFileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { balance, fetchBalance, fetchTransactions } = useWallet();
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        patch({ logoPreview: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const tier = getTier(selectedTier);
   const next = nextTier(selectedTier);
@@ -752,14 +767,67 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
               onUpgrade={() => setSelectedTier((t) => (t === "basic" ? "logo" : t))}
             >
               <div className="space-y-2">
-                <Label htmlFor="logoPreview">App Icon URL</Label>
-                <Input
-                  id="logoPreview"
-                  placeholder="https://example.com/icon.png"
-                  value={config.logoPreview}
-                  onChange={(e) => patch({ logoPreview: e.target.value })}
-                  className="rounded-xl"
-                />
+                <Label htmlFor="logoPreview" className="flex items-center gap-2 text-sm font-medium">
+                  <ImageIcon className="w-4 h-4 text-primary" />
+                  App Icon & Splash Screen Image
+                  <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+                </Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="logoPreview"
+                      placeholder="https://example.com/icon.png"
+                      value={config.logoPreview}
+                      onChange={(e) => patch({ logoPreview: e.target.value })}
+                      className="rounded-xl h-11 pl-9 text-xs"
+                    />
+                  </div>
+                  <input
+                    ref={logoFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/svg+xml"
+                    className="hidden"
+                    onChange={handleLogoUpload}
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => logoFileRef.current?.click()}
+                    className="rounded-xl h-11 shrink-0 flex items-center gap-1.5 text-xs"
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    Upload File
+                  </Button>
+                </div>
+
+                {config.logoPreview && (
+                  <div className="flex items-center gap-3 p-2.5 rounded-xl border border-primary/20 bg-primary/5">
+                    <img
+                      src={config.logoPreview}
+                      alt="Icon Preview"
+                      className="w-12 h-12 rounded-xl object-cover shadow-sm bg-background border"
+                      onError={(e) => {
+                        (e.target as HTMLElement).style.display = "none";
+                      }}
+                    />
+                    <div className="text-xs space-y-0.5 overflow-hidden">
+                      <p className="font-medium text-foreground truncate">Selected Icon & Splash Image</p>
+                      <p className="text-[11px] text-muted-foreground truncate">
+                        {config.logoPreview.startsWith("data:") ? "Local file uploaded" : config.logoPreview}
+                      </p>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => patch({ logoPreview: "" })}
+                      className="ml-auto text-xs text-muted-foreground hover:text-destructive px-2 py-1 h-7"
+                    >
+                      Clear
+                    </Button>
+                  </div>
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <ColorField
