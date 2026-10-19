@@ -328,9 +328,7 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
       const u = tier.unlocks;
 
-      const iconUrl = u.customIcon && config.logoPreview
-        ? config.logoPreview
-        : GROWHAZ_ICON_URL;
+      const iconUrl = config.logoPreview?.trim() || GROWHAZ_ICON_URL;
       const splashColor = u.customColors ? config.splashColor : "#FFFFFF";
       const statusBarColor = u.customColors ? config.statusBarColor : "#FFFFFF";
       const platform = u.ios ? config.platform : "android";
@@ -552,10 +550,10 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
           description: "Must look like com.company.appname (lowercase, at least 2 dots)",
           variant: "destructive",
         });
-      } else if (!pushCredentialsOk) {
+      } else {
         toast({
-          title: "Firebase files required",
-          description: "Upload both google-services.json and your Firebase service account key to enable push.",
+          title: "Missing required fields",
+          description: "Please enter a valid website URL and app name.",
           variant: "destructive",
         });
       }
