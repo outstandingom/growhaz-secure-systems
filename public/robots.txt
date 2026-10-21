@@ -34,35 +34,42 @@ Allow: /
 User-agent: WhatsApp
 Allow: /
 
-# AI / answer-engine crawlers (AEO)
+# AI search and answer-engine crawlers; allow the public founder profile.
 User-agent: GPTBot
 Allow: /
 
 User-agent: OAI-SearchBot
+Allow: /founder/om-uikey
 Allow: /
 
 User-agent: ChatGPT-User
+Allow: /founder/om-uikey
 Allow: /
 
 User-agent: ClaudeBot
 Allow: /
 
 User-agent: Claude-User
+Allow: /founder/om-uikey
 Allow: /
 
 User-agent: Claude-SearchBot
+Allow: /founder/om-uikey
 Allow: /
 
 User-agent: anthropic-ai
 Allow: /
 
 User-agent: PerplexityBot
+Allow: /founder/om-uikey
 Allow: /
 
 User-agent: Perplexity-User
+Allow: /founder/om-uikey
 Allow: /
 
 User-agent: Gemini-Deep-Research
+Allow: /founder/om-uikey
 Allow: /
 
 User-agent: Bytespider

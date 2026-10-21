@@ -15,6 +15,11 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 
 const SITE_URL = "https://www.growhaz.in";
+const FOUNDER_PATH = "/founder/om-uikey";
+const FOUNDER_IMAGE = "/__l5e/assets-v1/f5f26144-8598-4fb6-8c6a-6ecd385c054b/om-uikey-founder.png";
+const FOUNDER_TITLE = "Om Uikey, Founder of GrowHaz | Cybersecurity, Blockchain & AI";
+const FOUNDER_DESCRIPTION =
+  "Om Uikey is the founder and CEO of GrowHaz, building blockchain document verification, cybersecurity and adaptive-firewall research, and useful AI automation for real-world problems.";
 const SUPABASE_URL = "https://hkigsjwppfbtkuqhaxsp.supabase.co";
 const SUPABASE_ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhraWdzandwcGZidGt1cWhheHNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjkxODY2MjEsImV4cCI6MjA4NDc2MjYyMX0.wNueoaWZWlJY5TnQiZQKEfKwaSPhyt69X3M80ezO-Gc";
@@ -33,6 +38,7 @@ const STATIC_ROUTES = [
   { path: "/blockchain", priority: "0.8" },
   { path: "/verify-document", priority: "0.8" },
   { path: "/about", priority: "0.7" },
+  { path: FOUNDER_PATH, priority: "0.7" },
   { path: "/contact", priority: "0.7" },
   { path: "/blog", priority: "0.9" },
   { path: "/mentorship", priority: "0.8" },
@@ -111,13 +117,19 @@ async function fetchPublishedPosts() {
 }
 
 /** Replace/insert head tags in the built index.html shell. */
-function buildHtml(shell, { title, description, canonical, headExtra, bodyHtml, ogType }) {
+function buildHtml(shell, { title, description, canonical, headExtra, bodyHtml, ogType, twitterCard }) {
   let html = shell;
 
   if (ogType) {
     html = html.replace(
       /<meta property="og:type"[^>]*>/,
       `<meta property="og:type" content="${escapeAttr(ogType)}" />`,
+    );
+  }
+  if (twitterCard) {
+    html = html.replace(
+      /<meta name="twitter:card"[^>]*>/,
+      `<meta name="twitter:card" content="${escapeAttr(twitterCard)}" />`,
     );
   }
 
@@ -269,6 +281,87 @@ function blogIndexHtml(shell, posts) {
   });
 }
 
+function founderPageHtml(shell) {
+  const canonical = `${SITE_URL}${FOUNDER_PATH}`;
+  const image = `${SITE_URL}${FOUNDER_IMAGE}`;
+  const person = {
+    "@type": "Person",
+    "@id": `${canonical}#person`,
+    name: "Om Uikey",
+    url: canonical,
+    image,
+    jobTitle: "Founder & CEO",
+    description: FOUNDER_DESCRIPTION,
+    worksFor: { "@id": `${SITE_URL}/#organization`, name: "GrowHaz" },
+    founderOf: { "@id": `${SITE_URL}/#organization`, name: "GrowHaz" },
+    knowsAbout: [
+      "Blockchain document verification and provenance",
+      "Cybersecurity",
+      "Adaptive firewall research",
+      "AI and workflow automation",
+      "Software engineering",
+    ],
+  };
+  const profile = {
+    "@context": "https://schema.org",
+    "@type": "ProfilePage",
+    "@id": canonical,
+    url: canonical,
+    name: FOUNDER_TITLE,
+    mainEntity: person,
+  };
+  const breadcrumb = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      { "@type": "ListItem", position: 1, name: "Home", item: `${SITE_URL}/` },
+      { "@type": "ListItem", position: 2, name: "About GrowHaz", item: `${SITE_URL}/about` },
+      { "@type": "ListItem", position: 3, name: "Om Uikey", item: canonical },
+    ],
+  };
+  const headExtra = [
+    `<script type="application/ld+json">${JSON.stringify(profile)}</script>`,
+    `<script type="application/ld+json">${JSON.stringify(breadcrumb)}</script>`,
+  ].join("\n    ");
+  const bodyHtml = `
+    <main class="section-container">
+      <article>
+        <nav aria-label="Breadcrumb"><a href="/">Home</a> / <a href="/about">About GrowHaz</a> / <span>Founder</span></nav>
+        <header>
+          <img src="${escapeAttr(FOUNDER_IMAGE)}" alt="Portrait of Om Uikey, Founder and CEO of GrowHaz" width="280" fetchpriority="high" />
+          <p>Founder &amp; CEO of GrowHaz</p>
+          <h1>Om Uikey</h1>
+          <p>Software developer, cybersecurity researcher and AI builder focused on practical technology.</p>
+          <p>Om Uikey is the founder and CEO of GrowHaz. He builds practical technology to solve real-world problems, including blockchain document verification and provenance, cybersecurity research into adaptive firewalls, and AI automation where it is useful.</p>
+        </header>
+        <section aria-labelledby="founder-work">
+          <h2 id="founder-work">What Om Uikey works on</h2>
+          <ul>
+            <li><strong>Blockchain document verification:</strong> document integrity, provenance and traceable process records.</li>
+            <li><strong>Cybersecurity:</strong> website security assessment, evidence-based findings and research into adaptive firewall systems.</li>
+            <li><strong>AI and automation:</strong> applying AI and workflow automation where they solve a practical problem.</li>
+          </ul>
+          <p>At GrowHaz, Om works across software engineering, cybersecurity, blockchain and automation to build useful systems for businesses and people.</p>
+          <ul>
+            <li><a href="/blockchain">Blockchain document verification</a></li>
+            <li><a href="/security-tools">Cybersecurity tools</a></li>
+            <li><a href="/automation">Automation tools</a></li>
+            <li><a href="/about">About GrowHaz</a></li>
+          </ul>
+        </section>
+      </article>
+    </main>`;
+
+  return buildHtml(shell, {
+    title: FOUNDER_TITLE,
+    description: FOUNDER_DESCRIPTION,
+    canonical,
+    headExtra,
+    bodyHtml,
+    twitterCard: "summary_large_image",
+  });
+}
+
 function sitemapXml(posts) {
   const entry = ({ loc, lastmod, priority }) =>
     [
@@ -325,10 +418,11 @@ async function main() {
     writeFile(`blog/${post.slug}/index.html`, html);
     writeFile(`blog/${post.slug}.html`, html);
   }
+  writeFile("founder/om-uikey/index.html", founderPageHtml(shell));
   writeFile("blog/index.html", blogIndexHtml(shell, posts));
   writeFile("sitemap.xml", sitemapXml(posts));
 
-  console.log(`prerender-blog: wrote ${posts.length} post pages + blog index + sitemap.xml`);
+  console.log(`prerender-blog: wrote founder profile, ${posts.length} post pages + blog index + sitemap.xml`);
 }
 
 main().catch((error) => {

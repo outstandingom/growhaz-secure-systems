@@ -45,6 +45,10 @@
   <priority>0.7</priority>
 </url>
 <url>
+  <loc>https://www.growhaz.in/founder/om-uikey</loc>
+  <priority>0.7</priority>
+</url>
+<url>
   <loc>https://www.growhaz.in/contact</loc>
   <priority>0.7</priority>
 </url>
@@ -63,6 +67,11 @@
 <url>
   <loc>https://www.growhaz.in/privacy-policy</loc>
   <priority>0.3</priority>
+</url>
+<url>
+  <loc>https://www.growhaz.in/blog/how-to-setup-firebase-push-notifications-growhaz</loc>
+  <lastmod>2026-10-17T14:16:25.589Z</lastmod>
+  <priority>0.7</priority>
 </url>
 <url>
   <loc>https://www.growhaz.in/blog/aws-vs-oracle-cloud-security-testing-tools</loc>
