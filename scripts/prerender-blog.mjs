@@ -17,7 +17,6 @@ import { resolve, dirname } from "node:path";
 const SITE_URL = "https://www.growhaz.in";
 const FOUNDER_PATH = "/founder/om-uikey";
 const FOUNDER_IMAGE = "/__l5e/assets-v1/f5f26144-8598-4fb6-8c6a-6ecd385c054b/om-uikey-founder.png";
-const FOUNDER_SOCIAL_IMAGE = "/__l5e/assets-v1/2cca1b45-a6c0-4347-9f2c-4e981af3e195/om-uikey-social.jpg";
 const FOUNDER_TITLE = "Om Uikey, Founder of GrowHaz | Cybersecurity, Blockchain & AI";
 const FOUNDER_DESCRIPTION =
   "Om Uikey is the founder and CEO of GrowHaz, building blockchain document verification, cybersecurity and adaptive-firewall research, and useful AI automation for real-world problems.";
@@ -321,8 +320,6 @@ function founderPageHtml(shell) {
     ],
   };
   const headExtra = [
-    `<meta property="og:image" content="${escapeAttr(`${SITE_URL}${FOUNDER_SOCIAL_IMAGE}`)}" />`,
-    `<meta name="twitter:image" content="${escapeAttr(`${SITE_URL}${FOUNDER_SOCIAL_IMAGE}`)}" />`,
     `<script type="application/ld+json">${JSON.stringify(profile)}</script>`,
     `<script type="application/ld+json">${JSON.stringify(breadcrumb)}</script>`,
   ].join("\n    ");
