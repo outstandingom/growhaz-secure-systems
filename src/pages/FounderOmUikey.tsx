@@ -2,6 +2,7 @@ import { Layout } from "@/components/layout/Layout";
 import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
+import founderPortrait from "@/assets/om-uikey-founder.png.asset.json";
 import {
   ArrowRight,
   Brain,
@@ -136,7 +137,8 @@ const faq = [
   },
   {
     question: "Who is the founder of GrowHaz?",
-    answer: "GrowHaz was founded by Om Uikey, who serves as its Founder & CEO.",
+    answer:
+      "GrowHaz was founded by Om Uikey, who serves as its Founder & CEO. His work focuses on practical technology for real-world problems, including blockchain document verification, cybersecurity research into adaptive firewalls, and AI automation where it is useful.",
   },
   {
     question: "What does Om Uikey do?",
@@ -183,11 +185,18 @@ const jsonLd = {
       url: "https://www.growhaz.in/",
     },
     url: "https://www.growhaz.in/founder/om-uikey",
+    image: `https://www.growhaz.in${founderPortrait.url}`,
+    description:
+      "Om Uikey is the Founder and CEO of GrowHaz. He builds practical technology for real-world problems, including blockchain document verification, cybersecurity research into adaptive firewalls, and useful AI automation.",
+    founderOf: { "@id": "https://www.growhaz.in/#organization", name: "GrowHaz" },
     knowsAbout: [
       "Problem Solving",
       "Cybersecurity",
+      "Adaptive firewall research",
       "Artificial Intelligence",
       "Blockchain",
+      "Blockchain document verification and provenance",
+      "AI automation",
       "Automation",
       "Workflow Engineering",
       "Software Engineering",
@@ -201,10 +210,13 @@ function FounderPhoto({ className = "" }: { className?: string }) {
     <div
       className={`relative aspect-square w-full max-w-[280px] rounded-2xl border border-border bg-card overflow-hidden ${className}`}
     >
-      <div className="absolute inset-0 bg-gradient-to-br from-primary/20 via-transparent to-primary/5" />
-      <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-6xl font-bold gradient-text tracking-tight">OU</span>
-      </div>
+      <img
+        src={founderPortrait.url}
+        alt="Portrait of Om Uikey, Founder and CEO of GrowHaz"
+        className="absolute inset-0 size-full object-cover object-[center_28%]"
+        loading="eager"
+        fetchPriority="high"
+      />
     </div>
   );
 }
@@ -213,8 +225,8 @@ export default function FounderOmUikey() {
   return (
     <Layout>
       <Seo
-        title="Om Uikey — Founder & CEO of GrowHaz | AI & Cybersecurity"
-        description="Meet Om Uikey, Founder & CEO of GrowHaz. Explore his work across software development, artificial intelligence, cybersecurity, blockchain, automation and technology research."
+        title="Om Uikey, Founder of GrowHaz | Cybersecurity, Blockchain & AI"
+        description="Om Uikey is the founder and CEO of GrowHaz, building blockchain document verification, cybersecurity and adaptive-firewall research, and useful AI automation for real-world problems."
         path="/founder/om-uikey"
         faq={faq}
         jsonLd={jsonLd}
@@ -231,8 +243,9 @@ export default function FounderOmUikey() {
               Software Developer • AI Builder • Cybersecurity Researcher • Entrepreneur
             </p>
             <p className="text-muted-foreground leading-relaxed mb-6">
-              Om Uikey is the Founder &amp; CEO of GrowHaz, focused on building practical technology products across
-              artificial intelligence, cybersecurity, software engineering, blockchain, automation and workflow systems.
+              Om Uikey is the Founder and CEO of GrowHaz. He builds practical technology to solve real-world problems,
+              including blockchain document verification and provenance, cybersecurity research into adaptive firewalls,
+              and AI automation where it meaningfully helps.
             </p>
             <div className="flex flex-wrap gap-3 justify-center md:justify-start">
               <a href="#featured-work">
@@ -271,8 +284,9 @@ export default function FounderOmUikey() {
             </p>
             <p>
               His main areas of work are artificial intelligence, cybersecurity, blockchain, automation and software
-              engineering. Day to day this means writing application code, building security testing tooling, designing
-              data and workflow models, and integrating AI into systems where it produces a measurable result.
+              engineering. His work includes blockchain document verification and provenance, cybersecurity research
+              including adaptive-firewall concepts, security testing tools, and AI-powered automation for practical
+              workflows.
             </p>
             <p>
               He is interested in practical technology research — testing ideas as working prototypes, keeping
