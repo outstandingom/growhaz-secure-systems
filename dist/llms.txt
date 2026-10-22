@@ -10,6 +10,10 @@ Founded by: Om Uikey
 Location: India (serving clients worldwide)
 Contact: https://www.growhaz.in/contact
 
+## Founder
+
+- [Om Uikey — Founder & CEO of GrowHaz](/founder/om-uikey): Om Uikey leads GrowHaz and builds practical technology for real-world problems, including blockchain document verification and provenance, cybersecurity research into adaptive firewalls, and AI automation where useful.
+
 ## What GrowHaz does
 
 - **Website security scanning** — Alpha G1 (essential vulnerability scan) and Alpha G2
