@@ -2,7 +2,6 @@ import { Layout } from "@/components/layout/Layout";
 import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import founderPortrait from "@/assets/om-uikey-founder.png.asset.json";
 import {
   ArrowRight,
   Brain,
@@ -19,6 +18,12 @@ import {
   Twitter,
   Globe,
 } from "lucide-react";
+
+/**
+ * Founder image — served from /public/founder.jpeg
+ * In Vite/React, files inside `public/` are available at the root path.
+ */
+const FOUNDER_IMAGE = "/founder.jpeg";
 
 /**
  * Centralized social configuration.
@@ -185,7 +190,7 @@ const jsonLd = {
       url: "https://www.growhaz.in/",
     },
     url: "https://www.growhaz.in/founder/om-uikey",
-    image: `https://www.growhaz.in${founderPortrait.url}`,
+    image: `https://www.growhaz.in${FOUNDER_IMAGE}`,
     description:
       "Om Uikey is the Founder and CEO of GrowHaz. He builds practical technology for real-world problems, including blockchain document verification, cybersecurity research into adaptive firewalls, and useful AI automation.",
     founderOf: { "@id": "https://www.growhaz.in/#organization", name: "GrowHaz" },
@@ -211,7 +216,7 @@ function FounderPhoto({ className = "" }: { className?: string }) {
       className={`relative aspect-square w-full max-w-[280px] rounded-2xl border border-border bg-card overflow-hidden ${className}`}
     >
       <img
-        src={founderPortrait.url}
+        src={FOUNDER_IMAGE}
         alt="Portrait of Om Uikey, Founder and CEO of GrowHaz"
         className="absolute inset-0 size-full object-cover object-[center_28%]"
         loading="eager"
