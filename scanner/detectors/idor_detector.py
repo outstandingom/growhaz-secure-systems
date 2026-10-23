@@ -32,6 +32,10 @@ IDOR_URL_KEYWORDS = [
     '/api/documents/', '/api/accounts/',
 ]
 
+# Dynamic ID patterns: /resource/123 or /resource/uuid
+DYNAMIC_ID_RE = re.compile(r'/\d{1,10}(?:/|$)')
+UUID_RE = re.compile(r'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:/|$)', re.IGNORECASE)
+
 
 class IDORDetector(BaseDetector):
     name = "Insecure Direct Object Reference (IDOR)"
@@ -44,7 +48,7 @@ class IDORDetector(BaseDetector):
         tested = 0
         blocked = 0
 
-        # Find IDOR-candidate endpoints
+        # Find IDOR-candidate endpoints (also detect /resource/123 and UUID patterns dynamically)
         idor_endpoints = []
         for ep in endpoints:
             url_lower = ep.url.lower()
@@ -54,11 +58,15 @@ class IDORDetector(BaseDetector):
                 idor_endpoints.append(ep)
             elif ep.path_params:
                 idor_endpoints.append(ep)
+            elif DYNAMIC_ID_RE.search(ep.url):
+                idor_endpoints.append(ep)
+            elif UUID_RE.search(ep.url):
+                idor_endpoints.append(ep)
 
         if not idor_endpoints:
             return DetectorResult(
-                test_state=TestState.NOT_APPLICABLE,
-                details="No IDOR-candidate endpoints found"
+                test_state=TestState.NOT_TESTED,
+                details="No IDOR-candidate endpoints found — run with --js flag for SPA crawling"
             )
 
         if not auth_context.has_two_users:

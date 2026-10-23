@@ -385,3 +385,327 @@ class StaticCrawler:
         self._validate_candidates(max_probes=max_pages * 5)
 
         return list(self.confirmed.values())
+
+
+class PlaywrightCrawler:
+    """
+    Headless browser crawler for SPA websites (React/Next.js/Angular).
+    Executes JavaScript, intercepts network requests, clicks UI elements.
+    Falls back gracefully if Playwright is not installed.
+    """
+
+    def __init__(self, base_url: str):
+        self.base_url = base_url.rstrip('/')
+        self.discovered_endpoints: List[EndpointInfo] = []
+        self.visited_pages: Set[str] = set()
+        self.intercepted_requests: List[EndpointInfo] = []
+        self._base_domain = urlparse(base_url).netloc.lower()
+
+    def _same_host(self, url: str) -> bool:
+        try:
+            netloc = urlparse(url).netloc.lower()
+            a = netloc[4:] if netloc.startswith('www.') else netloc
+            b = self._base_domain[4:] if self._base_domain.startswith('www.') else self._base_domain
+            return a == b or a.endswith('.' + b) or b.endswith('.' + a)
+        except Exception:
+            return False
+
+    async def _intercept_request(self, request) -> None:
+        """
+        Called for every network request the page makes.
+        Extract: url, method, post_data (JSON body), headers.
+        Convert to EndpointInfo and add to self.intercepted_requests.
+        Parse JSON body to extract field names as body_params.
+        Parse query string to extract query_params.
+        """
+        import json as _json
+        from urllib.parse import parse_qs
+
+        url = request.url
+        if not self._same_host(url):
+            return
+        if url.lower().split('?', 1)[0].endswith(SKIP_EXT):
+            return
+
+        method = request.method.upper()
+        body_params: List[str] = []
+        query_params: List[str] = []
+
+        # Parse query string
+        parsed = urlparse(url)
+        from urllib.parse import parse_qs
+        qs = parse_qs(parsed.query)
+        query_params = list(qs.keys())
+
+        # Parse POST body
+        try:
+            post_data = request.post_data
+            if post_data:
+                try:
+                    data = _json.loads(post_data)
+                    if isinstance(data, dict):
+                        body_params = list(data.keys())
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        info = EndpointInfo(
+            url=url,
+            method=method,
+            discovery_source=DiscoverySource.JS_CRAWL,
+            is_state_changing=method in ('POST', 'PUT', 'DELETE', 'PATCH'),
+            body_params=body_params,
+            query_params=query_params,
+            accepts_json=True,
+        )
+        self.intercepted_requests.append(info)
+
+    async def _click_all_elements(self, page) -> None:
+        """
+        Find and click: nav links, buttons, tabs, dropdowns.
+        After each click wait 1500ms for new content to load.
+        Record any new network requests that fire.
+        """
+        import asyncio
+        selectors = [
+            'nav a[href]', 'button:not([type="submit"])', '[role="tab"]',
+            '[role="button"]', 'a[href]:not([href^="mailto"]):not([href^="tel"])',
+            'details > summary', '.dropdown-toggle', '[data-toggle]',
+        ]
+        for selector in selectors:
+            try:
+                elements = await page.query_selector_all(selector)
+                for el in elements[:10]:  # Limit to 10 per selector
+                    try:
+                        href = await el.get_attribute('href')
+                        if href and href.startswith('http') and not self._same_host(href):
+                            continue
+                        await el.click(timeout=3000)
+                        await asyncio.sleep(1.5)
+                    except Exception:
+                        pass
+            except Exception:
+                pass
+
+    async def _login(self, page, credentials: dict) -> dict:
+        """
+        Find login form on the page.
+        Try common field name patterns:
+          email/password, username/password,
+          phone/password, mobile/password
+        Submit form with provided credentials.
+        Wait for redirect.
+        Return session cookies and auth token if found.
+        """
+        import asyncio
+        email = (credentials.get('email') or credentials.get('username') or
+                 credentials.get('phone') or credentials.get('mobile', ''))
+        password = credentials.get('password', '')
+
+        field_pairs = [
+            ('input[name="email"]', 'input[name="password"]'),
+            ('input[name="username"]', 'input[name="password"]'),
+            ('input[name="phone"]', 'input[name="password"]'),
+            ('input[name="mobile"]', 'input[name="password"]'),
+            ('input[type="email"]', 'input[type="password"]'),
+            ('input[type="text"]', 'input[type="password"]'),
+        ]
+
+        for email_sel, pass_sel in field_pairs:
+            try:
+                email_el = await page.query_selector(email_sel)
+                pass_el = await page.query_selector(pass_sel)
+                if email_el and pass_el:
+                    await email_el.fill(email)
+                    await pass_el.fill(password)
+                    await pass_el.press('Enter')
+                    await asyncio.sleep(3)
+                    # Capture cookies
+                    cookies = await page.context.cookies()
+                    cookie_dict = {c['name']: c['value'] for c in cookies}
+                    return cookie_dict
+            except Exception:
+                continue
+        return {}
+
+    async def _parse_js_files(self, page) -> List[str]:
+        """
+        Get list of all .js files loaded by the page.
+        Download each one.
+        Search for patterns:
+          - fetch("...", - extract URL string
+          - axios.get/post/put/delete("..." - extract URL
+          - api/ or /api/ - extract full path
+          - "method": "POST" near a URL string
+        Return list of discovered API endpoint URLs.
+        """
+        import re as _re
+
+        JS_PATTERNS = [
+            _re.compile(r'''fetch\s*\(\s*["`']([^"`']{3,300})["`']'''),
+            _re.compile(r'''axios\s*\.\s*(?:get|post|put|delete|patch)\s*\(\s*["`']([^"`']{3,300})["`']''', _re.IGNORECASE),
+            _re.compile(r'''["`'](\/?api\/[A-Za-z0-9_\-/.{}:?=&]{2,200})["`']'''),
+            _re.compile(r'''"method"\s*:\s*"(?:GET|POST|PUT|DELETE|PATCH)"[^}]{0,200}["`'](\/?[A-Za-z0-9_\-/.{}:?=&]{3,200})["`']''', _re.DOTALL),
+        ]
+
+        js_urls: List[str] = await page.evaluate("""
+            () => Array.from(document.querySelectorAll('script[src]'))
+                       .map(s => s.src)
+                       .filter(s => s && !s.includes('node_modules'))
+        """)
+
+        found_endpoints: List[str] = []
+        try:
+            import urllib.request as _req
+            for js_url in js_urls[:20]:
+                if not self._same_host(js_url):
+                    continue
+                try:
+                    with _req.urlopen(js_url, timeout=10) as r:
+                        body = r.read().decode('utf-8', errors='replace')
+                    for pattern in JS_PATTERNS:
+                        for m in pattern.finditer(body):
+                            ep = m.group(1)
+                            if len(ep) > 2 and not ep.endswith(SKIP_EXT):
+                                found_endpoints.append(ep)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        return found_endpoints
+
+    async def crawl(
+        self,
+        credentials: dict = None,
+        max_pages: int = 100,
+    ) -> List[EndpointInfo]:
+        """
+        Full SPA crawl with JS execution.
+
+        Steps:
+        1. Launch headless Chromium
+        2. Intercept ALL network requests (XHR, fetch, GraphQL)
+        3. Visit homepage, wait for networkidle
+        4. Extract all links, buttons, forms from rendered DOM
+        5. Click every clickable element, record new requests
+        6. If credentials provided — find login form, submit it,
+           store session cookies, re-crawl entire site authenticated
+        7. Parse all loaded .js files for API endpoint strings
+        8. Return list of EndpointInfo objects with real parameters
+        """
+        import asyncio
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            raise RuntimeError("Playwright not installed. Run: pip install playwright && playwright install chromium")
+
+        async with async_playwright() as pw:
+            browser = await pw.chromium.launch(headless=True)
+            context = await browser.new_context(
+                ignore_https_errors=True,
+                user_agent='Mozilla/5.0 (compatible; GROWHAZ-Scanner/5.0)',
+            )
+            page = await context.new_page()
+
+            # Intercept all network requests
+            page.on('request', lambda req: asyncio.ensure_future(self._intercept_request(req)))
+
+            # Visit homepage
+            try:
+                await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
+            except Exception:
+                try:
+                    await page.goto(self.base_url, wait_until='domcontentloaded', timeout=15000)
+                except Exception:
+                    await browser.close()
+                    return []
+
+            self.visited_pages.add(self.base_url)
+
+            # Login if credentials provided
+            if credentials:
+                try:
+                    # Navigate to login page first
+                    for login_path in ['/login', '/signin', '/auth/login', '/auth']:
+                        login_url = self.base_url + login_path
+                        try:
+                            await page.goto(login_url, wait_until='networkidle', timeout=10000)
+                            cookies = await self._login(page, credentials)
+                            if cookies:
+                                break
+                        except Exception:
+                            continue
+                    # Re-visit homepage authenticated
+                    await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
+                except Exception:
+                    pass
+
+            # Click UI elements to trigger lazy-loaded routes
+            await self._click_all_elements(page)
+
+            # Extract links from rendered DOM
+            links: List[str] = await page.evaluate("""
+                () => Array.from(document.querySelectorAll('a[href]'))
+                           .map(a => a.href)
+                           .filter(h => h && !h.startsWith('javascript:') && !h.startsWith('mailto:'))
+            """)
+
+            # Crawl discovered links (breadth-first, up to max_pages)
+            queue = [lnk for lnk in links if self._same_host(lnk)]
+            pages_crawled = 1
+            while queue and pages_crawled < max_pages:
+                url = queue.pop(0)
+                norm = _normalize(url)
+                if norm in self.visited_pages:
+                    continue
+                self.visited_pages.add(norm)
+                try:
+                    await page.goto(url, wait_until='networkidle', timeout=15000)
+                    pages_crawled += 1
+                    await self._click_all_elements(page)
+                    new_links: List[str] = await page.evaluate("""
+                        () => Array.from(document.querySelectorAll('a[href]'))
+                                   .map(a => a.href)
+                                   .filter(h => h && !h.startsWith('javascript:'))
+                    """)
+                    for lnk in new_links:
+                        if self._same_host(lnk) and _normalize(lnk) not in self.visited_pages:
+                            queue.append(lnk)
+                except Exception:
+                    pass
+
+            # Parse JS files for API endpoints
+            try:
+                js_endpoints = await self._parse_js_files(page)
+                for ep_path in js_endpoints:
+                    if ep_path.startswith('http'):
+                        if self._same_host(ep_path):
+                            full = ep_path
+                        else:
+                            continue
+                    else:
+                        full = urljoin(self.base_url + '/', ep_path.lstrip('/'))
+                    info = EndpointInfo(
+                        url=full,
+                        method='GET',
+                        discovery_source=DiscoverySource.JS_CRAWL,
+                        accepts_json=True,
+                    )
+                    self.discovered_endpoints.append(info)
+            except Exception:
+                pass
+
+            await browser.close()
+
+        # Combine intercepted requests + discovered endpoints, deduplicated
+        all_eps: List[EndpointInfo] = []
+        seen_keys: Set[str] = set()
+        for ep in self.intercepted_requests + self.discovered_endpoints:
+            key = f"{ep.method}:{_normalize(ep.url)}"
+            if key not in seen_keys:
+                seen_keys.add(key)
+                all_eps.append(ep)
+
+        return all_eps

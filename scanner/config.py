@@ -21,6 +21,7 @@ class ScanConfig:
     test_password_b: str = ""
     openapi_spec: Optional[str] = None
     use_js: bool = False
+    js_wait: float = 2.0
     login_url: Optional[str] = None
     rate_limit: float = 5.0
     timeout: float = 10.0
@@ -44,16 +45,23 @@ def parse_args() -> ScanConfig:
 Examples:
   python -m scanner https://example.com
   python -m scanner https://example.com --report-id abc123
-  python -m scanner https://example.com test@example.com --js
+  python -m scanner https://example.com --email user@example.com --password secret --js
   python -m scanner https://example.com --openapi openapi.json --rate-limit 10
   python -m scanner https://example.com --dry-run
+  python -m scanner https://example.com --email userA@example.com --password passA \\
+      --user-b-email userB@example.com --user-b-password passB
         """,
     )
 
     parser.add_argument("base_url", help="Base URL of the target (e.g., https://example.com)")
-    parser.add_argument("test_email", nargs="?", default="", help="Test email for login (optional)")
+    parser.add_argument("test_email", nargs="?", default="", help="Test email for login (optional, positional)")
     parser.add_argument("openapi_spec", nargs="?", default=None, help="Path to OpenAPI/Swagger JSON (optional)")
-    parser.add_argument("--js", action="store_true", help="Enable JavaScript crawling with Playwright")
+    parser.add_argument("--js", action="store_true", help="Enable JavaScript crawling with Playwright headless browser")
+    parser.add_argument("--js-wait", type=float, default=2.0, help="Extra seconds to wait for JS rendering (default: 2)")
+    parser.add_argument("--email", default="", dest="email_flag", help="User A email for authenticated testing")
+    parser.add_argument("--password", default="", dest="password_flag", help="User A password for authenticated testing")
+    parser.add_argument("--user-b-email", default="", help="User B email for IDOR cross-user testing")
+    parser.add_argument("--user-b-password", default="", help="User B password for IDOR cross-user testing")
     parser.add_argument("--report-id", default="", help="Supabase report ID to update")
     parser.add_argument("--login-url", default=None, help="Custom login endpoint URL")
     parser.add_argument("--rate-limit", type=float, default=5.0, help="Requests per second (default: 5)")
@@ -74,12 +82,13 @@ Examples:
     config = ScanConfig(
         base_url=base_url.rstrip("/"),
         report_id=args.report_id or os.getenv("REPORT_ID", ""),
-        test_email=args.test_email or os.getenv("TEST_EMAIL", ""),
-        test_password=os.getenv("TEST_PASSWORD", ""),
-        test_email_b=os.getenv("TEST_EMAIL_B", ""),
-        test_password_b=os.getenv("TEST_PASSWORD_B", ""),
+        test_email=args.email_flag or args.test_email or os.getenv("TEST_EMAIL", ""),
+        test_password=args.password_flag or os.getenv("TEST_PASSWORD", ""),
+        test_email_b=args.user_b_email or os.getenv("TEST_EMAIL_B", ""),
+        test_password_b=args.user_b_password or os.getenv("TEST_PASSWORD_B", ""),
         openapi_spec=args.openapi_spec,
         use_js=args.js,
+        js_wait=args.js_wait,
         login_url=args.login_url or os.getenv("LOGIN_URL"),
         rate_limit=args.rate_limit,
         timeout=args.timeout,

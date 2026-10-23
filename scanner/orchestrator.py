@@ -21,7 +21,7 @@ from .engine.auth_context import AuthContext
 from .engine.rate_limiter import RateLimiter
 from .engine.waf_detector import WAFDetector
 from .engine.baseline import BaselineMeasurer
-from .discovery.crawler import StaticCrawler
+from .discovery.crawler import StaticCrawler, PlaywrightCrawler
 from .discovery.endpoint_inventory import EndpointInventory
 from .detectors.registry import get_all_detectors
 from .detectors.base_detector import DetectorResult
@@ -38,6 +38,11 @@ try:
     from .discovery.js_crawler import JSCrawler
 except ImportError:
     JSCrawler = None
+
+try:
+    from .discovery.js_api_extractor import JSAPIExtractor
+except ImportError:
+    JSAPIExtractor = None
 
 try:
     from .discovery.openapi_loader import OpenAPILoader
@@ -162,23 +167,55 @@ class ScanOrchestrator:
 
     def _discover_endpoints(self):
         """Phase 1: Discover all endpoints."""
+        import asyncio
         logger.info("🔍 Phase 1: Discovering endpoints...")
 
-        # Static crawling
-        crawler = StaticCrawler(self.config.base_url, self.engine)
-        static_endpoints = crawler.crawl(max_pages=self.config.max_pages)
-        for ep in static_endpoints:
-            self.inventory.add(ep)
-        logger.info(f"  Static crawler: {len(static_endpoints)} endpoints")
+        # Playwright headless browser crawling (try first when --js is enabled)
+        playwright_succeeded = False
+        if self.config.use_js:
+            try:
+                credentials = None
+                if self.config.test_email and self.config.test_password:
+                    credentials = {
+                        "email": self.config.test_email,
+                        "password": self.config.test_password,
+                    }
+                pw_crawler = PlaywrightCrawler(self.config.base_url)
+                loop = asyncio.new_event_loop()
+                try:
+                    pw_endpoints = loop.run_until_complete(
+                        pw_crawler.crawl(
+                            credentials=credentials,
+                            max_pages=self.config.max_pages,
+                        )
+                    )
+                finally:
+                    loop.close()
+                for ep in pw_endpoints:
+                    self.inventory.add(ep)
+                playwright_succeeded = True
+                logger.info(f"  Playwright crawler: {len(pw_endpoints)} endpoints")
+            except Exception as e:
+                logger.warning(f"  Playwright crawler failed (falling back to static): {e}")
 
-        # JavaScript crawling
-        if self.config.use_js and JSCrawler:
+        # Static crawling (always run as baseline)
+        try:
+            crawler = StaticCrawler(self.config.base_url, self.engine)
+            static_endpoints = crawler.crawl(max_pages=self.config.max_pages)
+            for ep in static_endpoints:
+                self.inventory.add(ep)
+            logger.info(f"  Static crawler: {len(static_endpoints)} endpoints")
+        except Exception as e:
+            logger.warning(f"  Static crawler failed: {e}")
+
+        # Legacy JSCrawler fallback (if PlaywrightCrawler not available)
+        if self.config.use_js and not playwright_succeeded and JSCrawler:
             try:
                 js_crawler = JSCrawler(self.config.base_url, self.engine)
                 js_endpoints = js_crawler.crawl(max_pages=self.config.max_pages)
                 for ep in js_endpoints:
                     self.inventory.add(ep)
-                logger.info(f"  JS crawler: {len(js_endpoints)} endpoints")
+                logger.info(f"  JS crawler (legacy): {len(js_endpoints)} endpoints")
             except Exception as e:
                 logger.warning(f"  JS crawler failed: {e}")
 

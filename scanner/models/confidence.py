@@ -25,12 +25,25 @@ class ConfidenceResult:
 
     def __init__(
         self,
-        arg1: Union[float, ConfidenceLevel, str] = 0.5,
-        arg2: Union[ConfidenceLevel, str, List[str]] = ConfidenceLevel.MEDIUM,
+        arg1: Union[float, ConfidenceLevel, str] = None,
+        arg2: Union[ConfidenceLevel, str, List[str]] = None,
         signals: List[str] = None,
-        validation_method: str = ""
+        validation_method: str = "",
+        score: float = None,
+        level: Union[ConfidenceLevel, str] = None,
     ):
-        if isinstance(arg1, (ConfidenceLevel, str)) and not isinstance(arg1, (int, float)):
+        # Keyword-first resolution: prefer explicit 'score' and 'level' kwargs
+        if score is not None or level is not None:
+            self.score = float(score) if score is not None else 0.5
+            self.level = (level if isinstance(level, ConfidenceLevel)
+                          else self._parse_level(level or "MEDIUM"))
+            self.signals = signals or []
+        elif arg1 is None:
+            # ConfidenceResult() with no args
+            self.score = 0.5
+            self.level = ConfidenceLevel.MEDIUM
+            self.signals = signals or []
+        elif isinstance(arg1, (ConfidenceLevel, str)) and not isinstance(arg1, (int, float)):
             # Called as ConfidenceResult(level, details_or_signal)
             self.level = arg1 if isinstance(arg1, ConfidenceLevel) else self._parse_level(arg1)
             self.score = self._default_score(self.level)
@@ -43,7 +56,9 @@ class ConfidenceResult:
         else:
             # Called as ConfidenceResult(score, level, ...)
             self.score = float(arg1) if isinstance(arg1, (int, float)) else 0.5
-            self.level = arg2 if isinstance(arg2, ConfidenceLevel) else self._parse_level(arg2)
+            resolved_level = arg2 if arg2 is not None else ConfidenceLevel.MEDIUM
+            self.level = (resolved_level if isinstance(resolved_level, ConfidenceLevel)
+                          else self._parse_level(resolved_level))
             self.signals = signals or []
 
         self.validation_method = validation_method

