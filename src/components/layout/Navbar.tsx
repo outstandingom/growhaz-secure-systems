@@ -182,6 +182,9 @@ export function Navbar() {
           <button
             onClick={() => setIsOpen(!isOpen)}
             className="lg:hidden p-2 rounded-lg hover:bg-secondary"
+              aria-label={isOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={isOpen}
+              aria-controls="mobile-navigation"
           >
             {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
           </button>
@@ -190,7 +193,7 @@ export function Navbar() {
 
       {/* Mobile Navigation */}
       {isOpen && (
-        <div className="lg:hidden bg-background border-b border-border">
+        <div id="mobile-navigation" className="lg:hidden bg-background border-b border-border">
           <div className="container mx-auto px-4 py-4 space-y-2">
             {navItems.map((item) => (
               <Link
