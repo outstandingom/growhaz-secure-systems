@@ -24,15 +24,24 @@ export function Navbar() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let accountLookupTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleAccountLookups = (userId: string) => {
+      if (accountLookupTimer) clearTimeout(accountLookupTimer);
+      // Let the public page render before sending authenticated dashboard requests.
+      accountLookupTimer = setTimeout(() => {
+        fetchCoinBalance(userId);
+        checkAdminStatus(userId);
+      }, 1500);
+    };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         setUser(session?.user ?? null);
         if (session?.user) {
-          // Fetch coin balance
-          setTimeout(() => fetchCoinBalance(session.user.id), 0);
-          setTimeout(() => checkAdminStatus(session.user.id), 0);
+          scheduleAccountLookups(session.user.id);
         } else {
+          if (accountLookupTimer) clearTimeout(accountLookupTimer);
           setCoinBalance(0);
           setIsAdmin(false);
         }
@@ -43,12 +52,14 @@ export function Navbar() {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       if (session?.user) {
-        fetchCoinBalance(session.user.id);
-        checkAdminStatus(session.user.id);
+        scheduleAccountLookups(session.user.id);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      if (accountLookupTimer) clearTimeout(accountLookupTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const fetchCoinBalance = async (userId: string) => {
