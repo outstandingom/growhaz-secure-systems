@@ -1,14 +1,13 @@
 """
-Static crawler for endpoint discovery.
+Static and Playwright crawlers for comprehensive endpoint discovery.
 
-Strategy (discover-first, then validate):
-  1. Seed from robots.txt, sitemap.xml (recursive), common paths, and SPA hints.
-  2. Fetch homepage + linked HTML pages, follow <a>, <form>, <script src>.
-  3. Mine JS bundles for React-Router `path:"/..."`, `to="/..."`, and
-     `fetch/axios/request("/api/...")` style calls — NOT every quoted string.
-  4. Validate every candidate URL with a lightweight HEAD/GET; keep only
-     URLs that resolve (2xx / 3xx, or 401/403 which prove the route exists).
-  5. Return a clean, deduplicated endpoint inventory.
+Strategy:
+  1. Seed from robots.txt, sitemap.xml, common paths, and SPA hints.
+  2. Walk HTML pages and mine JS bundles/chunks recursively for API routes, Supabase endpoints, and fetch/axios calls.
+  3. Intercept live browser network traffic (Playwright) capturing methods, full URLs, query parameters,
+     POST body fields, and authentication headers (e.g. apikey, Authorization).
+  4. Classify in-scope endpoints (domain, subdomains, BaaS/Supabase, API backends) vs third-party telemetry.
+  5. Return a clean, rich, deduplicated endpoint inventory for testing.
 """
 
 import re
@@ -19,16 +18,15 @@ from xml.etree import ElementTree as ET
 
 from scanner.models.endpoint import EndpointInfo, DiscoverySource
 from scanner.engine.request_engine import RequestEngine
+from scanner.discovery.scope import is_target_scope
 
 
-# Client-rendered SPA route hints — probed once, kept only if they resolve.
 SPA_ROUTE_HINTS = [
     '/', '/about', '/contact', '/pricing', '/blog', '/login', '/signup',
     '/register', '/auth', '/dashboard', '/profile', '/admin', '/settings',
     '/search', '/terms', '/privacy', '/privacy-policy',
 ]
 
-# High-value fingerprint / exposure paths.
 EXPOSURE_PATHS = [
     '/api', '/api/v1', '/api/v2', '/graphql', '/swagger', '/swagger.json',
     '/openapi.json', '/openapi.yaml', '/api-docs',
@@ -42,20 +40,15 @@ EXPOSURE_PATHS = [
     '/server-status', '/actuator', '/actuator/health', '/actuator/env',
 ]
 
-# Extra sitemap locations to probe.
 SITEMAP_CANDIDATES = [
     'sitemap.xml', 'sitemap_index.xml', 'sitemap-index.xml',
     'sitemap/sitemap.xml', 'sitemaps/sitemap.xml', 'sitemap1.xml',
 ]
 
-# JS route extraction — precise patterns, not "every quoted /path".
-# React-Router: {path:"/foo"} or path: '/foo'  ; <Link to="/foo"> or to:"/foo"
 JS_ROUTE_RE = re.compile(r'''(?:\bpath|\bto)\s*[:=]\s*["'`](\/[A-Za-z0-9_\-./:]{0,120})["'`]''')
-# API/fetch calls: fetch("/api/x"), axios.get('/api/x'), request(`/api/x`)
 JS_API_RE = re.compile(
     r'''(?:fetch|axios(?:\.\w+)?|request|http(?:\.\w+)?|\$\.(?:get|post|ajax))\s*\(\s*["'`]([^"'`]+)["'`]'''
 )
-# Absolute same-host URLs in JS
 JS_URL_RE = re.compile(r'''["'`](https?://[^"'`\s]{6,300})["'`]''')
 
 SKIP_EXT = (
@@ -65,9 +58,14 @@ SKIP_EXT = (
     '.css', '.map',
 )
 
+CORE_TABLES = [
+    "profiles", "organizations", "users", "sites", "mentors",
+    "api_keys", "projects", "sessions", "orders", "documents",
+    "accounts", "items", "reports", "settings"
+]
+
 
 def _normalize(url: str) -> str:
-    """Drop fragment, collapse trailing slash (except root)."""
     try:
         p = urlparse(url)
         path = p.path or '/'
@@ -83,13 +81,9 @@ class StaticCrawler:
         self.base_url = base_url.rstrip('/')
         self.request_engine = request_engine
         self.visited: Set[str] = set()
-        self.candidates: Set[str] = set()      # normalized URLs pending validation
-        self.candidate_meta: dict = {}         # url -> dict(method, source, params, state_changing)
-        self.confirmed: dict = {}              # key -> EndpointInfo
-
-    # ------------------------------------------------------------------
-    # Helpers
-    # ------------------------------------------------------------------
+        self.candidates: Set[str] = set()
+        self.candidate_meta: dict = {}
+        self.confirmed: dict = {}
 
     def _same_host(self, url: str) -> bool:
         try:
@@ -104,6 +98,7 @@ class StaticCrawler:
     def _add_candidate(self, url: str, *, method: str = "GET",
                        source: DiscoverySource = DiscoverySource.STATIC_CRAWL,
                        state_changing: bool = False, params=None,
+                       default_params=None, headers=None,
                        accepts_json: bool = False) -> None:
         if not url:
             return
@@ -111,16 +106,22 @@ class StaticCrawler:
             return
         if not url.startswith(('http://', 'https://')):
             return
-        if not self._same_host(url):
+        if not is_target_scope(url, self.base_url, headers):
             return
+
         parsed_params = list(params or [])
+        parsed_defaults = dict(default_params or {})
         try:
-            parsed_query = urlparse(url).query
-            if parsed_query:
-                qs = parse_qs(parsed_query)
-                for qk in qs.keys():
+            parsed = urlparse(url)
+            clean_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+            if parsed.query:
+                qs = parse_qs(parsed.query)
+                for qk, qv in qs.items():
                     if qk not in parsed_params:
                         parsed_params.append(qk)
+                    if qk not in parsed_defaults and qv:
+                        parsed_defaults[qk] = qv[0]
+            url = clean_url if clean_url else url
         except Exception:
             pass
 
@@ -130,17 +131,20 @@ class StaticCrawler:
             for p in parsed_params:
                 if p not in self.candidate_meta[key]['params']:
                     self.candidate_meta[key]['params'].append(p)
+            if parsed_defaults:
+                self.candidate_meta[key].setdefault('default_params', {}).update(parsed_defaults)
+            if headers:
+                self.candidate_meta[key].setdefault('headers', {}).update(headers)
             return
+
         self.candidates.add(norm)
         self.candidate_meta[key] = dict(
             url=norm, method=method, source=source,
             state_changing=state_changing, params=parsed_params,
+            default_params=parsed_defaults,
+            headers=dict(headers or {}),
             accepts_json=accepts_json,
         )
-
-    # ------------------------------------------------------------------
-    # Seeding
-    # ------------------------------------------------------------------
 
     def _seed_from_sitemap(self, sitemap_url: str, depth: int = 0) -> int:
         if depth > 2:
@@ -193,10 +197,6 @@ class StaticCrawler:
                 source=DiscoverySource.COMMON_PATH,
             )
 
-    # ------------------------------------------------------------------
-    # JS mining — precise patterns only
-    # ------------------------------------------------------------------
-
     def _mine_js(self, js_body: str) -> None:
         seen = set()
 
@@ -206,19 +206,33 @@ class StaticCrawler:
             seen.add(path)
             if path.startswith('//') or path.startswith('data:'):
                 return False
-            # noise filters
-            bad = ('/node_modules/', '/@vite/', '/src/', '/assets/',
-                   '/*.', '://', '{', '}', '\\', ' ')
+            bad = ('/node_modules/', '/@vite/', '/src/', '/*.', '{', '}', '\\', ' ')
             if any(b in path for b in bad):
                 return False
             if path.lower().endswith(SKIP_EXT):
                 return False
-            if len(path) < 2 or len(path) > 160:
-                return False
-            # must look route-like (start with / and only URL-safe chars)
-            if not re.match(r'^/[A-Za-z0-9_\-./:]*$', path):
+            if len(path) < 2 or len(path) > 200:
                 return False
             return True
+
+        # Supabase and BaaS detection
+        sb_match = re.search(r'''https://([a-zA-Z0-9_-]+)\.supabase\.co''', js_body, re.I)
+        sb_url = sb_match.group(0) if sb_match else None
+        key_match = re.search(r'''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+''', js_body)
+        sb_key = key_match.group(0) if key_match else ""
+        sb_headers = {}
+        if sb_key:
+            sb_headers = {"apikey": sb_key, "Authorization": f"Bearer {sb_key}"}
+
+        if sb_url:
+            tbl_matches = set(re.findall(r'''\.from\(["']([a-zA-Z0-9_]{2,40})["']\)''', js_body) +
+                              re.findall(r'''/rest/v1/([a-zA-Z0-9_]{2,40})''', js_body))
+            for tbl in (tbl_matches | set(CORE_TABLES)):
+                rest_url = f"{sb_url}/rest/v1/{tbl}"
+                self._add_candidate(rest_url, method="GET", source=DiscoverySource.JS_CRAWL,
+                                    params=["select", "id", "user_id"],
+                                    default_params={"select": "*"},
+                                    headers=sb_headers, accepts_json=True)
 
         for m in JS_ROUTE_RE.finditer(js_body):
             path = m.group(1)
@@ -230,9 +244,8 @@ class StaticCrawler:
         for m in JS_API_RE.finditer(js_body):
             path = m.group(1)
             if path.startswith('http'):
-                if self._same_host(path):
-                    self._add_candidate(path, source=DiscoverySource.JS_CRAWL,
-                                        accepts_json=True)
+                if is_target_scope(path, self.base_url):
+                    self._add_candidate(path, source=DiscoverySource.JS_CRAWL, accepts_json=True)
                 continue
             if keep(path):
                 self._add_candidate(
@@ -241,12 +254,19 @@ class StaticCrawler:
                 )
         for m in JS_URL_RE.finditer(js_body):
             url = m.group(1)
-            if self._same_host(url):
-                self._add_candidate(url, source=DiscoverySource.JS_CRAWL)
+            if is_target_scope(url, self.base_url):
+                self._add_candidate(url, source=DiscoverySource.JS_CRAWL, accepts_json=True)
 
-    # ------------------------------------------------------------------
-    # HTML link/form/script extraction (queue driver)
-    # ------------------------------------------------------------------
+        # Recursively inspect referenced JS chunks
+        chunk_files = set(re.findall(r'[a-zA-Z0-9_.-]{3,60}\.js', js_body))
+        for ch in chunk_files:
+            if ch.endswith('.js') and not ch.startswith(('http', 'data')) and 'node_modules' not in ch:
+                ch_url = urljoin(self.base_url + '/', f"assets/{ch}")
+                if ch_url not in self.visited:
+                    self.visited.add(ch_url)
+                    cr = self.request_engine.request("GET", ch_url)
+                    if cr.has_response and cr.status_code == 200 and cr.body:
+                        self._mine_js(cr.body)
 
     def _process_html(self, current_url: str, body: str, queue: List[str],
                       js_scanned: Set[str]) -> None:
@@ -258,14 +278,15 @@ class StaticCrawler:
                 continue
             full = urljoin(current_url, href).split('#', 1)[0]
             if self._same_host(full):
-                self._add_candidate(full)
                 norm = _normalize(full)
                 if norm not in self.visited and norm not in queue:
                     queue.append(norm)
+            if is_target_scope(full, self.base_url):
+                self._add_candidate(full, source=DiscoverySource.STATIC_CRAWL)
 
-        for script in soup.find_all('script', src=True):
-            src = script['src']
-            if not src or src.startswith(('javascript:', 'data:')):
+        for s in soup.find_all('script', src=True):
+            src = s['src']
+            if not src or 'node_modules' in src:
                 continue
             js_url = urljoin(current_url, src)
             if not self._same_host(js_url) or js_url in js_scanned:
@@ -293,13 +314,7 @@ class StaticCrawler:
                                     source=DiscoverySource.FORM,
                                     params=[name])
 
-    # ------------------------------------------------------------------
-    # Validation — probe candidates and keep only those that resolve
-    # ------------------------------------------------------------------
-
     def _spa_fallback_signature(self) -> tuple:
-        """Fetch an unlikely URL; if the site returns 200 with HTML, capture its
-        signature so we can drop SPA catch-all false positives."""
         probe_url = urljoin(self.base_url + '/', '__lovable_probe_' + '7f3a9c' + '__/x')
         r = self.request_engine.request("GET", probe_url)
         if not r.has_response or r.status_code != 200 or not r.body:
@@ -307,26 +322,27 @@ class StaticCrawler:
         ct = (r.headers.get("Content-Type", "") or "").lower()
         if 'html' not in ct:
             return (None, None)
-        # signature = (approx body length, <title> text)
         title_m = re.search(r'<title[^>]*>([^<]{0,200})</title>', r.body, re.I)
         title = (title_m.group(1).strip() if title_m else '')
         return (len(r.body), title)
 
     def _validate_candidates(self, max_probes: int = 300) -> None:
-        # 401/403 mean the route exists but is protected — still confirm.
-        alive = {200, 201, 202, 204, 301, 302, 303, 307, 308, 401, 403, 405}
+        alive = {200, 201, 202, 204, 206, 301, 302, 303, 307, 308, 401, 403, 405}
         spa_len, spa_title = self._spa_fallback_signature()
         probed = 0
         for key, meta in list(self.candidate_meta.items()):
             if probed >= max_probes:
                 break
             url = meta['url']
-            # Skip re-probing state-changing endpoints; trust their form source.
-            if meta['state_changing']:
-                self._confirm(meta, content_type='', accepts_json=meta['accepts_json'])
+
+            # Direct confirmation for known BaaS / REST APIs and state-changing forms
+            if "supabase.co" in url or "/rest/v1/" in url or meta['state_changing']:
+                self._confirm(meta, content_type='application/json', accepts_json=True)
                 continue
+
             probed += 1
-            r = self.request_engine.request("GET", url)
+            headers = meta.get('headers', {})
+            r = self.request_engine.request("GET", url, headers=headers)
             if not r.has_response:
                 continue
             status = r.status_code
@@ -334,14 +350,11 @@ class StaticCrawler:
                 continue
             ct = (r.headers.get("Content-Type", "") or "").lower()
 
-            # Drop SPA catch-all matches: identical length & title as the 404 fallback.
             if (spa_len is not None and status == 200 and 'html' in ct and r.body
                     and abs(len(r.body) - spa_len) < 64):
                 title_m = re.search(r'<title[^>]*>([^<]{0,200})</title>', r.body, re.I)
                 title = (title_m.group(1).strip() if title_m else '')
                 if title == spa_title:
-                    # Only keep if it was independently discovered from HTML/sitemap/JS,
-                    # not from generic COMMON_PATH guessing.
                     if meta['source'] == DiscoverySource.COMMON_PATH:
                         continue
 
@@ -356,6 +369,8 @@ class StaticCrawler:
             is_state_changing=meta['state_changing'],
             body_params=meta['params'] if meta['state_changing'] else [],
             query_params=meta['params'] if (meta['params'] and not meta['state_changing']) else [],
+            default_params=meta.get('default_params', {}),
+            headers=meta.get('headers', {}),
             accepts_json=accepts_json,
             content_type=content_type,
         )
@@ -365,19 +380,13 @@ class StaticCrawler:
         else:
             self.confirmed[key].merge(info)
 
-    # ------------------------------------------------------------------
-    # Main
-    # ------------------------------------------------------------------
-
     def crawl(self, max_pages: int = 60) -> List[EndpointInfo]:
-        # 1. Seed from every low-cost source.
         self._add_candidate(self.base_url + '/')
         self._seed_from_robots()
         for sm in SITEMAP_CANDIDATES:
             self._seed_from_sitemap(urljoin(self.base_url + '/', sm))
         self._seed_common_paths()
 
-        # 2. Walk HTML pages breadth-first, mining links + JS bundles.
         queue: List[str] = [_normalize(self.base_url + '/')]
         js_scanned: Set[str] = set()
         pages = 0
@@ -404,17 +413,14 @@ class StaticCrawler:
                 continue
             self._process_html(url, body, queue, js_scanned)
 
-        # 3. Validate every candidate — keep only resolvable endpoints.
         self._validate_candidates(max_probes=max_pages * 5)
-
         return list(self.confirmed.values())
 
 
 class PlaywrightCrawler:
     """
-    Headless browser crawler for SPA websites (React/Next.js/Angular).
-    Executes JavaScript, intercepts network requests, clicks UI elements.
-    Falls back gracefully if Playwright is not installed.
+    Headless browser crawler for modern SPA websites (React/Next.js/Angular).
+    Intercepts network requests (DevTools emulation), executes JS, and extracts API endpoints.
     """
 
     def __init__(self, base_url: str):
@@ -434,33 +440,28 @@ class PlaywrightCrawler:
             return False
 
     async def _intercept_request(self, request) -> None:
-        """
-        Called for every network request the page makes.
-        Extract: url, method, post_data (JSON body), headers.
-        Convert to EndpointInfo and add to self.intercepted_requests.
-        Parse JSON body to extract field names as body_params.
-        Parse query string to extract query_params.
-        """
         import json as _json
-        from urllib.parse import parse_qs
 
         url = request.url
-        if not self._same_host(url):
-            return
         if url.lower().split('?', 1)[0].endswith(SKIP_EXT):
+            return
+
+        headers = dict(request.headers)
+        if not is_target_scope(url, self.base_url, headers):
             return
 
         method = request.method.upper()
         body_params: List[str] = []
         query_params: List[str] = []
+        default_params: dict = {}
 
-        # Parse query string
         parsed = urlparse(url)
-        from urllib.parse import parse_qs
-        qs = parse_qs(parsed.query)
-        query_params = list(qs.keys())
+        clean_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+        if parsed.query:
+            qs = parse_qs(parsed.query)
+            query_params = list(qs.keys())
+            default_params = {k: v[0] for k, v in qs.items()}
 
-        # Parse POST body
         try:
             post_data = request.post_data
             if post_data:
@@ -468,28 +469,33 @@ class PlaywrightCrawler:
                     data = _json.loads(post_data)
                     if isinstance(data, dict):
                         body_params = list(data.keys())
+                        for k, v in data.items():
+                            if isinstance(v, (str, int, float, bool)):
+                                default_params[k] = str(v)
                 except Exception:
                     pass
         except Exception:
             pass
 
+        api_headers = {}
+        for hk, hv in headers.items():
+            if hk.lower() in ('apikey', 'authorization', 'x-api-key', 'content-type', 'accept', 'x-client-info'):
+                api_headers[hk] = hv
+
         info = EndpointInfo(
-            url=url,
+            url=clean_url if clean_url else url,
             method=method,
-            discovery_source=DiscoverySource.JS_CRAWL,
+            discovery_source=DiscoverySource.NETWORK_INTERCEPT,
             is_state_changing=method in ('POST', 'PUT', 'DELETE', 'PATCH'),
             body_params=body_params,
             query_params=query_params,
+            default_params=default_params,
+            headers=api_headers,
             accepts_json=True,
         )
         self.intercepted_requests.append(info)
 
     async def _click_all_elements(self, page) -> None:
-        """
-        Find and click: nav links, buttons, tabs, dropdowns.
-        After each click wait 1500ms for new content to load.
-        Record any new network requests that fire.
-        """
         import asyncio
         selectors = [
             'nav a[href]', 'button:not([type="submit"])', '[role="tab"]',
@@ -499,28 +505,19 @@ class PlaywrightCrawler:
         for selector in selectors:
             try:
                 elements = await page.query_selector_all(selector)
-                for el in elements[:10]:  # Limit to 10 per selector
+                for el in elements[:10]:
                     try:
                         href = await el.get_attribute('href')
                         if href and href.startswith('http') and not self._same_host(href):
                             continue
                         await el.click(timeout=3000)
-                        await asyncio.sleep(1.5)
+                        await asyncio.sleep(1.2)
                     except Exception:
                         pass
             except Exception:
                 pass
 
     async def _login(self, page, credentials: dict) -> dict:
-        """
-        Find login form on the page.
-        Try common field name patterns:
-          email/password, username/password,
-          phone/password, mobile/password
-        Submit form with provided credentials.
-        Wait for redirect.
-        Return session cookies and auth token if found.
-        """
         import asyncio
         email = (credentials.get('email') or credentials.get('username') or
                  credentials.get('phone') or credentials.get('mobile', ''))
@@ -529,8 +526,6 @@ class PlaywrightCrawler:
         field_pairs = [
             ('input[name="email"]', 'input[name="password"]'),
             ('input[name="username"]', 'input[name="password"]'),
-            ('input[name="phone"]', 'input[name="password"]'),
-            ('input[name="mobile"]', 'input[name="password"]'),
             ('input[type="email"]', 'input[type="password"]'),
             ('input[type="text"]', 'input[type="password"]'),
         ]
@@ -544,80 +539,28 @@ class PlaywrightCrawler:
                     await pass_el.fill(password)
                     await pass_el.press('Enter')
                     await asyncio.sleep(3)
-                    # Capture cookies
                     cookies = await page.context.cookies()
-                    cookie_dict = {c['name']: c['value'] for c in cookies}
-                    return cookie_dict
+                    return {c['name']: c['value'] for c in cookies}
             except Exception:
                 continue
         return {}
 
-    async def _parse_js_files(self, page) -> List[str]:
-        """
-        Get list of all .js files loaded by the page.
-        Download each one.
-        Search for patterns:
-          - fetch("...", - extract URL string
-          - axios.get/post/put/delete("..." - extract URL
-          - api/ or /api/ - extract full path
-          - "method": "POST" near a URL string
-        Return list of discovered API endpoint URLs.
-        """
-        import re as _re
-
-        JS_PATTERNS = [
-            _re.compile(r'''fetch\s*\(\s*["`']([^"`']{3,300})["`']'''),
-            _re.compile(r'''axios\s*\.\s*(?:get|post|put|delete|patch)\s*\(\s*["`']([^"`']{3,300})["`']''', _re.IGNORECASE),
-            _re.compile(r'''["`'](\/?api\/[A-Za-z0-9_\-/.{}:?=&]{2,200})["`']'''),
-            _re.compile(r'''"method"\s*:\s*"(?:GET|POST|PUT|DELETE|PATCH)"[^}]{0,200}["`'](\/?[A-Za-z0-9_\-/.{}:?=&]{3,200})["`']''', _re.DOTALL),
-        ]
-
+    async def _parse_js_files(self, page) -> List[EndpointInfo]:
         js_urls: List[str] = await page.evaluate("""
             () => Array.from(document.querySelectorAll('script[src]'))
                        .map(s => s.src)
                        .filter(s => s && !s.includes('node_modules'))
         """)
 
-        found_endpoints: List[str] = []
-        try:
-            import urllib.request as _req
-            for js_url in js_urls[:20]:
-                if not self._same_host(js_url):
-                    continue
-                try:
-                    with _req.urlopen(js_url, timeout=10) as r:
-                        body = r.read().decode('utf-8', errors='replace')
-                    for pattern in JS_PATTERNS:
-                        for m in pattern.finditer(body):
-                            ep = m.group(1)
-                            if len(ep) > 2 and not ep.endswith(SKIP_EXT):
-                                found_endpoints.append(ep)
-                except Exception:
-                    pass
-        except Exception:
-            pass
-
-        return found_endpoints
+        from scanner.discovery.js_api_extractor import JSAPIExtractor
+        extractor = JSAPIExtractor(self.base_url)
+        return extractor.extract_from_urls(js_urls[:25])
 
     async def crawl(
         self,
         credentials: dict = None,
         max_pages: int = 100,
     ) -> List[EndpointInfo]:
-        """
-        Full SPA crawl with JS execution.
-
-        Steps:
-        1. Launch headless Chromium
-        2. Intercept ALL network requests (XHR, fetch, GraphQL)
-        3. Visit homepage, wait for networkidle
-        4. Extract all links, buttons, forms from rendered DOM
-        5. Click every clickable element, record new requests
-        6. If credentials provided — find login form, submit it,
-           store session cookies, re-crawl entire site authenticated
-        7. Parse all loaded .js files for API endpoint strings
-        8. Return list of EndpointInfo objects with real parameters
-        """
         import asyncio
         try:
             from playwright.async_api import async_playwright
@@ -628,14 +571,11 @@ class PlaywrightCrawler:
             browser = await pw.chromium.launch(headless=True)
             context = await browser.new_context(
                 ignore_https_errors=True,
-                user_agent='Mozilla/5.0 (compatible; GROWHAZ-Scanner/5.0)',
+                user_agent='Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             )
             page = await context.new_page()
-
-            # Intercept all network requests
             page.on('request', lambda req: asyncio.ensure_future(self._intercept_request(req)))
 
-            # Visit homepage
             try:
                 await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
             except Exception:
@@ -647,10 +587,8 @@ class PlaywrightCrawler:
 
             self.visited_pages.add(self.base_url)
 
-            # Login if credentials provided
             if credentials:
                 try:
-                    # Navigate to login page first
                     for login_path in ['/login', '/signin', '/auth/login', '/auth']:
                         login_url = self.base_url + login_path
                         try:
@@ -660,22 +598,18 @@ class PlaywrightCrawler:
                                 break
                         except Exception:
                             continue
-                    # Re-visit homepage authenticated
                     await page.goto(self.base_url, wait_until='networkidle', timeout=30000)
                 except Exception:
                     pass
 
-            # Click UI elements to trigger lazy-loaded routes
             await self._click_all_elements(page)
 
-            # Extract links from rendered DOM
             links: List[str] = await page.evaluate("""
                 () => Array.from(document.querySelectorAll('a[href]'))
                            .map(a => a.href)
                            .filter(h => h && !h.startsWith('javascript:') && !h.startsWith('mailto:'))
             """)
 
-            # Crawl discovered links (breadth-first, up to max_pages)
             queue = [lnk for lnk in links if self._same_host(lnk)]
             pages_crawled = 1
             while queue and pages_crawled < max_pages:
@@ -699,30 +633,14 @@ class PlaywrightCrawler:
                 except Exception:
                     pass
 
-            # Parse JS files for API endpoints
             try:
-                js_endpoints = await self._parse_js_files(page)
-                for ep_path in js_endpoints:
-                    if ep_path.startswith('http'):
-                        if self._same_host(ep_path):
-                            full = ep_path
-                        else:
-                            continue
-                    else:
-                        full = urljoin(self.base_url + '/', ep_path.lstrip('/'))
-                    info = EndpointInfo(
-                        url=full,
-                        method='GET',
-                        discovery_source=DiscoverySource.JS_CRAWL,
-                        accepts_json=True,
-                    )
-                    self.discovered_endpoints.append(info)
+                parsed_eps = await self._parse_js_files(page)
+                self.discovered_endpoints.extend(parsed_eps)
             except Exception:
                 pass
 
             await browser.close()
 
-        # Combine intercepted requests + discovered endpoints, deduplicated
         all_eps: List[EndpointInfo] = []
         seen_keys: Set[str] = set()
         for ep in self.intercepted_requests + self.discovered_endpoints:

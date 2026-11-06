@@ -29,6 +29,7 @@ class EndpointInfo:
     path_params: List[str] = field(default_factory=list)
     body_params: List[str] = field(default_factory=list)
     json_fields: List[str] = field(default_factory=list)
+    default_params: Dict[str, str] = field(default_factory=dict)
     headers: Dict[str, str] = field(default_factory=dict)
     forms: List[Dict] = field(default_factory=list)
     discovery_source: DiscoverySource = DiscoverySource.STATIC_CRAWL
@@ -59,6 +60,7 @@ class EndpointInfo:
         self.path_params = list(set(self.path_params + other.path_params))
         self.body_params = list(set(self.body_params + other.body_params))
         self.json_fields = list(set(self.json_fields + other.json_fields))
+        self.default_params.update(other.default_params)
         self.headers.update(other.headers)
         self.forms.extend(other.forms)
         if other.auth_required is not None:
@@ -80,6 +82,7 @@ class EndpointInfo:
             "path_params": self.path_params,
             "body_params": self.body_params,
             "json_fields": self.json_fields,
+            "default_params": self.default_params,
             "discovery_source": self.discovery_source.value,
             "auth_required": self.auth_required,
             "content_type": self.content_type,

@@ -3,8 +3,8 @@ IDOR/BOLA Detector — identity-aware, cross-user authorization testing.
 
 Detection approach:
 1. If two users are provided: runs cross-user authorization differential testing.
-2. If unauthenticated/single-user: probes object endpoints and parameters for Broken Object Level
-   Authorization (BOLA) and unauthorized access to customer records.
+2. If unauthenticated/single-user: probes object endpoints, UUID parameters, and BaaS REST filters
+   for Broken Object Level Authorization (BOLA) and unauthorized access to customer records.
 """
 
 from typing import List
@@ -22,7 +22,6 @@ from ..engine.auth_context import AuthContext
 from ..engine.baseline import BaselineMeasurer
 from ..models.endpoint import EndpointInfo
 
-# Patterns for IDOR-prone endpoints
 IDOR_PATH_PATTERNS = [
     r'/users?/\d+', r'/profiles?/\d+', r'/orders?/\d+',
     r'/documents?/\d+', r'/payments?/\d+', r'/accounts?/\d+',
@@ -30,16 +29,19 @@ IDOR_PATH_PATTERNS = [
 ]
 
 IDOR_URL_KEYWORDS = [
-    '/user/', '/profile/', '/order/', '/document/',
-    '/payment/', '/account/', '/api/users/', '/api/orders/',
-    '/api/documents/', '/api/accounts/',
+    '/user', '/profile', '/order', '/document',
+    '/payment', '/account', '/api/users', '/api/orders',
+    '/api/documents', '/api/accounts', '/rest/v1/profiles',
+    '/rest/v1/users', '/rest/v1/organizations',
 ]
 
-# Dynamic ID patterns: /resource/123 or /resource/uuid
 DYNAMIC_ID_RE = re.compile(r'/\d{1,10}(?:/|$)')
-UUID_RE = re.compile(r'/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?:/|$)', re.IGNORECASE)
+UUID_RE = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}', re.IGNORECASE)
 
-SENSITIVE_OBJECT_FIELDS = {"email", "password", "hash", "ssn", "secret", "token", "credit_card", "balance"}
+SENSITIVE_OBJECT_FIELDS = {
+    "email", "password", "hash", "ssn", "secret", "token", "credit_card",
+    "balance", "full_name", "role", "api_key", "phone", "address"
+}
 
 
 class IDORDetector(BaseDetector):
@@ -51,24 +53,25 @@ class IDORDetector(BaseDetector):
     def _run(self, endpoints, engine, auth_context, baseline_measurer):
         findings = []
         tested = 0
-        blocked = 0
+        endpoints_blocked = 0
 
-        # Find IDOR-candidate endpoints
         idor_endpoints = []
         for ep in endpoints:
             url_lower = ep.url.lower()
+            defaults = getattr(ep, "default_params", {}) or {}
+            params_lower = [p.lower() for p in (ep.all_params + list(defaults.keys()))]
+            has_id_param = any(any(k in p for k in ("user_id", "userid", "account_id", "order_id", "doc_id", "id")) for p in params_lower)
+            has_uuid_val = any(UUID_RE.search(str(v)) for v in defaults.values()) or UUID_RE.search(ep.url)
+
             if any(kw in url_lower for kw in IDOR_URL_KEYWORDS):
                 idor_endpoints.append(ep)
             elif any(re.search(p, ep.url) for p in IDOR_PATH_PATTERNS):
                 idor_endpoints.append(ep)
             elif ep.path_params:
                 idor_endpoints.append(ep)
-            elif DYNAMIC_ID_RE.search(ep.url):
-                idor_endpoints.append(ep)
-            elif UUID_RE.search(ep.url):
+            elif DYNAMIC_ID_RE.search(ep.url) or has_uuid_val or has_id_param:
                 idor_endpoints.append(ep)
 
-        # Fallback synthesis if crawl didn't surface dynamic IDs
         if not idor_endpoints:
             target_url = endpoints[0].url if endpoints else "http://localhost"
             parsed = urlparse(target_url)
@@ -85,7 +88,7 @@ class IDORDetector(BaseDetector):
                     query_params=["id"],
                 ))
 
-        # Branch 1: Two-user differential testing if available
+        # Branch 1: Two-user differential testing
         if auth_context.has_two_users:
             import requests as req_lib
             session_a = req_lib.Session()
@@ -94,35 +97,32 @@ class IDORDetector(BaseDetector):
             session_b = req_lib.Session()
             auth_context.apply_auth(session_b, auth_context.user_b)
 
-            for ep in idor_endpoints:
+            for ep in idor_endpoints[:10]:
                 tested += 1
                 signals = []
 
-                # Step 1: Access as User A (owner)
                 result_a = engine.request(
                     ep.method, ep.url,
                     headers=auth_context.user_a.get_auth_headers()
                 )
 
                 if result_a.is_blocked:
-                    blocked += 1
+                    endpoints_blocked += 1
                     continue
                 if not result_a.has_response or result_a.status_code >= 400:
                     continue
 
-                # Step 2: Access same resource as User B
                 result_b = engine.request(
                     ep.method, ep.url,
                     headers=auth_context.user_b.get_auth_headers()
                 )
 
                 if result_b.is_blocked:
-                    blocked += 1
+                    endpoints_blocked += 1
                     continue
                 if not result_b.has_response:
                     continue
 
-                # Step 3: Compare responses
                 if result_b.status_code == 200 and result_a.body and result_b.body:
                     body_a_words = set(result_a.body.lower().split())
                     body_b_words = set(result_b.body.lower().split())
@@ -134,14 +134,6 @@ class IDORDetector(BaseDetector):
 
                         if auth_context.user_a.identifier and auth_context.user_a.identifier in result_b.body:
                             signals.append("cross_user_access_confirmed: User A's identifier found in User B's response")
-
-                # Step 4: Test unauthenticated access
-                result_unauth = engine.request(ep.method, ep.url, headers={})
-                if result_unauth.has_response and result_unauth.status_code == 200:
-                    if result_a.body and result_unauth.body:
-                        overlap = len(set(result_a.body.lower().split()) & set(result_unauth.body.lower().split())) / max(len(set(result_a.body.lower().split())), 1)
-                        if overlap > 0.7:
-                            signals.append("cross_user_access_confirmed: Unauthenticated access returns owner data")
 
                 if signals:
                     confidence = ConfidenceResult.from_signals(signals)
@@ -159,73 +151,109 @@ class IDORDetector(BaseDetector):
                         evidence=[Evidence(description=s) for s in signals],
                     ))
 
-        # Branch 2: Unauthenticated / Single-User BOLA Probing
+        # Branch 2: Single-User / Unauthenticated BOLA & Filter Tampering
         else:
-            for ep in idor_endpoints[:8]:
+            for ep in idor_endpoints[:10]:
                 tested += 1
-                # Probe with original URL and parameter variations
-                probe_urls = [ep.url]
+                ep_reqs = 0
+                ep_blocked = 0
+                headers = dict(getattr(ep, "headers", {}) or {})
+                defaults = dict(getattr(ep, "default_params", {}) or {})
+
+                probes = []
+                # Probe A: Original parameters
+                probes.append((ep.url, dict(defaults), dict(headers), "original_baseline"))
+
+                id_param = None
+                for p in (list(defaults.keys()) + ep.query_params):
+                    if any(k in p.lower() for k in ("user_id", "userid", "account_id", "id", "uuid")):
+                        id_param = p
+                        break
+
+                if id_param:
+                    orig_val = defaults.get(id_param, "")
+                    tampered_val = "00000000-0000-0000-0000-000000000000" if UUID_RE.search(orig_val) else "2"
+                    if "eq." in orig_val:
+                        tampered_val = f"eq.{tampered_val}"
+                    p_tampered = dict(defaults)
+                    p_tampered[id_param] = tampered_val
+                    probes.append((ep.url, p_tampered, dict(headers), f"tampered_{id_param}={tampered_val}"))
+
+                    # Stripped parameter probe (testing unauthorized collection access)
+                    p_stripped = dict(defaults)
+                    p_stripped.pop(id_param, None)
+                    probes.append((ep.url, p_stripped, dict(headers), f"stripped_{id_param}_filter"))
+
+                    # Inverted filter probe (neq)
+                    p_inverted = dict(defaults)
+                    p_inverted[id_param] = "neq.00000000-0000-0000-0000-000000000000"
+                    probes.append((ep.url, p_inverted, dict(headers), f"inverted_{id_param}"))
+
+                # Path-based ID tampering
                 if "1" in ep.url:
-                    probe_urls.append(ep.url.replace("1", "2"))
-                    probe_urls.append(ep.url.replace("1", "0"))
+                    probes.append((ep.url.replace("1", "2"), dict(defaults), dict(headers), "tampered_path_id=2"))
+                if UUID_RE.search(ep.url):
+                    probes.append((UUID_RE.sub("00000000-0000-0000-0000-000000000000", ep.url), dict(defaults), dict(headers), "tampered_path_uuid"))
 
-                for u in probe_urls:
-                    resp = engine.get(u)
+                for u, p_data, h_data, probe_type in probes:
+                    ep_reqs += 1
+                    resp = (engine.post(u, json=p_data, headers=h_data) if ep.method == "POST"
+                            else engine.get(u, params=p_data, headers=h_data))
                     if resp.is_blocked:
-                        blocked += 1
+                        ep_blocked += 1
                         continue
-                    if not resp.has_response:
+                    if not resp.has_response or resp.status_code != 200:
                         continue
 
-                    if resp.status_code == 200:
-                        try:
-                            data = json.loads(resp.body)
-                            if isinstance(data, (dict, list)):
-                                text = json.dumps(data).lower()
-                                matched_fields = [f for f in SENSITIVE_OBJECT_FIELDS if f in text]
-                                if matched_fields:
-                                    findings.append(StandardFinding(
-                                        vulnerability="Broken Object Level Authorization (BOLA / IDOR)",
-                                        title=f"Unauthenticated Object Exposure at {u}",
-                                        category=self.category,
-                                        severity="HIGH",
-                                        confidence=ConfidenceResult(
-                                            level=ConfidenceLevel.CONFIRMED,
-                                            score=0.92,
-                                            signals=[f"Direct access returned object with sensitive fields: {matched_fields}"]
-                                        ),
-                                        status=TestState.VULNERABLE,
-                                        endpoint=u,
-                                        method="GET",
-                                        cvss=CVSSInfo(score=7.5, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N", severity="HIGH"),
-                                        owasp=self.owasp, cwe=self.cwe,
-                                        remediation="Enforce server-side authentication and authorization before resolving direct object references.",
-                                        evidence=[Evidence(description=f"HTTP 200 with sensitive fields {matched_fields} at {u}")],
-                                    ))
-                                    break
-                        except Exception:
-                            pass
+                    try:
+                        data = json.loads(resp.body)
+                        if isinstance(data, (dict, list)):
+                            text = json.dumps(data).lower()
+                            matched_fields = [f for f in SENSITIVE_OBJECT_FIELDS if f in text]
+                            # If probe was tampered or stripped and still returned records with sensitive user fields
+                            if matched_fields and probe_type != "original_baseline":
+                                findings.append(StandardFinding(
+                                    vulnerability="Broken Object Level Authorization (BOLA / IDOR)",
+                                    title=f"BOLA / Object Exposure via {probe_type} at {u}",
+                                    category=self.category,
+                                    severity="HIGH",
+                                    confidence=ConfidenceResult(
+                                        level=ConfidenceLevel.CONFIRMED,
+                                        score=0.94,
+                                        signals=[f"Direct access with {probe_type} returned sensitive fields: {matched_fields}"]
+                                    ),
+                                    status=TestState.VULNERABLE,
+                                    endpoint=u,
+                                    method=ep.method,
+                                    parameter=id_param or "",
+                                    cvss=CVSSInfo(score=7.5, vector="CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:N/A:N", severity="HIGH"),
+                                    owasp=self.owasp, cwe=self.cwe,
+                                    remediation="Enforce server-side authorization checks on every resource access. Validate that the requesting identity owns the requested object.",
+                                    evidence=[Evidence(description=f"HTTP 200 returned sensitive fields {matched_fields} for {probe_type} at {u}")],
+                                ))
+                                break
+                    except Exception:
+                        pass
+
+                if ep_blocked >= ep_reqs and ep_reqs > 0:
+                    endpoints_blocked += 1
 
         vuln = [f for f in findings if f.status == TestState.VULNERABLE]
         if vuln:
             state = TestState.VULNERABLE
             details = f"Detected {len(vuln)} IDOR / BOLA authorization flaw(s)."
-        elif blocked >= tested and tested > 0:
+        elif endpoints_blocked >= tested and tested > 0:
             state = TestState.BLOCKED
-            details = f"All {blocked} IDOR probes were blocked by WAF."
+            details = f"All {endpoints_blocked} IDOR probes were blocked by WAF."
         elif any(f.status == TestState.INCONCLUSIVE for f in findings):
             state = TestState.INCONCLUSIVE
             details = "IDOR differential inconclusive."
-        elif tested > 0:
-            state = TestState.PASS
-            details = f"Probed {tested} object endpoints for IDOR / BOLA: unauthorized object access properly restricted (401/403/404 enforced)."
         else:
             state = TestState.PASS
-            tested = 1
-            details = "Object-level authorization verified: direct object references are properly protected."
+            details = f"Probed {tested} object endpoints for IDOR / BOLA: unauthorized object access properly restricted (401/403/404 enforced)."
 
         return DetectorResult(
             test_state=state, findings=vuln if vuln else findings,
             details=details,
-            endpoints_tested=max(tested, 1), endpoints_blocked=blocked,
+            endpoints_tested=max(tested, 1), endpoints_blocked=endpoints_blocked,
         )

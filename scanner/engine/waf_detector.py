@@ -3,6 +3,8 @@ WAF / Block Detection.
 
 Separates BLOCKED from NOT_VULNERABLE. A blocked payload is NOT evidence
 of security — it only means the WAF intercepted the test.
+Differentiates between actual WAF mitigation (challenges, IP bans) and standard
+application/database JSON errors (e.g. 400 Bad Request with Postgres error syntax).
 """
 
 import re
@@ -19,12 +21,13 @@ WAF_SIGNATURES = [
 # Block page content indicators
 BLOCK_KEYWORDS = [
     'captcha', 'access denied', 'please verify you are a human',
-    'security challenge', 'blocked', 'rate limit exceeded',
-    'request blocked', 'forbidden', 'web application firewall',
+    'security challenge', 'rate limit exceeded',
+    'request blocked', 'web application firewall',
     'your ip has been blocked', 'automated request detected',
+    'attention required', 'cloudflare ray id',
 ]
 
-# HTTP status codes indicating blocking
+# HTTP status codes indicating potential blocking
 BLOCK_STATUS_CODES = {403, 406, 429, 503}
 
 
@@ -39,34 +42,48 @@ class WAFDetector:
     def is_blocked(self, status_code: int, headers: dict, body: str) -> bool:
         """Check if a response indicates WAF blocking.
 
-        Returns True if the request was blocked, False otherwise.
+        Returns True if the request was blocked by a WAF/firewall, False otherwise.
+        Application JSON errors (Postgres syntax errors, 400 Bad Request, etc.) are NOT WAF blocks.
         """
         self.total_requests += 1
 
-        # Status code check
+        ct = (headers.get('Content-Type') or headers.get('content-type') or '').lower()
+        body_lower = (body or '').lower()
+
+        # 1. JSON responses from API / Database engines (e.g. PostgREST, FastAPI, Django, Express)
+        # These are application/database responses, NOT WAF blocks (unless rate limited)
+        if 'application/json' in ct:
+            if status_code == 429:
+                self.block_count += 1
+                return True
+            if status_code == 403 and any(k in body_lower for k in ('waf', 'blocked by cloudflare', 'ip banned')):
+                self.block_count += 1
+                return True
+            return False
+
+        # 2. Explicit WAF challenge / mitigation headers
+        if 'cf-mitigated' in headers:
+            self.block_count += 1
+            self.detected_waf = 'cloudflare'
+            return True
+
+        # 3. Status codes accompanied by block keywords
         if status_code in BLOCK_STATUS_CODES:
-            self.block_count += 1
-            self._detect_waf_from_headers(headers)
-            return True
-
-        # WAF server header + error status
-        server = headers.get('Server', '').lower()
-        if any(waf in server for waf in WAF_SIGNATURES) and status_code >= 400:
-            self.block_count += 1
-            self._detect_waf_from_headers(headers)
-            return True
-
-        # Block page content (only check for short responses to avoid scanning
-        # large legitimate pages)
-        if body and len(body) < 50000:
-            body_lower = body.lower()
+            if status_code == 429:
+                self.block_count += 1
+                return True
             if any(keyword in body_lower for keyword in BLOCK_KEYWORDS):
-                # Require at least 2 block indicators to reduce false positives
-                # from pages that legitimately contain words like "blocked"
-                hit_count = sum(1 for kw in BLOCK_KEYWORDS if kw in body_lower)
-                if hit_count >= 2 or status_code >= 400:
-                    self.block_count += 1
-                    return True
+                self.block_count += 1
+                self._detect_waf_from_headers(headers)
+                return True
+
+        # 4. Challenge page content in HTML
+        if body and len(body) < 30000:
+            hit_count = sum(1 for kw in BLOCK_KEYWORDS if kw in body_lower)
+            if hit_count >= 2 and status_code >= 400:
+                self.block_count += 1
+                self._detect_waf_from_headers(headers)
+                return True
 
         return False
 
@@ -83,24 +100,10 @@ class WAFDetector:
             'cf-ray': 'cloudflare',
             'x-sucuri-id': 'sucuri',
             'x-datadome': 'datadome',
-            'x-akamai-session': 'akamai',
+            'x-amz-cf-id': 'cloudfront',
+            'x-azure-ref': 'azure-front-door',
         }
         for header, waf_name in waf_headers.items():
-            if header.lower() in {k.lower() for k in headers}:
+            if header in headers:
                 self.detected_waf = waf_name
                 return
-
-    @property
-    def block_rate(self) -> float:
-        """Percentage of requests that were blocked."""
-        if self.total_requests == 0:
-            return 0.0
-        return self.block_count / self.total_requests
-
-    def get_summary(self) -> dict:
-        return {
-            "detected_waf": self.detected_waf,
-            "total_requests": self.total_requests,
-            "blocked_requests": self.block_count,
-            "block_rate": round(self.block_rate, 2),
-        }

@@ -7,13 +7,16 @@ Searches downloaded JS files for:
 - /api/ path strings
 - GraphQL operation strings
 - Next.js API routes
+- Supabase / Firebase / Cloud API backend endpoints
+- PostgREST table endpoints and query parameters
 """
 
 import re
 from typing import List, Set
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlparse, parse_qs, urlunparse
 
 from scanner.models.endpoint import EndpointInfo, DiscoverySource
+from scanner.discovery.scope import is_target_scope
 
 
 # Patterns for API endpoint discovery in JS source
@@ -44,15 +47,26 @@ METHOD_URL_RE = re.compile(
     re.IGNORECASE | re.DOTALL
 )
 
+SUPABASE_URL_RE = re.compile(r'''https://([a-zA-Z0-9_-]+)\.supabase\.co''', re.IGNORECASE)
+SUPABASE_KEY_RE = re.compile(r'''eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+''')
+TABLE_RE = re.compile(r'''\.from\(["']([a-zA-Z0-9_]{2,40})["']\)''')
+REST_PATH_RE = re.compile(r'''/rest/v1/([a-zA-Z0-9_]{2,40})''')
+
 SKIP_EXT = (
     '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', '.webp',
     '.woff', '.woff2', '.ttf', '.eot', '.css', '.map',
 )
 
+CORE_TABLES = [
+    "profiles", "users", "organizations", "sites", "mentors",
+    "api_keys", "projects", "sessions", "orders", "documents",
+    "accounts", "items", "reports", "settings"
+]
+
 
 def _is_valid_path(path: str) -> bool:
     """Filter out noise — only keep paths that look like real API routes."""
-    if not path or len(path) < 2 or len(path) > 250:
+    if not path or len(path) < 2 or len(path) > 350:
         return False
     if path.lower().endswith(SKIP_EXT):
         return False
@@ -72,55 +86,86 @@ def _is_valid_path(path: str) -> bool:
 class JSAPIExtractor:
     """
     Extracts API endpoint URLs from JavaScript source files.
-
-    Usage:
-        extractor = JSAPIExtractor(base_url="https://example.com")
-        endpoints = extractor.extract_from_js(js_source_code)
-        endpoints = extractor.extract_from_urls(["https://example.com/static/js/main.chunk.js"])
     """
 
     def __init__(self, base_url: str, request_session=None):
         self.base_url = base_url.rstrip('/')
         self.session = request_session
-        self._base_domain = urlparse(base_url).netloc.lower()
-
-    def _same_host(self, url: str) -> bool:
-        try:
-            netloc = urlparse(url).netloc.lower()
-            a = netloc[4:] if netloc.startswith('www.') else netloc
-            b = self._base_domain[4:] if self._base_domain.startswith('www.') else self._base_domain
-            return a == b or a.endswith('.' + b) or b.endswith('.' + a)
-        except Exception:
-            return False
 
     def extract_from_js(self, js_source: str) -> List[EndpointInfo]:
         """
         Extract API endpoints from a JavaScript source string.
-        Returns a list of EndpointInfo objects.
+        Returns a list of EndpointInfo objects with parsed query params, default params, and headers.
         """
         seen: Set[str] = set()
         results: List[EndpointInfo] = []
+
+        # 1. Search for Supabase / BaaS credentials
+        sb_match = SUPABASE_URL_RE.search(js_source)
+        sb_url = sb_match.group(0) if sb_match else None
+        key_match = SUPABASE_KEY_RE.search(js_source)
+        sb_key = key_match.group(0) if key_match else ""
+
+        api_headers = {}
+        if sb_key:
+            api_headers = {
+                "apikey": sb_key,
+                "Authorization": f"Bearer {sb_key}",
+            }
+
+        # If Supabase backend found, extract tables and add as REST endpoints
+        if sb_url:
+            discovered_tables = set(TABLE_RE.findall(js_source) + REST_PATH_RE.findall(js_source))
+            all_tables = set(CORE_TABLES) | discovered_tables
+            for tbl in all_tables:
+                rest_url = f"{sb_url}/rest/v1/{tbl}"
+                key = f"GET:{rest_url}"
+                if key not in seen:
+                    seen.add(key)
+                    results.append(EndpointInfo(
+                        url=rest_url,
+                        method="GET",
+                        query_params=["select", "id", "user_id"],
+                        default_params={"select": "*"},
+                        headers=dict(api_headers),
+                        discovery_source=DiscoverySource.JS_CRAWL,
+                        accepts_json=True,
+                    ))
 
         def _add(path: str, method: str = 'GET') -> None:
             if not _is_valid_path(path):
                 return
             # Resolve to absolute URL
             if path.startswith('http'):
-                if not self._same_host(path):
+                if not is_target_scope(path, self.base_url):
                     return
-                url = path
+                full_url = path
             else:
-                url = urljoin(self.base_url + '/', path.lstrip('/'))
+                full_url = urljoin(self.base_url + '/', path.lstrip('/'))
 
-            key = f"{method}:{url}"
+            # Parse query parameters and clean URL
+            parsed = urlparse(full_url)
+            clean_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+            query_params = []
+            default_params = {}
+            if parsed.query:
+                qs = parse_qs(parsed.query)
+                query_params = list(qs.keys())
+                default_params = {k: v[0] for k, v in qs.items()}
+
+            target_url = clean_url if clean_url else full_url
+            key = f"{method}:{target_url}"
             if key in seen:
                 return
             seen.add(key)
 
             is_state_changing = method in ('POST', 'PUT', 'DELETE', 'PATCH')
             results.append(EndpointInfo(
-                url=url,
+                url=target_url,
                 method=method,
+                query_params=query_params,
+                default_params=default_params,
+                headers=dict(api_headers),
                 discovery_source=DiscoverySource.JS_CRAWL,
                 is_state_changing=is_state_changing,
                 accepts_json=True,
@@ -130,7 +175,6 @@ class JSAPIExtractor:
         for m in FETCH_RE.finditer(js_source):
             _add(m.group(1))
         for m in AXIOS_RE.finditer(js_source):
-            # Determine method from axios.METHOD pattern
             text = m.group(0)
             method = 'GET'
             for verb in ('post', 'put', 'delete', 'patch'):
@@ -156,7 +200,6 @@ class JSAPIExtractor:
     def extract_from_urls(self, js_urls: List[str]) -> List[EndpointInfo]:
         """
         Download JS files and extract endpoints from each.
-        Uses self.session if provided (requests.Session), else urllib.
         """
         all_results: List[EndpointInfo] = []
 

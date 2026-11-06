@@ -10,9 +10,13 @@ from ..models.test_state import TestState
 from ..models.finding import StandardFinding, CVSSInfo
 from ..models.evidence import Evidence
 from ..models.confidence import ConfidenceResult, ConfidenceLevel
+from ..models.endpoint import EndpointInfo
 
 
-AUTH_HINTS = ("login", "auth", "signin", "register", "signup", "forgot", "reset", "otp", "verify", "2fa", "token", "contact", "search")
+AUTH_HINTS = (
+    "login", "auth", "signin", "register", "signup", "forgot",
+    "reset", "otp", "verify", "2fa", "token", "contact", "search"
+)
 
 BYPASS_HEADERS = [
     {"X-Forwarded-For": "127.0.0.1"},
@@ -34,10 +38,12 @@ class RateLimitDetector(BaseDetector):
         targets = []
         seen = set()
         for ep in endpoints:
-            if any(h in ep.url.lower() for h in AUTH_HINTS):
+            url_lower = ep.url.lower()
+            if any(h in url_lower for h in AUTH_HINTS) or "/api/" in url_lower or "/rest/v1/" in url_lower:
                 if ep.url not in seen:
                     seen.add(ep.url)
-                    targets.append((ep.url, ep.method if ep.method in ("GET", "POST") else "POST"))
+                    headers = dict(getattr(ep, "headers", {}) or {})
+                    targets.append((ep.url, ep.method if ep.method in ("GET", "POST") else "POST", headers))
 
         # Fallback to standard auth, contact, and sensitive paths if crawl didn't find keywords
         if not targets:
@@ -59,20 +65,20 @@ class RateLimitDetector(BaseDetector):
                 u = urljoin(origin, path)
                 if u not in seen:
                     seen.add(u)
-                    targets.append((u, method))
+                    targets.append((u, method, {}))
 
         findings: List[StandardFinding] = []
         tested = 0
         blocked = 0
 
-        for url, method in targets[:5]:
+        for url, method, ep_headers in targets[:5]:
             tested += 1
             hits = 0
             throttled = 0
             burst_count = 25
             for i in range(burst_count):
-                r = (engine.post(url, json={"probe": i, "user": f"test_{i}"}) if method == "POST"
-                     else engine.get(url, params={"probe": i, "q": f"burst_{i}"}))
+                r = (engine.post(url, json={"probe": i, "user": f"test_{i}"}, headers=ep_headers) if method == "POST"
+                     else engine.get(url, params={"probe": i, "q": f"burst_{i}"}, headers=ep_headers))
                 if r.is_blocked or r.status_code == 429:
                     throttled += 1
                 elif r.has_response and r.status_code < 500:
@@ -98,18 +104,19 @@ class RateLimitDetector(BaseDetector):
 
             # Bypass test — only meaningful if rate limiter is active
             if throttled >= 3:
-                bypass_found = False
                 for hdr in BYPASS_HEADERS:
                     passed = 0
+                    test_hdrs = dict(ep_headers)
+                    test_hdrs.update(hdr)
                     for _ in range(15):
-                        r = (engine.post(url, json={"probe": "b"}, headers=hdr) if method == "POST"
-                             else engine.get(url, params={"probe": "b"}, headers=hdr))
+                        r = (engine.post(url, json={"probe": "b"}, headers=test_hdrs) if method == "POST"
+                             else engine.get(url, params={"probe": "b"}, headers=test_hdrs))
                         if not r.is_blocked and r.status_code != 429 and r.has_response:
                             passed += 1
                     if passed >= 12:
                         findings.append(StandardFinding(
                             vulnerability="Rate Limit Bypass via IP Header",
-                            title="Rate Limit Bypass via IP Header",
+                            title=f"Rate Limit Bypass via IP Header at {url}",
                             category=self.category,
                             severity="HIGH",
                             confidence=ConfidenceResult(ConfidenceLevel.HIGH, f"{passed}/15 passed with spoofed {list(hdr.keys())[0]}"),
@@ -121,7 +128,6 @@ class RateLimitDetector(BaseDetector):
                             description=f"The rate limiter counted requests per client-supplied header. Spoofing {list(hdr.keys())[0]} circumvented it.",
                             evidence=[Evidence(description=f"header_bypass_confirmed: {list(hdr.keys())[0]} — {passed}/15 requests passed after throttling activated")],
                         ))
-                        bypass_found = True
                         break
 
         vuln_findings = [f for f in findings if f.status == TestState.VULNERABLE]

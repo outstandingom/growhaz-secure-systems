@@ -41,7 +41,6 @@ CONTEXT_PAYLOADS = {
         '<img src=x onerror=alert(1)>',
         '<svg onload=alert(1)>',
         '<details open ontoggle=alert(1)>',
-        # WAF bypass variants
         '<img src=x onerror=alert`1`>',
         '<svg/onload=alert(1)>',
         '<img src=x onerror="alert(1)">',
@@ -53,7 +52,6 @@ CONTEXT_PAYLOADS = {
         '" onmouseover="alert(1)" x="',
         "' onfocus='alert(1)' autofocus='",
         '" autofocus onfocus="alert(1)',
-        # WAF bypass variants
         '" onmouseenter="alert(1)',
         "' onpointerenter='alert(1)'",
         '" tabindex=1 onfocus="alert(1)',
@@ -62,7 +60,6 @@ CONTEXT_PAYLOADS = {
         "';alert(1);//",
         '";alert(1);//',
         "</script><script>alert(1)</script>",
-        # WAF bypass
         "';alert`1`;//",
         "\\';alert(1);//",
         "\\x27;alert(1);//",
@@ -71,7 +68,6 @@ CONTEXT_PAYLOADS = {
         "<script>alert(1)</script>",
         '"><script>alert(1)</script>',
         "<img src=x onerror=alert(1)>",
-        # WAF bypass generic
         "<ScRiPt>alert(1)</ScRiPt>",
         "<svg><script>alert(1)</script></svg>",
         "javascript:alert(1)",
@@ -94,23 +90,20 @@ def _detect_context(body: str, canary: str) -> Optional[str]:
         if regex.search(body):
             return ctx_name
 
-    # Fallback: is it anywhere in the body?
     if canary in body:
         return "html_body"
     return None
 
 
 def _is_encoded(body: str, payload: str, context: str) -> bool:
-    """Check if critical characters in the payload are HTML-encoded in the response."""
-    chars = CRITICAL_CHARS.get(context, ['<', '>'])
-    # Find the payload region in the body
-    idx = body.find(payload)
-    if idx == -1:
-        # Payload not found literally — check for encoded version
-        encoded = html.escape(payload)
-        if encoded in body:
+    """Check if the payload's dangerous characters were safely encoded."""
+    chars_to_check = CRITICAL_CHARS.get(context, ['<', '>'])
+
+    for ch in chars_to_check:
+        html_encoded = html.escape(ch)
+        if html_encoded in body and ch not in body:
             return True
-        return True  # Can't find it at all, assume encoded
+
     return False
 
 
@@ -125,8 +118,7 @@ class XSSDetector(BaseDetector):
         tested = 0
         blocked = 0
 
-        # Filter endpoints with parameters
-        testable = [ep for ep in endpoints if ep.all_params]
+        testable = [ep for ep in endpoints if ep.all_params or ep.default_params]
         if not testable:
             target_url = endpoints[0].url if endpoints else "http://localhost"
             parsed = urlparse(target_url)
@@ -141,21 +133,24 @@ class XSSDetector(BaseDetector):
                 for path in probe_paths
             ]
 
-        for ep in testable:
+        for ep in testable[:12]:
             tested += 1
+            defaults = dict(getattr(ep, "default_params", {}) or {})
+            headers = dict(getattr(ep, "headers", {}) or {})
             params = ep.all_params[:5]
+            if not params and defaults:
+                params = list(defaults.keys())[:5]
             if not params:
                 params = ["q", "search", "query", "name", "msg"]
 
             for param in params:
-                # Step 1: Send unique canary to detect reflection
                 canary = f"gxss{uuid.uuid4().hex[:8]}"
-                canary_data = {p: ("test" if p != param else canary) for p in params}
+                canary_data = {p: (defaults.get(p, "test") if p != param else canary) for p in params}
 
                 if ep.method == "POST":
-                    resp = engine.post(ep.url, json=canary_data)
+                    resp = engine.post(ep.url, json=canary_data, headers=headers)
                 else:
-                    resp = engine.get(ep.url, params=canary_data)
+                    resp = engine.get(ep.url, params=canary_data, headers=headers)
 
                 if resp.is_blocked:
                     blocked += 1
@@ -163,26 +158,23 @@ class XSSDetector(BaseDetector):
                 if not resp.has_response:
                     continue
 
-                # Is canary reflected?
                 if canary not in resp.body:
-                    continue  # Not reflected — skip this param
+                    continue
 
-                # Step 2: Determine reflection context
                 context = _detect_context(resp.body, canary)
                 if not context:
                     continue
 
-                # Step 3: Send context-appropriate payloads
                 payloads = CONTEXT_PAYLOADS.get(context, CONTEXT_PAYLOADS["generic"])
                 ep_signals = []
 
-                for payload in payloads:
-                    payload_data = {p: ("test" if p != param else payload) for p in params}
+                for payload in payloads[:4]:
+                    payload_data = {p: (defaults.get(p, "test") if p != param else payload) for p in params}
 
                     if ep.method == "POST":
-                        xss_resp = engine.post(ep.url, json=payload_data)
+                        xss_resp = engine.post(ep.url, json=payload_data, headers=headers)
                     else:
-                        xss_resp = engine.get(ep.url, params=payload_data)
+                        xss_resp = engine.get(ep.url, params=payload_data, headers=headers)
 
                     if xss_resp.is_blocked:
                         blocked += 1
@@ -190,9 +182,7 @@ class XSSDetector(BaseDetector):
                     if not xss_resp.has_response:
                         continue
 
-                    # Step 4: Check if payload is reflected unencoded
                     if payload in xss_resp.body:
-                        # Payload reflected literally
                         if not _is_encoded(xss_resp.body, payload, context):
                             ep_signals.append(
                                 f"unencoded_reflection: context={context}, param={param}, payload={payload[:40]}"
@@ -200,10 +190,8 @@ class XSSDetector(BaseDetector):
                         else:
                             ep_signals.append(f"encoded_reflection: context={context}, param={param}")
                     elif canary in xss_resp.body:
-                        # Canary reflected but payload was stripped/modified
                         ep_signals.append(f"partial_reflection: context={context}, param={param}")
 
-                # Evaluate signals
                 if ep_signals:
                     unencoded = [s for s in ep_signals if "unencoded_reflection" in s]
                     encoded = [s for s in ep_signals if "encoded_reflection" in s]
@@ -232,11 +220,7 @@ class XSSDetector(BaseDetector):
                             remediation="Encode all user input based on output context. Use Content-Security-Policy headers.",
                             evidence=[Evidence(description=s) for s in ep_signals],
                         ))
-                    elif encoded:
-                        # Reflected but encoded = PASS for this param (encoding is working)
-                        pass
 
-        # Overall state
         vuln_findings = [f for f in findings if f.status == TestState.VULNERABLE]
         if vuln_findings:
             state = TestState.VULNERABLE
