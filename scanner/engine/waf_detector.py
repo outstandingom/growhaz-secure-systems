@@ -8,7 +8,7 @@ application/database JSON errors (e.g. 400 Bad Request with Postgres error synta
 """
 
 import re
-from typing import Optional
+from typing import Optional, Dict, Any
 
 
 # WAF server header signatures
@@ -107,3 +107,12 @@ class WAFDetector:
             if header in headers:
                 self.detected_waf = waf_name
                 return
+
+    def get_summary(self) -> Dict[str, Any]:
+        """Return WAF detection summary."""
+        return {
+            "detected_waf": self.detected_waf,
+            "block_count": self.block_count,
+            "total_requests": self.total_requests,
+            "is_blocked": self.block_count > 0,
+        }

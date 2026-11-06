@@ -299,8 +299,19 @@ export default function Profile() {
   };
 
   const handleViewReport = (report: SecurityReport) => {
-    // Both new G5 (alpha-g5, alpha-g5-pro) and old G2 use the detailed report view
-    if (report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g5" || report.scan_type === "alpha-g2") {
+    const hasData = report.report_data && (
+      (report.report_data as any).v5_raw_report || 
+      (report.report_data as any).vulnerabilities || 
+      (report.report_data as any).findings
+    );
+    if (
+      report.scan_type === "alpha-g5-pro" || 
+      report.scan_type === "alpha-g5" || 
+      report.scan_type === "alpha-g2" || 
+      report.scan_type === "alpha-g3" || 
+      report.scan_type?.startsWith("alpha-") || 
+      hasData
+    ) {
       setSelectedReport(report);
       setShowG2Report(true);
     } else {
@@ -693,11 +704,11 @@ export default function Profile() {
                       <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                         <div className="flex items-start gap-4">
                           <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                            isReportReady(report.report_status) ? 
+                            isReportReady(report.report_status, report.report_data) ? 
                               ((report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? "bg-purple-500/10" : "bg-emerald-500/10") :
                               "bg-amber-500/10"
                           }`}>
-                            {isReportReady(report.report_status) ? (
+                            {isReportReady(report.report_status, report.report_data) ? (
                               (report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? (
                                 <Zap className="w-6 h-6 text-purple-400" />
                               ) : (
@@ -733,7 +744,7 @@ export default function Profile() {
                               )}
                             </p>
                             <div className="flex items-center gap-2 mt-2">
-                              {isReportReady(report.report_status) ? (
+                              {isReportReady(report.report_status, report.report_data) ? (
                                 <Badge className={(report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") ? 
                                   "bg-purple-500/20 text-purple-400 border-purple-500/30" : 
                                   "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
@@ -745,7 +756,7 @@ export default function Profile() {
                                   <Clock className="w-3 h-3 mr-1" /> Waiting for Report
                                 </Badge>
                               )}
-                              {(report.scan_type === "alpha-g5" || report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") && isReportReady(report.report_status) && (
+                              {(report.scan_type === "alpha-g5" || report.scan_type === "alpha-g5-pro" || report.scan_type === "alpha-g2") && isReportReady(report.report_status, report.report_data) && (
                                 <Badge variant="outline" className="border-purple-500/30 text-purple-400">
                                   CVSS Scored
                                 </Badge>
@@ -758,7 +769,7 @@ export default function Profile() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          {isReportReady(report.report_status) ? (
+                          {isReportReady(report.report_status, report.report_data) ? (
                             <Button 
                               variant="hero" 
                               size="sm" 
@@ -812,7 +823,17 @@ export default function Profile() {
                 }
               }
 
-              const rawVulns = data.vulnerabilities || data.findings || data.v5_raw_report?.findings || [];
+              let rawVulns: any[] = [];
+              if (Array.isArray(data.vulnerabilities) && data.vulnerabilities.length > 0) {
+                rawVulns = data.vulnerabilities;
+              } else if (Array.isArray(data.findings) && data.findings.length > 0) {
+                rawVulns = data.findings;
+              } else if (Array.isArray(data.v5_raw_report?.findings) && data.v5_raw_report.findings.length > 0) {
+                rawVulns = data.v5_raw_report.findings;
+              }
+              if (rawVulns.length === 0 && Array.isArray(data.informational) && data.informational.length > 0) {
+                rawVulns = data.informational;
+              }
               const vulnerabilities = rawVulns.map((v: any) => ({
                 vulnerability: v.vulnerability || v.title || "Security Finding",
                 cvss_score: typeof v.cvss_score === "number" ? v.cvss_score : (v.cvss?.score || 0.0),

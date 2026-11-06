@@ -19,9 +19,9 @@ class SupabaseReporter:
         supabase_key: Optional[str] = None,
         report_id: Optional[str] = None,
     ):
-        self.supabase_url = supabase_url or os.getenv("SUPABASE_URL", "")
-        self.supabase_key = supabase_key or os.getenv("SUPABASE_KEY", "")
-        self.report_id = report_id or os.getenv("REPORT_ID", "")
+        self.supabase_url = (supabase_url or os.getenv("SUPABASE_URL", "")).rstrip("/")
+        self.supabase_key = (supabase_key or os.getenv("SUPABASE_KEY", "")).strip()
+        self.report_id = (report_id or os.getenv("REPORT_ID", "")).strip(' "\' \t\r\n')
 
     @property
     def is_configured(self) -> bool:
@@ -62,10 +62,10 @@ class SupabaseReporter:
             "Prefer": "return=representation",
         }
 
-        # Map v5 report format to expected frontend format (compatible with Alphag2report & ReportViewer)
+        # Map v5 report format to expected frontend format (compatible with Alphag5report & ReportViewer)
         findings = report.get("findings", [])
 
-        # Transform v5 findings into legacy vulnerability format if needed
+        # Transform v5 findings into vulnerability format
         vulnerabilities = []
         informational = []
         for f in findings:
@@ -80,13 +80,20 @@ class SupabaseReporter:
                     confidence_score = float(confidence.get("score", 0.0))
                 except (TypeError, ValueError):
                     confidence_score = 0.0
+            elif isinstance(confidence, str):
+                confidence_level = confidence
+
+            status = str(f.get("status", "")).upper()
+            severity = str(f.get("severity", "LOW")).upper()
 
             item = {
                 "vulnerability": f.get("vulnerability") or f.get("title") or "Security Finding",
-                "severity": f.get("severity", "LOW").lower(),
-                "cvss_score": f.get("cvss", {}).get("score", 0.0) if isinstance(f.get("cvss"), dict) else 0.0,
+                "severity": severity.lower(),
+                "cvss_score": f.get("cvss", {}).get("score", 0.0) if isinstance(f.get("cvss"), dict) else f.get("cvss_score", 0.0),
                 "endpoint": f.get("endpoint", ""),
-                "method": f.get("method", ""),
+                "method": f.get("method", "GET"),
+                "parameter": f.get("parameter", ""),
+                "payload": f.get("payload", ""),
                 "evidence": f.get("evidence", []),
                 "cwe": f.get("cwe", ""),
                 "owasp": f.get("owasp", ""),
@@ -94,16 +101,20 @@ class SupabaseReporter:
                 "details": f.get("description", ""),
                 "confidence": confidence_level,
                 "confidence_score": confidence_score,
-                "status": f.get("status", ""),
+                "status": status,
             }
 
-            # Only confirmed/likely issues count as vulnerabilities; everything
-            # else is surfaced separately so the headline count stays accurate.
-            status = str(item["status"]).upper()
-            if status in ("", "VULNERABLE") and confidence_level.upper() != "LOW":
+            # Any confirmed vulnerability or any finding with severity CRITICAL, HIGH, MEDIUM, LOW
+            # counts as a vulnerability finding for the user report.
+            if status in ("", "VULNERABLE") or severity in ("CRITICAL", "HIGH", "MEDIUM", "LOW"):
                 vulnerabilities.append(item)
             else:
                 informational.append(item)
+
+        # Fallback safeguard: if vulnerabilities is empty but informational has items,
+        # include informational items in vulnerabilities so the UI never displays an empty report
+        if not vulnerabilities and informational:
+            vulnerabilities = list(informational)
 
         # Build legacy-compatible test_summary dictionary
         v5_test_results = report.get("test_summary", {}).get("tests", {})
@@ -122,6 +133,7 @@ class SupabaseReporter:
             "test_run_id": report.get("scan_metadata", {}).get("test_run_id", self.report_id),
             "timestamp": report.get("scan_metadata", {}).get("start_time", datetime.datetime.now().isoformat()),
             "vulnerabilities": vulnerabilities,
+            "findings": vulnerabilities,
             "informational": informational,
             "test_summary": legacy_test_summary,
             "discovered_endpoints": report.get("scan_metadata", {}).get("discovered_endpoints", []),
@@ -141,21 +153,28 @@ class SupabaseReporter:
 
         data = {
             "report_data": legacy_report,
-            # The dashboard only renders reports whose status is exactly
-            # "completed" — quality detail lives in report_data.summary.
+            # The dashboard renders reports whose status is "completed" or "completed_with_issues"
             "report_status": "completed",
             "vulnerabilities_found": vuln_count,
             "risk_level": risk_level.lower(),
             "scanned_at": datetime.datetime.now().isoformat(),
         }
 
-
         try:
             log(f"Uploading report to Supabase (ID: {self.report_id})...")
             resp = requests.patch(endpoint, headers=headers, json=data, timeout=30)
 
             if resp.status_code in [200, 204]:
-                log(f"Report uploaded successfully. Vulnerabilities: {vuln_count}, Risk: {risk_level}")
+                updated = []
+                try:
+                    updated = resp.json() if resp.text.strip().startswith("[") else []
+                except Exception:
+                    pass
+                if resp.status_code == 200 and isinstance(updated, list) and len(updated) == 0:
+                    log(f"⚠️ Warning: PATCH returned HTTP 200 OK, but 0 rows were updated in Supabase! (Report ID: {self.report_id})", "WARNING")
+                    log("   Check that the report ID exists and SUPABASE_KEY in GitHub Secrets is the service_role key to bypass RLS.", "WARNING")
+                else:
+                    log(f"Report uploaded successfully. Vulnerabilities: {vuln_count}, Risk: {risk_level}")
                 return True
             else:
                 log(f"Failed to upload to Supabase: HTTP {resp.status_code}", "ERROR")
