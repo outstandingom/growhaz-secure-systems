@@ -27,4 +27,5 @@ from .rate_limit_detector import RateLimitDetector
 from .business_logic_detector import BusinessLogicDetector
 from .race_condition_detector import RaceConditionDetector
 from .rls_detector import RLSDetector
+from .dom_xss_detector import DOMXSSDetector
 from .registry import TEST_REGISTRY, get_detector, get_all_detectors

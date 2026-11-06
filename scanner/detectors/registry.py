@@ -28,6 +28,7 @@ from .rate_limit_detector import RateLimitDetector
 from .business_logic_detector import BusinessLogicDetector
 from .race_condition_detector import RaceConditionDetector
 from .rls_detector import RLSDetector
+from .dom_xss_detector import DOMXSSDetector
 
 
 # Ordered list of all detectors to run
@@ -35,6 +36,7 @@ TEST_REGISTRY: List[Type[BaseDetector]] = [
     # High-impact injection tests first
     SQLiDetector,
     XSSDetector,
+    DOMXSSDetector,
     CommandInjectionDetector,
     SSTIDetector,
     XXEDetector,
