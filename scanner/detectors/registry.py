@@ -27,6 +27,7 @@ from .file_upload_detector import FileUploadDetector
 from .rate_limit_detector import RateLimitDetector
 from .business_logic_detector import BusinessLogicDetector
 from .race_condition_detector import RaceConditionDetector
+from .rls_detector import RLSDetector
 
 
 # Ordered list of all detectors to run
@@ -40,6 +41,7 @@ TEST_REGISTRY: List[Type[BaseDetector]] = [
     PrototypePollutionDetector,
     SSRFDetector,
     # Access control
+    RLSDetector,
     AuthDetector,
     IDORDetector,
     MassAssignmentDetector,

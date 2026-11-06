@@ -9,10 +9,10 @@ const corsHeaders = {
 interface ScanRequest {
   url: string
   reportId: string
-  scannerVersion?: 'alpha-g1' | 'alpha-g2'  // Optional, defaults to alpha-g2
-  enableJs?: boolean                         // Optional, for alpha-g2
-  testEmail?: string                         // Optional test email
-  openapiSpec?: string                        // Optional OpenAPI spec path
+  scannerVersion?: 'alpha-g1' | 'alpha-g2' | 'alpha-g3'  // Optional, defaults to alpha-g3
+  enableJs?: boolean                                     // Optional, enables Playwright headless crawler
+  testEmail?: string                                     // Optional test email
+  openapiSpec?: string                                   // Optional OpenAPI spec path
 }
 
 serve(async (req) => {
@@ -25,7 +25,7 @@ serve(async (req) => {
     const { 
       url, 
       reportId, 
-      scannerVersion = 'alpha-g2',
+      scannerVersion = 'alpha-g3',
       enableJs = false,
       testEmail,
       openapiSpec 
@@ -79,8 +79,8 @@ serve(async (req) => {
       scanner_version: scannerVersion
     }
 
-    // Add optional parameters
-    if (scannerVersion === 'alpha-g2' && enableJs) {
+    // Add optional parameters - forward JS crawling for any modern scanner version
+    if (enableJs) {
       workflowInputs.enable_js = 'true'
     }
     
@@ -100,7 +100,7 @@ serve(async (req) => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        ref: "main", // or the branch you want to trigger
+        ref: "main",
         inputs: workflowInputs
       })
     })
@@ -111,7 +111,6 @@ serve(async (req) => {
       const errorText = await response.text()
       console.error('❌ GitHub API error:', errorText)
       
-      // Try to parse GitHub API error
       let errorMessage = `GitHub API error (${response.status})`
       try {
         const errorJson = JSON.parse(errorText)
@@ -133,12 +132,12 @@ serve(async (req) => {
         status: "scan_started", 
         reportId,
         scannerVersion,
-        message: `Alpha ${scannerVersion === 'alpha-g1' ? 'G1' : 'G2'} scan initiated successfully`,
+        message: `${scannerVersion} scan initiated successfully`,
         details: {
           url,
           reportId,
           scannerVersion,
-          enableJs: enableJs && scannerVersion === 'alpha-g2',
+          enableJs,
           testEmail: !!testEmail,
           openapiSpec: !!openapiSpec
         }

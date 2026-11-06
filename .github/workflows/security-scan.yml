@@ -19,7 +19,7 @@ on:
           - alpha-g2
           - alpha-g3
       enable_js:
-        description: 'Enable JavaScript crawling (Alpha G2 only)'
+        description: 'Enable JavaScript crawling (Alpha G2 & G3)'
         required: false
         default: 'false'
         type: choice
@@ -161,10 +161,10 @@ jobs:
 
       - name: Display scan summary
         run: |
-          echo "## 📊 Scan Complete - Alpha ${{ github.event.inputs.scanner_version == 'alpha-g1' && 'G1' || 'G2' }}" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Scan Complete - Alpha ${{ github.event.inputs.scanner_version }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Target URL:** ${{ github.event.inputs.url }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Scanner:** Alpha ${{ github.event.inputs.scanner_version == 'alpha-g1' && 'G1' || 'G2' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Scanner:** Alpha ${{ github.event.inputs.scanner_version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Report ID:** ${{ github.event.inputs.reportId }}" >> $GITHUB_STEP_SUMMARY
           echo "- **JavaScript:** ${{ github.event.inputs.enable_js }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Test Email:** ${{ github.event.inputs.test_email || 'Not provided' }}" >> $GITHUB_STEP_SUMMARY

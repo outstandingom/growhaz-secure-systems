@@ -14,7 +14,7 @@ Strategy (discover-first, then validate):
 import re
 from typing import List, Set, Iterable
 from bs4 import BeautifulSoup
-from urllib.parse import urljoin, urlparse, urlunparse
+from urllib.parse import urljoin, urlparse, urlunparse, parse_qs
 from xml.etree import ElementTree as ET
 
 from scanner.models.endpoint import EndpointInfo, DiscoverySource
@@ -113,14 +113,28 @@ class StaticCrawler:
             return
         if not self._same_host(url):
             return
+        parsed_params = list(params or [])
+        try:
+            parsed_query = urlparse(url).query
+            if parsed_query:
+                qs = parse_qs(parsed_query)
+                for qk in qs.keys():
+                    if qk not in parsed_params:
+                        parsed_params.append(qk)
+        except Exception:
+            pass
+
         norm = _normalize(url)
         key = f"{method}:{norm}"
         if key in self.candidate_meta:
+            for p in parsed_params:
+                if p not in self.candidate_meta[key]['params']:
+                    self.candidate_meta[key]['params'].append(p)
             return
         self.candidates.add(norm)
         self.candidate_meta[key] = dict(
             url=norm, method=method, source=source,
-            state_changing=state_changing, params=list(params or []),
+            state_changing=state_changing, params=parsed_params,
             accepts_json=accepts_json,
         )
 
@@ -272,6 +286,13 @@ class StaticCrawler:
                                 source=DiscoverySource.FORM,
                                 state_changing=state, params=params)
 
+        for inp in soup.find_all(['input', 'textarea']):
+            name = inp.get('name') or inp.get('id')
+            if name and not any(p in name.lower() for p in ('csrf', '__viewstate')):
+                self._add_candidate(current_url, method="GET",
+                                    source=DiscoverySource.FORM,
+                                    params=[name])
+
     # ------------------------------------------------------------------
     # Validation — probe candidates and keep only those that resolve
     # ------------------------------------------------------------------
@@ -341,6 +362,8 @@ class StaticCrawler:
         key = f"{info.method}:{info.url}"
         if key not in self.confirmed:
             self.confirmed[key] = info
+        else:
+            self.confirmed[key].merge(info)
 
     # ------------------------------------------------------------------
     # Main
