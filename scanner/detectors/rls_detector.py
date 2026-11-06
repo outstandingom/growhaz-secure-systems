@@ -2,16 +2,18 @@
 Row Level Security (RLS) & Database Exposure Detector.
 
 Detects:
-1. Supabase / PostgREST public table exposure without Row Level Security.
+1. Supabase / PostgREST public table exposure without Row Level Security (RLS).
 2. Unprotected database REST endpoints returning customer/user data.
 3. Firebase Realtime Database open read/write security rules.
 4. Missing write-level RLS policies on critical tables.
+5. Recursively inspects client SPA JS bundles and chunks to discover backend database endpoints and keys.
 """
 
 import re
 import json
 from typing import List, Dict, Optional, Set, Tuple
 from urllib.parse import urlparse, urljoin
+from bs4 import BeautifulSoup
 
 from .base_detector import BaseDetector, DetectorResult
 from ..models.test_state import TestState
@@ -24,41 +26,70 @@ from ..engine.baseline import BaselineMeasurer
 from ..models.endpoint import EndpointInfo
 
 
-# Tables commonly containing sensitive or proprietary data
+# Comprehensive list of tables commonly storing sensitive customer, business, or system data
 CRITICAL_TABLES = [
-    "users",
+    # Identity, Profiles & Auth
     "profiles",
+    "users",
+    "user_profiles",
+    "user_roles",
     "accounts",
-    "customers",
-    "orders",
-    "documents",
-    "payments",
-    "subscriptions",
-    "invoices",
     "members",
     "teams",
     "organizations",
+    "mentors",
+    # Business, Billing & Financial
+    "customers",
+    "orders",
+    "payments",
+    "subscriptions",
+    "invoices",
+    "coin_balances",
+    "coin_transactions",
+    "withdrawal_requests",
+    "transactions",
+    # Sites, Projects, Documents & System
+    "sites",
+    "projects",
+    "documents",
+    "files",
+    "security_reports",
+    "audit_logs",
+    "logs",
+    "alerts",
+    "alert_rules",
+    # Credentials & Security
     "settings",
+    "credentials",
+    "api_keys",
+    "tokens",
+    "sessions",
+    # User Content & Communication
     "todos",
     "messages",
     "chats",
     "posts",
-    "audit_logs",
-    "logs",
-    "credentials",
-    "api_keys",
+    "comments",
+    "notes",
+    "feedbacks",
+    "contacts",
+    "leads",
+    "products",
+    "items",
 ]
 
-# Sensitive keys to check in JSON response rows
+# Sensitive keys to verify in JSON response rows
 SENSITIVE_FIELD_NAMES = {
     "email", "phone", "password", "hash", "secret", "token", "ssn",
     "address", "credit_card", "stripe_customer_id", "billing",
-    "user_id", "id", "full_name", "first_name", "last_name", "username"
+    "user_id", "id", "full_name", "first_name", "last_name", "username",
+    "balance", "amount", "role", "organization_id", "project_id"
 }
 
 SUPABASE_URL_RE = re.compile(r'https://[a-zA-Z0-9_-]+\.supabase\.co')
 FIREBASE_URL_RE = re.compile(r'https://[a-zA-Z0-9_-]+\.firebaseio\.com')
 JWT_TOKEN_RE = re.compile(r'eyJ[a-zA-Z0-9_-]{10,}\.eyJ[a-zA-Z0-9_-]{10,}\.[a-zA-Z0-9_-]{10,}')
+JS_CHUNK_RE = re.compile(r'[a-zA-Z0-9_.-]+\.js')
 
 
 class RLSDetector(BaseDetector):
@@ -68,51 +99,74 @@ class RLSDetector(BaseDetector):
     owasp = "A01:2021 - Broken Access Control"
 
     def _extract_db_targets(self, endpoints: List[EndpointInfo], engine: RequestEngine) -> Tuple[Set[str], Set[str]]:
-        """Extract Supabase/PostgREST/Firebase URLs and anon tokens from crawl data."""
-        db_urls = set()
-        anon_keys = set()
+        """Deeply inspect crawl data, homepage HTML, and chunked JS bundles for Supabase/Firebase credentials."""
+        db_urls: Set[str] = set()
+        anon_keys: Set[str] = set()
+        seen_script_urls: Set[str] = set()
 
+        def scan_text(text: str):
+            if not text:
+                return
+            for m in SUPABASE_URL_RE.finditer(text):
+                db_urls.add(m.group(0).rstrip('/'))
+            for m in FIREBASE_URL_RE.finditer(text):
+                db_urls.add(m.group(0).rstrip('/'))
+            for tok in JWT_TOKEN_RE.finditer(text):
+                anon_keys.add(tok.group(0))
+
+        # 1. Inspect all discovered endpoints and headers
         for ep in endpoints:
-            # Check endpoint URLs
-            if "supabase.co" in ep.url.lower():
-                m = SUPABASE_URL_RE.search(ep.url)
-                if m:
-                    db_urls.add(m.group(0))
-            if "firebaseio.com" in ep.url.lower():
-                m = FIREBASE_URL_RE.search(ep.url)
-                if m:
-                    db_urls.add(m.group(0))
-
-            # Check if headers contain anon keys
+            scan_text(ep.url)
             for hname, hval in ep.headers.items():
-                if hname.lower() in ("apikey", "authorization"):
-                    for tok in JWT_TOKEN_RE.findall(hval):
-                        anon_keys.add(tok)
+                scan_text(hval)
 
-        # Inspect JS bundles or homepage body for Supabase references
-        for ep in endpoints[:15]:
-            if ep.method == "GET" and (ep.url.endswith(".js") or ep.url.endswith("/") or "asset" in ep.url):
-                try:
-                    resp = engine.get(ep.url)
-                    if resp.has_response and resp.body:
-                        for m in SUPABASE_URL_RE.finditer(resp.body):
-                            db_urls.add(m.group(0))
-                        for m in FIREBASE_URL_RE.finditer(resp.body):
-                            db_urls.add(m.group(0))
-                        for tok in JWT_TOKEN_RE.finditer(resp.body):
-                            # Usually Supabase anon keys have role "anon"
-                            raw_tok = tok.group(0)
-                            anon_keys.add(raw_tok)
-                except Exception:
-                    pass
+        target_base = endpoints[0].url if endpoints else ""
+        if target_base:
+            parsed = urlparse(target_base)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
 
-        # If base target itself has /rest/v1 or is an API
-        if endpoints:
-            base_origin = endpoints[0].url.split("//", 1)
-            if len(base_origin) == 2:
-                scheme = base_origin[0]
-                host = base_origin[1].split("/", 1)[0]
-                db_urls.add(f"{scheme}//{host}")
+            # 2. Fetch target homepage HTML and scan inline scripts + <script src="...">
+            try:
+                home_resp = engine.get(origin)
+                if home_resp.has_response and home_resp.body:
+                    scan_text(home_resp.body)
+                    soup = BeautifulSoup(home_resp.body, 'html.parser')
+                    script_srcs = [s.get('src') for s in soup.find_all('script', src=True) if s.get('src')]
+
+                    # 3. Fetch each script and recursively inspect code-split chunks (Vite/Next/Rollup)
+                    for src in script_srcs:
+                        full_script_url = urljoin(origin, src)
+                        if full_script_url in seen_script_urls:
+                            continue
+                        seen_script_urls.add(full_script_url)
+
+                        script_resp = engine.get(full_script_url)
+                        if script_resp.has_response and script_resp.body:
+                            scan_text(script_resp.body)
+
+                            # Find dynamically imported chunks referenced in this bundle
+                            chunk_names = set(JS_CHUNK_RE.findall(script_resp.body))
+                            asset_base = full_script_url.rsplit('/', 1)[0] + '/'
+
+                            for chunk in list(chunk_names)[:30]:
+                                if chunk.startswith(('gtag', 'analytics', 'clarity')) or len(chunk) < 8:
+                                    continue
+                                chunk_url = urljoin(asset_base, chunk)
+                                if chunk_url in seen_script_urls:
+                                    continue
+                                seen_script_urls.add(chunk_url)
+
+                                chunk_resp = engine.get(chunk_url)
+                                if chunk_resp.has_response and chunk_resp.body:
+                                    scan_text(chunk_resp.body)
+            except Exception:
+                pass
+
+        # 4. Also check origin itself as a PostgREST host
+        if target_base:
+            parsed = urlparse(target_base)
+            origin = f"{parsed.scheme}://{parsed.netloc}"
+            db_urls.add(origin)
 
         return db_urls, anon_keys
 
@@ -128,19 +182,45 @@ class RLSDetector(BaseDetector):
         blocked = 0
 
         db_urls, anon_keys = self._extract_db_targets(endpoints, engine)
-        auth_headers_list: List[Dict[str, str]] = [{}]  # Unauthenticated check first
+
+        # Prepare headers: test with public anon key and completely unauthenticated
+        auth_headers_list: List[Dict[str, str]] = []
         for key in list(anon_keys)[:3]:
             auth_headers_list.append({"apikey": key, "Authorization": f"Bearer {key}"})
+        auth_headers_list.append({})  # Unauthenticated check
 
         checked_tables_summary = []
         rls_protected_count = 0
 
         # 1. Test Supabase / PostgREST endpoints
-        for db_url in list(db_urls)[:4]:
+        for db_url in list(db_urls)[:5]:
             rest_base = urljoin(db_url + "/", "rest/v1/")
 
-            for table in CRITICAL_TABLES:
+            # Step 1: Probe PostgREST OpenAPI schema to discover all existing table names
+            discovered_tables = set(CRITICAL_TABLES)
+            for headers in auth_headers_list:
+                try:
+                    schema_resp = engine.get(rest_base, headers=headers)
+                    if schema_resp.has_response and schema_resp.status_code == 200:
+                        try:
+                            schema_json = json.loads(schema_resp.body)
+                            defs = schema_json.get("definitions", {})
+                            for t in defs.keys():
+                                discovered_tables.add(t)
+                            paths = schema_json.get("paths", {})
+                            for p in paths.keys():
+                                clean_p = p.strip("/").split("?")[0]
+                                if clean_p and "/" not in clean_p:
+                                    discovered_tables.add(clean_p)
+                        except Exception:
+                            pass
+                except Exception:
+                    pass
+
+            # Step 2: Probe each table for public read exposure (RLS disabled)
+            for table in list(discovered_tables):
                 table_url = f"{rest_base}{table}?select=*&limit=5"
+
                 for headers in auth_headers_list:
                     tested += 1
                     resp = engine.get(table_url, headers=headers)
@@ -156,7 +236,6 @@ class RLSDetector(BaseDetector):
                         try:
                             records = json.loads(resp.body)
                             if isinstance(records, list) and len(records) > 0:
-                                # Inspect records for sensitive fields
                                 matched_fields = set()
                                 for r in records[:3]:
                                     if isinstance(r, dict):
@@ -164,7 +243,7 @@ class RLSDetector(BaseDetector):
 
                                 preview = resp.body[:300].replace("\n", " ")
                                 has_anon_key = bool(headers.get("apikey"))
-                                auth_mode = "with public anon-key" if has_anon_key else "unauthenticated"
+                                auth_mode = "with public anon-key" if has_anon_key else "completely unauthenticated"
 
                                 findings.append(StandardFinding(
                                     vulnerability="Row Level Security (RLS) Disabled",
@@ -173,11 +252,11 @@ class RLSDetector(BaseDetector):
                                     severity="CRITICAL",
                                     confidence=ConfidenceResult(
                                         level=ConfidenceLevel.CONFIRMED,
-                                        score=0.95,
+                                        score=0.98,
                                         signals=[
                                             f"HTTP 200 returned {len(records)} records from {table_url}",
-                                            f"Sensitive keys identified: {list(matched_fields)[:6]}",
-                                            f"Request made {auth_mode}",
+                                            f"Exposed columns: {list(matched_fields)[:8]}",
+                                            f"Query executed {auth_mode}",
                                         ],
                                         validation_method="live_postgrest_table_query",
                                     ),
@@ -198,7 +277,7 @@ class RLSDetector(BaseDetector):
                                     ),
                                     description=(
                                         f"The database table '{table}' does not have Row Level Security (RLS) enabled or allows public reads. "
-                                        f"An unauthenticated attacker or user with public anon-key retrieved {len(records)} record(s) directly. "
+                                        f"An attacker or public visitor querying {table_url} {auth_mode} retrieved {len(records)} live record(s). "
                                         f"Exposed fields include: {', '.join(list(matched_fields)[:8]) if matched_fields else 'all columns'}."
                                     ),
                                     evidence=[
@@ -210,7 +289,7 @@ class RLSDetector(BaseDetector):
                                 break  # Move to next table once confirmed vulnerable
                             elif isinstance(records, list) and len(records) == 0:
                                 # Table exists, but returned empty list
-                                # Check if write RLS is enabled or open
+                                # Safe write probe: check if insert RLS is missing
                                 write_resp = engine.post(f"{rest_base}{table}", json={"__probe__": "growhaz_security_probe"}, headers=headers)
                                 if "violates row-level security policy" in write_resp.body.lower():
                                     rls_protected_count += 1
@@ -221,7 +300,7 @@ class RLSDetector(BaseDetector):
                                         title=f"Missing Insert RLS Policy on '{table}' Table",
                                         category=self.category,
                                         severity="HIGH",
-                                        confidence=ConfidenceResult(level=ConfidenceLevel.HIGH, score=0.85),
+                                        confidence=ConfidenceResult(level=ConfidenceLevel.HIGH, score=0.88),
                                         status=TestState.VULNERABLE,
                                         endpoint=f"{rest_base}{table}",
                                         method="POST",
@@ -307,7 +386,8 @@ class RLSDetector(BaseDetector):
         vuln_findings = [f for f in findings if f.status == TestState.VULNERABLE]
         if vuln_findings:
             state = TestState.VULNERABLE
-            details = f"Detected {len(vuln_findings)} database security flaw(s). Critical data tables exposed."
+            exposed_table_names = [f.title.split("'")[1] for f in vuln_findings if "'" in f.title]
+            details = f"CRITICAL: Found {len(vuln_findings)} database security flaw(s). Row Level Security is DISABLED on tables: {', '.join(exposed_table_names[:5])}."
         elif blocked >= tested and tested > 0:
             state = TestState.BLOCKED
             details = f"All {blocked} database access probes were blocked by WAF."
