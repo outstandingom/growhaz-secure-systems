@@ -75,13 +75,27 @@ interface SecurityReport {
   report_status?: string;
 }
 
+type ProfileTab = "profile" | "mentor" | "services" | "reports" | "documents" | "history" | "apps" | "forensic" | "partner";
+
+const profileTabs: { id: ProfileTab; label: string; icon: typeof User }[] = [
+  { id: "profile", label: "My Profile", icon: User },
+  { id: "mentor", label: "Mentor & Learner", icon: GraduationCap },
+  { id: "services", label: "My Services", icon: Package },
+  { id: "documents", label: "My Documents", icon: FileText },
+  { id: "history", label: "Verification History", icon: Clock },
+  { id: "reports", label: "Security Reports", icon: Shield },
+  { id: "apps", label: "Created Apps", icon: Smartphone },
+  { id: "forensic", label: "Forensic Reports", icon: FileSearch },
+  { id: "partner", label: "Partner Program", icon: Zap },
+];
+
 export default function Profile() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"profile" | "mentor" | "services" | "reports" | "documents" | "history" | "apps" | "forensic" | "partner">("profile");
+  const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
   const [userId, setUserId] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -345,7 +359,7 @@ export default function Profile() {
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary to-accent flex items-center justify-center">
                 <User className="w-8 h-8 text-primary-foreground" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h1 className="text-2xl md:text-3xl font-bold">
                   {profile?.full_name || "User"}
                 </h1>
@@ -353,7 +367,7 @@ export default function Profile() {
                   <p className="text-muted-foreground">{profile.phone}</p>
                 )}
                 {walletAddress && (
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="flex flex-wrap items-center gap-2 mt-1 min-w-0">
                     <Wallet className="w-3.5 h-3.5 text-primary" />
                     <code className="text-xs text-primary font-mono">
                       {walletAddress.slice(0, 6)}...{walletAddress.slice(-4)}
@@ -373,7 +387,7 @@ export default function Profile() {
                 )}
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               {walletAddress && (
                 <Button variant="outline" size="sm" onClick={disconnect} className="text-xs">
                   <Link2 className="w-3 h-3 mr-1" /> Disconnect
@@ -402,106 +416,21 @@ export default function Profile() {
           />
 
           {/* Tabs */}
-          <div className="flex gap-2 mb-8 border-b border-border pb-4 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab("profile")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "profile"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <User className="w-4 h-4" />
-              My Profile
-            </button>
-            <button
-              onClick={() => setActiveTab("mentor")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "mentor"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <GraduationCap className="w-4 h-4" />
-              Mentor & Learner
-            </button>
-            <button
-              onClick={() => setActiveTab("services")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "services"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <Package className="w-4 h-4" />
-              My Services
-            </button>
-            <button
-              onClick={() => setActiveTab("documents")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "documents"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <FileText className="w-4 h-4" />
-              My Documents
-            </button>
-            <button
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "history"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <Clock className="w-4 h-4" />
-              Verification History
-            </button>
-            <button
-              onClick={() => setActiveTab("reports")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "reports"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <Shield className="w-4 h-4" />
-              Security Reports
-            </button>
-            <button
-              onClick={() => setActiveTab("apps")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "apps"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <Smartphone className="w-4 h-4" />
-              My Apps
-            </button>
-            <button
-              onClick={() => setActiveTab("forensic")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "forensic"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <FileSearch className="w-4 h-4" />
-              Forensic Reports
-            </button>
-            <button
-              onClick={() => setActiveTab("partner")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
-                activeTab === "partner"
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary"
-              }`}
-            >
-              <Zap className="w-4 h-4" />
-              Partner Program
-            </button>
+          <div role="tablist" aria-label="Profile sections" className="grid grid-cols-3 gap-2 mb-8 border-b border-border pb-4 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
+            {profileTabs.map(({ id, label, icon: Icon }) => (
+              <Button
+                key={id}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === id}
+                variant={activeTab === id ? "default" : "outline"}
+                onClick={() => setActiveTab(id)}
+                className="h-auto min-h-24 min-w-0 w-full flex-col gap-2 rounded-xl px-2 py-3 text-center text-xs leading-tight whitespace-normal sm:text-sm [&_svg]:size-5"
+              >
+                <Icon aria-hidden="true" />
+                <span className="break-words">{label}</span>
+              </Button>
+            ))}
           </div>
 
           {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
