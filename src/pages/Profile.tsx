@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { 
-  User, Shield, Package, LogOut, AlertTriangle,
+  User, Shield, Package, LogOut, AlertTriangle, ArrowLeft,
   CheckCircle2, Clock, ExternalLink, FileText, Trash2,
   Phone, Mail, Edit3, Save, X, GraduationCap, Zap,
   Wallet, Link2, Loader2, Copy
@@ -95,7 +95,7 @@ export default function Profile() {
   const [reports, setReports] = useState<SecurityReport[]>([]);
   const [userEmail, setUserEmail] = useState<string>("");
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<ProfileTab>("profile");
+  const [activeTab, setActiveTab] = useState<ProfileTab | null>(null);
   const [userId, setUserId] = useState<string>("");
   const [isEditing, setIsEditing] = useState(false);
   const [editName, setEditName] = useState("");
@@ -400,47 +400,62 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Blockchain Registration Component */}
-          <BlockchainRegistration
-            walletAddress={walletAddress}
-            walletType={walletType}
-            onChainUser={onChainUser}
-            loadingOnChain={loadingOnChain}
-            isConnecting={isConnecting}
-            connectMetaMask={connectMetaMask}
-            disconnect={disconnect}
-            registerOrUpdateOnChain={registerOrUpdateOnChain}
-            refreshOnChainProfile={refreshOnChainProfile}
-            userEmail={userEmail}
-            userProfile={profile}
-          />
+          {activeTab === null ? (
+            <div aria-label="Profile options" className="grid grid-cols-3 gap-2 sm:gap-3">
+              {profileTabs.map(({ id, label, icon: Icon }) => (
+                <Button
+                  key={id}
+                  type="button"
+                  variant="outline"
+                  onClick={() => setActiveTab(id)}
+                  className="h-auto min-h-24 min-w-0 w-full flex-col gap-2 rounded-xl px-2 py-3 text-center text-xs leading-tight whitespace-normal sm:text-sm [&_svg]:size-5"
+                >
+                  <Icon aria-hidden="true" />
+                  <span className="break-words">{label}</span>
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center gap-3 border-b border-border pb-4">
+                <Button type="button" variant="ghost" size="sm" onClick={() => setActiveTab(null)}>
+                  <ArrowLeft className="h-4 w-4" />
+                  All profile options
+                </Button>
+                <div className="flex min-w-0 items-center gap-2 text-lg font-semibold">
+                  {(() => {
+                    const selected = profileTabs.find((tab) => tab.id === activeTab);
+                    if (!selected) return null;
+                    const Icon = selected.icon;
+                    return <><Icon className="h-5 w-5 shrink-0 text-primary" /><span className="break-words">{selected.label}</span></>;
+                  })()}
+                </div>
+              </div>
 
-          {/* Tabs */}
-          <div role="tablist" aria-label="Profile sections" className="grid grid-cols-3 gap-2 mb-8 border-b border-border pb-4 sm:grid-cols-4 sm:gap-3 lg:grid-cols-5">
-            {profileTabs.map(({ id, label, icon: Icon }) => (
-              <Button
-                key={id}
-                type="button"
-                role="tab"
-                aria-selected={activeTab === id}
-                variant={activeTab === id ? "default" : "outline"}
-                onClick={() => setActiveTab(id)}
-                className="h-auto min-h-24 min-w-0 w-full flex-col gap-2 rounded-xl px-2 py-3 text-center text-xs leading-tight whitespace-normal sm:text-sm [&_svg]:size-5"
-              >
-                <Icon aria-hidden="true" />
-                <span className="break-words">{label}</span>
-              </Button>
-            ))}
-          </div>
+              {activeTab === "profile" && (
+                <BlockchainRegistration
+                  walletAddress={walletAddress}
+                  walletType={walletType}
+                  onChainUser={onChainUser}
+                  loadingOnChain={loadingOnChain}
+                  isConnecting={isConnecting}
+                  connectMetaMask={connectMetaMask}
+                  disconnect={disconnect}
+                  registerOrUpdateOnChain={registerOrUpdateOnChain}
+                  refreshOnChainProfile={refreshOnChainProfile}
+                  userEmail={userEmail}
+                  userProfile={profile}
+                />
+              )}
 
-          {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
-          {activeTab === "history" && userId && <VerificationHistory userId={userId} />}
-          {activeTab === "apps" && userId && <MyApkBuilds userId={userId} />}
-          {activeTab === "forensic" && userId && <MyForensicReports userId={userId} />}
-          {activeTab === "partner" && <div className="mt-6"><BecomePartner /></div>}
+              {activeTab === "documents" && userId && <MyDocuments userId={userId} />}
+              {activeTab === "history" && userId && <VerificationHistory userId={userId} />}
+              {activeTab === "apps" && userId && <MyApkBuilds userId={userId} />}
+              {activeTab === "forensic" && userId && <MyForensicReports userId={userId} />}
+              {activeTab === "partner" && <BecomePartner />}
 
-          {/* Profile Tab */}
-          {activeTab === "profile" && (
+              {/* Profile Tab */}
+              {activeTab === "profile" && (
             <div className="space-y-6">
               <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
                 <div className="flex items-center justify-between mb-6">
@@ -539,7 +554,7 @@ export default function Profile() {
             </div>
           )}
 
-          {activeTab === "mentor" && profile && (
+              {activeTab === "mentor" && profile && (
             <MentorProfileSection
               profileId={profile.id}
               mentorData={{
@@ -557,7 +572,7 @@ export default function Profile() {
             />
           )}
 
-          {activeTab === "services" && (
+              {activeTab === "services" && (
             <div className="space-y-4">
               {purchases.length === 0 ? (
                 <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
@@ -610,7 +625,7 @@ export default function Profile() {
             </div>
           )}
 
-          {activeTab === "reports" && (
+              {activeTab === "reports" && (
             <div className="space-y-4">
               {reports.length === 0 ? (
                 <div className="text-center py-16 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
@@ -727,6 +742,8 @@ export default function Profile() {
                     </div>
                   ))}
                 </div>
+              )}
+            </div>
               )}
             </div>
           )}
