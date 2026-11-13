@@ -34,7 +34,7 @@ const projects = [
     title: "Restaurant Website",
     category: "Business Website",
     description: "JaiswalRestaurant.com branding reference. Modern restaurant website with menu and booking features.",
-    url: "https://outstandingom.github.io/not.github.io/",
+    url: "https://jaiswalrestaurant.com/",
     tags: ["Restaurant", "Branding", "UI/UX"],
   },
   {
