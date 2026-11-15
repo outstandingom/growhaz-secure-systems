@@ -1,0 +1,4 @@
+- [ ] Review local/official search research and verified company details.
+- [ ] Build the Betul AI automation article in the existing blog design.
+- [ ] Add static crawl output, canonical/schema, blog listing, and sitemap entry.
+- [ ] Validate page rendering, metadata, article links, and generated crawler HTML.
