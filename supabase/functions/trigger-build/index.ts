@@ -156,6 +156,36 @@ serve(async (req: Request) => {
     }
     // -------------------------
 
+    // If icon_url is a base64 data URL, upload to Supabase Storage so payload size stays tiny
+    let safeIconUrl = icon_url || "";
+    if (safeIconUrl.startsWith("data:image/") && supabase) {
+      try {
+        const parts = safeIconUrl.split(",");
+        const mimeMatch = parts[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : "image/png";
+        const b64 = parts[1];
+        const bin = atob(b64);
+        const buf = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+        const uploadPath = `${finalBuildId}/icon.png`;
+        const { error: upErr } = await supabase.storage
+          .from("app-builds")
+          .upload(uploadPath, buf, { contentType: mime, upsert: true });
+        if (!upErr) {
+          const { data: pubData } = supabase.storage.from("app-builds").getPublicUrl(uploadPath);
+          if (pubData?.publicUrl) {
+            safeIconUrl = pubData.publicUrl;
+          }
+        }
+      } catch (err) {
+        console.warn("Base64 upload failed in trigger-build, stripping icon:", err);
+        safeIconUrl = "";
+      }
+    }
+    if (safeIconUrl.length > 2000) {
+      safeIconUrl = ""; // guarantee under GitHub limits
+    }
+
     // Workflow filename (as it appears in .github/workflows/)
     const workflowId = "build.yml";
     const githubApi = `https://api.github.com/repos/${githubRepo}/actions/workflows/${workflowId}/dispatches`;
@@ -168,7 +198,7 @@ serve(async (req: Request) => {
       website_url: website_url,
       app_name: app_name,
       package_name: package_name || "",
-      icon_url: icon_url || "",
+      icon_url: safeIconUrl,
       splash_color: splash_color,
       status_bar_color: status_bar_color,
       enable_push: String(enable_push),

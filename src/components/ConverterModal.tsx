@@ -172,6 +172,34 @@ declare global {
   }
 }
 
+async function compressImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(url);
+      const SIZE = 512;
+      const canvas = document.createElement("canvas");
+      canvas.width = SIZE;
+      canvas.height = SIZE;
+      const ctx = canvas.getContext("2d")!;
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, SIZE, SIZE);
+      const scale = Math.min(SIZE / img.width, SIZE / img.height);
+      const w = img.width * scale;
+      const h = img.height * scale;
+      ctx.drawImage(img, (SIZE - w) / 2, (SIZE - h) / 2, w, h);
+      const dataUrl = canvas.toDataURL("image/jpeg", 0.8);
+      resolve(dataUrl);
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("Failed to load image"));
+    };
+    img.src = url;
+  });
+}
+
 const PACKAGE_NAME_REGEX = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,}$/;
 
 const sanitizeForPackage = (s: string) =>
@@ -201,14 +229,19 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
   const { toast } = useToast();
   const { balance, fetchBalance, fetchTransactions } = useWallet();
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        patch({ logoPreview: reader.result as string });
-      };
-      reader.readAsDataURL(file);
+      try {
+        const compressed = await compressImage(file);
+        patch({ logoPreview: compressed });
+      } catch {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          patch({ logoPreview: reader.result as string });
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 
@@ -343,7 +376,31 @@ export function ConverterModal({ isOpen, onClose }: ConverterModalProps) {
 
       const u = tier.unlocks;
 
-      const iconUrl = config.logoPreview?.trim() || GROWHAZ_ICON_URL;
+      let iconUrl = GROWHAZ_ICON_URL;
+      const rawLogo = config.logoPreview?.trim();
+      if (rawLogo) {
+        if (rawLogo.startsWith("data:image/")) {
+          try {
+            const res = await fetch(rawLogo);
+            const blob = await res.blob();
+            const filePath = `${bId}/icon.png`;
+            const { error: upErr } = await supabase.storage
+              .from("app-builds")
+              .upload(filePath, blob, { contentType: blob.type || "image/png", upsert: true });
+
+            if (!upErr) {
+              const { data: pubData } = supabase.storage.from("app-builds").getPublicUrl(filePath);
+              if (pubData?.publicUrl) {
+                iconUrl = pubData.publicUrl;
+              }
+            }
+          } catch (e) {
+            console.warn("Storage upload failed, fallback to public icon", e);
+          }
+        } else if (rawLogo.startsWith("http")) {
+          iconUrl = rawLogo;
+        }
+      }
       const splashColor = u.customColors ? config.splashColor : "#FFFFFF";
       const statusBarColor = u.customColors ? config.statusBarColor : "#FFFFFF";
       const platform = u.ios ? config.platform : "android";
