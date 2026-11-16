@@ -48,44 +48,64 @@ export default function BlogPostPage() {
   }, [slug]);
 
   const fetchPost = async (postSlug: string) => {
-    const { data, error } = await supabase
-      .from("blog_posts")
-      .select("*")
-      .eq("slug", postSlug)
-      .eq("is_published", true)
-      .maybeSingle();
+    // 1. Static-first: check local in-memory fallback posts (100% disconnected from server, instant)
+    const fallback = FALLBACK_BLOG_POSTS.find((p) => p.slug === postSlug);
+    if (fallback) {
+      setPost(fallback as any);
+      setLoading(false);
 
-    let postData = data;
-    if (!postData) {
-      const fallback = FALLBACK_BLOG_POSTS.find((p) => p.slug === postSlug);
-      if (fallback) {
-        postData = fallback as any;
-      }
-    }
-
-    if (!postData) {
-      navigate("/blog");
+      const related = FALLBACK_BLOG_POSTS
+        .filter((p) => p.slug !== postSlug)
+        .slice(0, 3)
+        .map((p) => ({
+          id: p.id,
+          title: p.title,
+          slug: p.slug,
+          excerpt: p.excerpt,
+          featured_image: p.featured_image,
+          author_name: p.author_name,
+          tags: p.tags || [],
+          published_at: p.published_at,
+        }));
+      setRelatedPosts(related);
       return;
     }
 
-    setPost(postData);
-    
-    // Fetch related posts based on tags
-    if (data.tags.length > 0) {
-      const { data: related } = await supabase
+    // 2. Otherwise fetch from database if available
+    try {
+      const { data, error } = await supabase
         .from("blog_posts")
-        .select("id, title, slug, excerpt, featured_image, author_name, tags, published_at")
+        .select("*")
+        .eq("slug", postSlug)
         .eq("is_published", true)
-        .neq("id", data.id)
-        .overlaps("tags", data.tags)
-        .limit(3);
+        .maybeSingle();
 
-      if (related) {
-        setRelatedPosts(related);
+      if (!data) {
+        navigate("/blog");
+        return;
       }
-    }
 
-    setLoading(false);
+      setPost(data);
+
+      if (data.tags && Array.isArray(data.tags) && data.tags.length > 0) {
+        const { data: related } = await supabase
+          .from("blog_posts")
+          .select("id, title, slug, excerpt, featured_image, author_name, tags, published_at")
+          .eq("is_published", true)
+          .neq("id", data.id)
+          .overlaps("tags", data.tags)
+          .limit(3);
+
+        if (related) {
+          setRelatedPosts(related);
+        }
+      }
+    } catch (err) {
+      console.error("Error fetching blog post:", err);
+      navigate("/blog");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getReadTime = (content: string) => {
@@ -400,7 +420,7 @@ export default function BlogPostPage() {
           <header className="mb-8">
             {/* Tags */}
             <div className="flex gap-2 flex-wrap mb-4">
-              {post.tags.map(tag => (
+              {(post.tags || []).map(tag => (
                 <Link
                   key={tag}
                   to={`/blog?tag=${tag}`}
@@ -485,7 +505,7 @@ export default function BlogPostPage() {
                     className="group rounded-xl bg-card/80 backdrop-blur-sm border border-border p-4 card-hover"
                   >
                     <div className="flex gap-2 mb-2">
-                      {related.tags.slice(0, 1).map(tag => (
+                      {(related.tags || []).slice(0, 1).map(tag => (
                         <span
                           key={tag}
                           className="px-2 py-0.5 text-xs bg-primary/10 text-primary rounded-full"
