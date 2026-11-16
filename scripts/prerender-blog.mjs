@@ -117,7 +117,7 @@ async function fetchPublishedPosts() {
 }
 
 /** Replace/insert head tags in the built index.html shell. */
-function buildHtml(shell, { title, description, canonical, headExtra, bodyHtml, ogType, twitterCard }) {
+function buildHtml(shell, { title, description, canonical, headExtra, bodyHtml, ogType, twitterCard, isStatic = false }) {
   let html = shell;
 
   if (ogType) {
@@ -166,6 +166,11 @@ function buildHtml(shell, { title, description, canonical, headExtra, bodyHtml, 
   if (headExtra) html = html.replace("</head>", `${headExtra}\n</head>`);
   if (bodyHtml) {
     html = html.replace('<div id="root"></div>', `<div id="root">${bodyHtml}</div>`);
+  }
+  if (isStatic) {
+    // Make blog article completely static and disconnected from server / SPA bundle crashes
+    html = html.replace(/<script type="module" crossorigin src="\/assets\/[^"]+"><\/script>/g, "");
+    html = html.replace(/<link rel="modulepreload" crossorigin href="\/assets\/[^"]+">/g, "");
   }
   return html;
 }
@@ -360,6 +365,7 @@ function postHtml(shell, post) {
     headExtra,
     bodyHtml,
     ogType: "article",
+    isStatic: true,
   });
 }
 
