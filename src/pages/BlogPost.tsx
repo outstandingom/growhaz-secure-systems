@@ -114,6 +114,63 @@ export default function BlogPostPage() {
     }
   };
 
+  // Helper to extract FAQ schema if present in markdown content
+  const extractFaqSchema = (mdContent: string) => {
+    const lines = mdContent.split("\n");
+    const faqs: { question: string; answer: string }[] = [];
+    let currentQuestion = "";
+    let currentAnswer: string[] = [];
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line.startsWith("### ") && line.endsWith("?")) {
+        if (currentQuestion && currentAnswer.length > 0) {
+          faqs.push({
+            question: currentQuestion,
+            answer: currentAnswer.join(" ").trim(),
+          });
+        }
+        currentQuestion = line.replace("### ", "").trim();
+        currentAnswer = [];
+      } else if (currentQuestion) {
+        if (line.startsWith("## ")) {
+          if (currentAnswer.length > 0) {
+            faqs.push({
+              question: currentQuestion,
+              answer: currentAnswer.join(" ").trim(),
+            });
+          }
+          currentQuestion = "";
+          currentAnswer = [];
+        } else if (line && !line.startsWith("#")) {
+          currentAnswer.push(line);
+        }
+      }
+    }
+
+    if (currentQuestion && currentAnswer.length > 0) {
+      faqs.push({
+        question: currentQuestion,
+        answer: currentAnswer.join(" ").trim(),
+      });
+    }
+
+    if (faqs.length === 0) return null;
+
+    return {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: faqs.map((f) => ({
+        "@type": "Question",
+        name: f.question,
+        acceptedAnswer: {
+          "@type": "Answer",
+          text: f.answer,
+        },
+      })),
+    };
+  };
+
   const renderInlineStyles = (text: string) => {
     // Handle inline bold and other formatting
     const parts = text.split(/(\*\*[^*]+\*\*)/g);
@@ -323,6 +380,7 @@ export default function BlogPostPage() {
               },
             ],
           },
+          ...(extractFaqSchema(post.content) ? [extractFaqSchema(post.content)] : []),
         ]}
       />
 

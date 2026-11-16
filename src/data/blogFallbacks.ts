@@ -1,3 +1,5 @@
+import { BETUL_AUTOMATION_ARTICLE } from "./aiAutomationBetul";
+
 export interface FallbackBlogPost {
   id: string;
   title: string;
@@ -13,6 +15,19 @@ export interface FallbackBlogPost {
 }
 
 export const FALLBACK_BLOG_POSTS: FallbackBlogPost[] = [
+  {
+    id: BETUL_AUTOMATION_ARTICLE.id,
+    title: BETUL_AUTOMATION_ARTICLE.title,
+    slug: BETUL_AUTOMATION_ARTICLE.slug,
+    excerpt: BETUL_AUTOMATION_ARTICLE.excerpt,
+    content: BETUL_AUTOMATION_ARTICLE.content,
+    featured_image: BETUL_AUTOMATION_ARTICLE.image || null,
+    author_name: BETUL_AUTOMATION_ARTICLE.author,
+    tags: [...BETUL_AUTOMATION_ARTICLE.tags],
+    category: BETUL_AUTOMATION_ARTICLE.category,
+    meta_description: BETUL_AUTOMATION_ARTICLE.description,
+    published_at: `${BETUL_AUTOMATION_ARTICLE.publishedAt}T00:00:00Z`,
+  },
   {
     id: "firebase-push-guide-growhaz",
     title: "Zero-Setup Push Notifications: Why GrowHaz Does Not Ask for Your Private Firebase Files",

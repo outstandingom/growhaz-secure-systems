@@ -176,6 +176,62 @@ function writeFile(relPath, contents) {
   writeFileSync(target, contents);
 }
 
+function extractFaqSchema(content = "") {
+  const lines = String(content).split("\n");
+  const faqs = [];
+  let currentQuestion = "";
+  let currentAnswer = [];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith("### ") && line.endsWith("?")) {
+      if (currentQuestion && currentAnswer.length > 0) {
+        faqs.push({
+          question: currentQuestion,
+          answer: currentAnswer.join(" ").trim(),
+        });
+      }
+      currentQuestion = line.replace("### ", "").trim();
+      currentAnswer = [];
+    } else if (currentQuestion) {
+      if (line.startsWith("## ")) {
+        if (currentAnswer.length > 0) {
+          faqs.push({
+            question: currentQuestion,
+            answer: currentAnswer.join(" ").trim(),
+          });
+        }
+        currentQuestion = "";
+        currentAnswer = [];
+      } else if (line && !line.startsWith("#")) {
+        currentAnswer.push(line);
+      }
+    }
+  }
+
+  if (currentQuestion && currentAnswer.length > 0) {
+    faqs.push({
+      question: currentQuestion,
+      answer: currentAnswer.join(" ").trim(),
+    });
+  }
+
+  if (faqs.length === 0) return null;
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faqs.map((f) => ({
+      "@type": "Question",
+      name: f.question,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: f.answer,
+      },
+    })),
+  };
+}
+
 function postHtml(shell, post) {
   const canonical = `${SITE_URL}/blog/${post.slug}`;
   const description = post.meta_description || post.excerpt || "";
@@ -216,6 +272,10 @@ function postHtml(shell, post) {
       : "",
     `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`,
     `<script type="application/ld+json">${JSON.stringify(breadcrumbs)}</script>`,
+    (() => {
+      const faq = extractFaqSchema(post.content);
+      return faq ? `<script type="application/ld+json">${JSON.stringify(faq)}</script>` : "";
+    })(),
   ]
     .filter(Boolean)
     .join("\n    ");
@@ -409,6 +469,41 @@ async function main() {
     posts = await fetchPublishedPosts();
   } catch (error) {
     console.warn(`prerender-blog: could not fetch posts (${error.message}) — skipping post pages.`);
+  }
+
+  // Load local codebase markdown posts so they are always prerendered
+  const localPosts = [];
+  const betulMdPath = resolve("src/content/ai-automation-services-in-betul.md");
+  if (existsSync(betulMdPath)) {
+    localPosts.push({
+      id: "ai-automation-services-in-betul",
+      slug: "ai-automation-services-in-betul",
+      title: "AI Automation Services in Betul: Automate Your Business with GROWHAZ",
+      excerpt:
+        "Practical ways Betul businesses can connect AI and automation to WhatsApp, Instagram, hotel enquiries, inventory, CRM and the software they already use.",
+      meta_description:
+        "Looking for AI automation services in Betul? GROWHAZ helps businesses assess practical ways to automate Instagram, WhatsApp, customer support, hotel enquiries, inventory, sales and repetitive tasks using existing software where feasible.",
+      content: readFileSync(betulMdPath, "utf8"),
+      author_name: "GROWHAZ",
+      published_at: "2026-11-16T00:00:00Z",
+      updated_at: "2026-11-16T00:00:00Z",
+      category: "ai-agents",
+      tags: [
+        "AI Automation",
+        "Betul",
+        "Business Automation",
+        "WhatsApp Automation",
+        "Instagram Automation",
+        "Software Integration",
+      ],
+      featured_image: null,
+    });
+  }
+
+  for (const lp of localPosts) {
+    if (!posts.some((p) => p.slug === lp.slug)) {
+      posts.unshift(lp);
+    }
   }
 
   for (const post of posts) {
