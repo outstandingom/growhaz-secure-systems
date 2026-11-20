@@ -30,80 +30,173 @@ export const FALLBACK_BLOG_POSTS: FallbackBlogPost[] = [
   },
   {
     id: "firebase-push-guide-growhaz",
-    title: "Zero-Setup Push Notifications: Why GrowHaz Does Not Ask for Your Private Firebase Files",
+    title: "How to Build Your Android APK with Dedicated Firebase Push Notifications: What We Need from You",
     slug: "how-to-setup-firebase-push-notifications-growhaz",
-    excerpt: "Learn how GrowHaz built a zero-friction, private push notification engine for Web-to-App conversion without asking users to upload sensitive Firebase private keys or credentials.",
+    excerpt: "A complete step-by-step guide for clients and website owners: how to set up your own Firebase project, register your app's package name, download the two required Google JSON files, and convert your website into a native Android APK with 100% private push notifications.",
     featured_image: "https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?auto=format&fit=crop&w=1200&q=80",
     author_name: "GrowHaz Engineering Team",
-    tags: ["Privacy", "Security", "Android", "Push Notifications", "Web to App", "Mobile Development"],
+    tags: ["Android", "Web to App", "Firebase", "Push Notifications", "APK", "FCM", "Custom Credentials"],
     category: "development",
-    meta_description: "Discover how GrowHaz Web-to-App enables native Android notifications with zero Firebase credentials and maximum privacy.",
-    published_at: "2026-10-17T06:00:00Z",
-    content: `## The Trust Problem with Traditional Web-to-App Converters
+    meta_description: "Learn how to provide your own Firebase credentials and package name to build a custom Android APK with dedicated, private push notifications using GrowHaz Appify.",
+    published_at: "2026-11-20T00:00:00Z",
+    content: `## Dedicated Push Notifications: Why You Bring Your Own Firebase
 
-When converting a website into an Android APK, most online tools ask you to perform a tedious and risky process:
+When converting your website into an Android application with **GrowHaz Appify**, we do not force you into a shared, generic push notification pool. 
 
-1. Go to Google Firebase Console.
-2. Generate and download a **Firebase Admin Service Account Private Key JSON**.
-3. Upload that private key to their website.
+Instead, our architecture gives every client **100% dedicated ownership**:
+- **Your Own Firebase Project:** Every notification is delivered through your own Google Cloud & Firebase project.
+- **Complete Privacy & Data Isolation:** Your subscriber tokens, user device IDs, and campaign analytics remain entirely yours.
+- **Zero Quota Limits:** You are never throttled by other users' sending volumes.
+- **Full Direct Control:** You can monitor message deliveries, open rates, and device stats directly inside your own Google Firebase Console.
 
-### Why Asking for Private Keys Destroys User Trust
+Because your app is tied directly to your own Firebase project, **you need to provide your custom Package Name and two configuration files from your Firebase account**.
 
-As cybersecurity professionals, we know that sharing **Admin Service Account Keys** is dangerous:
-
-- **Security Risk:** A Firebase Service Account Key has full administrative rights over your Google Cloud project. If a third-party server is compromised, attackers could access your database, cloud functions, and authentication records.
-- **Complexity Barrier:** 95% of website owners and small business entrepreneurs do not know how to navigate Google Cloud IAM policies or generate private keys.
-- **Distrust:** Asking users to upload internal configuration files immediately causes suspicion ("Why do they need my Google credentials? Is this safe?").
-
-At **GrowHaz**, our mission is building trust-first, secure systems. We decided to solve this problem completely: **we eliminated the requirement to upload any Firebase credentials.**
+This guide walks you through **what we need from you**, **the exact connection between your package name and Firebase**, and **where to download both files in under 5 minutes**.
 
 ---
 
-## How GrowHaz Delivers Zero-Setup Native Notifications
+## The Core Rule: The Package Name Connection
 
-Instead of forcing users to upload sensitive files, GrowHaz's automated compiler bakes a native Android notification engine directly into your APK during compilation:
+Before downloading any files, understand the single most important rule of Android & Firebase:
 
-### 1. In-App Native Notification Bridge
-When your app is open, your website can trigger real Android system notifications natively with standard JavaScript:
-\`\`\`javascript
-// Works automatically inside your GrowHaz APK!
-new Notification("Order Update", {
-  body: "Your package is out for delivery!",
-  icon: "/logo.png"
-});
+> **The Android Package Name you enter in Appify MUST match the Package Name you enter in your Firebase Console.**
+
 \`\`\`
-The APK intercepts standard web notifications and translates them into native Android \`NotificationCompat\` alerts with high priority, custom sound, and vibration channels.
+┌─────────────────────────────────┐           ┌─────────────────────────────────┐
+│     GrowHaz Appify Form         │           │     Google Firebase Console     │
+│                                 │           │                                 │
+│ Package Name:                   │  ◀─────▶  │ Android Package Name:           │
+│ com.yourcompany.app             │   MATCH   │ com.yourcompany.app             │
+└─────────────────────────────────┘           └─────────────────────────────────┘
+\`\`\`
 
-### 2. Autonomous Background Engine
-For alerts when the user switches to other apps or locks their screen:
-- The APK integrates an autonomous Android background worker.
-- It operates on device without needing any third-party private keys or cloud admin access.
-- Your website updates appear as native heads-up notifications on user devices automatically.
-
----
-
-## What Do You Need to Convert Your Website?
-
-With GrowHaz, converting your website into a production-ready Android APK requires **zero technical setup**:
-
-1. **Website URL** (e.g. \`https://yourbusiness.com\`)
-2. **App Name** (e.g. \`My Brand\`)
-3. (Optional) Custom App Icon and Brand Colors.
-
-That is all. **No Firebase accounts, no Google Cloud setup, no JSON files to download, and zero sensitive keys shared.**
+If your package name in Appify is \`com.mybrand.store\`, your Android app inside Firebase must also be registered as \`com.mybrand.store\`. If they don't match, Google will reject push messages at the device level.
 
 ---
 
-## Summary: Privacy First, Friction Zero
+## Checklist: Everything Needed From You
 
-| Feature | Other Converters | GrowHaz Web-to-App |
-| :--- | :--- | :--- |
-| **Requires Firebase Account** | Yes | **No (Zero-Setup)** |
-| **Upload Private Admin Keys** | Yes (Security risk) | **Never requested** |
-| **Setup Time** | 30–45 minutes | **2 minutes** |
-| **User Privacy** | Low | **100% Protected** |
-| **Native Notifications** | Requires external server | **Built into APK** |
+To compile your custom APK and connect your dedicated push pipeline, we need 6 items:
 
-Try the converter today at [growhaz.in/automation](https://www.growhaz.in/automation) and build your native mobile app in minutes!`
+| # | Item Needed | What It Does | Where You Get It |
+|---|---|---|---|
+| **1** | **Target Website URL** | The site wrapped into the native app | Your browser address bar (\`https://yourdomain.com\`) |
+| **2** | **App Name** | Title displayed on the phone launcher | Your brand name (e.g. \`My Store\`) |
+| **3** | **Package Name** | Unique Android Application ID | Reverse domain notation (\`com.yourcompany.app\`) |
+| **4** | **App Icon / Logo** | Square launcher icon (512×512 PNG) | Your logo file / design export |
+| **5** | **File 1: \`google-services.json\`** | Client config baked into the APK | Downloaded from your Firebase Console (Android App) |
+| **6** | **File 2: Firebase Service Account JSON** | Private key used to send notifications | Downloaded from your Firebase Console (Service Accounts) |
+
+---
+
+## Step-by-Step: How to Set Up Your Firebase & Get Both Files
+
+Follow these exact steps in your own Google Firebase Console.
+
+### Step 1: Create or Open Your Firebase Project
+1. Open your browser and go to the **[Google Firebase Console](https://console.firebase.google.com/)**.
+2. Sign in with your company or personal Google account.
+3. Click **Add project** (or select your existing project). 
+4. Enter a name for your project (e.g., "MyBrand Mobile App") and click **Continue** until the project dashboard opens.
+
+---
+
+### Step 2: Register Your Android App & Download File 1 (\`google-services.json\`)
+
+This file is the **client configuration**. It gets compiled inside your Android APK so user devices can register with Firebase Cloud Messaging (FCM).
+
+\`\`\`
+Firebase Dashboard ──▶ Click Android Icon ──▶ Enter Package Name ──▶ Click Register ──▶ Download google-services.json
+\`\`\`
+
+1. On your Firebase Project Overview page, click the **Android icon** (or click **+ Add app** and choose Android).
+2. In the **Android package name** field, enter your desired package name:
+   - Example: \`com.mycompany.app\`
+   - *Remember: This must match the Package Name you enter in GrowHaz Appify!*
+3. *(Optional)* Enter an App nickname (e.g. "My Website App").
+4. Click the blue **Register app** button.
+5. In Step 2 ("Download config file"), click the big blue button: **Download google-services.json**.
+6. Save this file to your computer.
+7. Click through the remaining steps (**Next** ➔ **Next** ➔ **Continue to console**).
+
+---
+
+### Step 3: Generate & Download File 2 (Firebase Admin Service Account JSON)
+
+This file contains your **private administrative credentials**. 
+
+Google's modern FCM v1 API requires server authentication via an OAuth2 Service Account to dispatch push notifications. Appify uses this file to configure your dedicated dispatch worker so you can trigger real-time alerts to your app users.
+
+\`\`\`
+Firebase Console ──▶ Gear Icon ⚙️ (Project settings) ──▶ Service accounts tab ──▶ Click "Generate new private key"
+\`\`\`
+
+1. In the Firebase Console, look at the top of the left sidebar.
+2. Click the **Gear icon (⚙️)** next to *Project Overview* and select **Project settings**.
+3. In the top navigation tabs, click **Service accounts**.
+4. Confirm that **Firebase Admin SDK** is highlighted.
+5. Scroll down to the bottom of the page and click the blue button: **Generate new private key**.
+6. A confirmation dialog will pop up: *"Generate a private key for your service account?"*
+7. Click **Generate key**.
+8. A \`.json\` file will download to your computer. The filename will look like:
+   \`myproject-firebase-adminsdk-xxxxx-xxxxxxxxxx.json\`
+9. Keep this file safe.
+
+---
+
+## Step 4: Enter Details and Upload Both Files in GrowHaz Appify
+
+Now that you have your package name and both Google files:
+
+1. Open **[GrowHaz Appify](https://www.growhaz.in/automation)**.
+2. **Website URL:** Paste your live site link (\`https://yourdomain.com\`).
+3. **App Name:** Type your app's display name.
+4. **Package Name:** Enter the **exact same package name** you registered in Firebase (e.g., \`com.mycompany.app\`).
+5. **App Icon:** Upload your square 512×512 logo.
+6. Toggle **Push Notifications** ON:
+   - Under **1. Google Services JSON**, click **Upload google-services.json** and select File 1.
+   - Under **2. Firebase Service Account Key**, click **Upload Firebase Service Account JSON** and select File 2.
+7. Click **Generate APK**.
+
+---
+
+## What Happens Behind the Scenes?
+
+Once you submit your build:
+
+1. **Package Verification:** Appify cross-checks the package name inside your \`google-services.json\` against the package name specified for the build, ensuring 100% alignment.
+2. **Native Android Compilation:** Appify places your \`google-services.json\` into the native Android \`app/\` directory and sets up the Firebase Messaging background receivers.
+3. **Dedicated Push Registration:** The Appify backend registers your Firebase Service Account credentials under your unique \`appId\` (\`com.yourcompany.app\`).
+4. **Gradle Cloud Build:** The Android Gradle build engine compiles the native APK (\`.apk\`) and Play Store bundle (\`.aab\`) with hardware acceleration and push notification support enabled.
+5. **Instant Delivery:** You receive a direct download link for your compiled Android APK.
+
+---
+
+## How You Send Push Notifications to Your Users
+
+Because you provided your own Firebase Service Account, you can trigger notifications at any time directly through your dedicated push API endpoint:
+
+\`\`\`bash
+curl -X POST https://api.growhaz.in/api/send \
+  -H "Content-Type: application/json" \
+  -H "x-admin-key: YOUR_ADMIN_KEY" \
+  -d '{
+    "appId": "com.mycompany.app",
+    "title": "New Order Received! 📦",
+    "body": "Customer #4092 just completed checkout.",
+    "url": "https://yourdomain.com/dashboard/orders"
+  }'
+\`\`\`
+
+The push server uses **YOUR** Firebase Service Account to authenticate with Google FCM v1, and Google delivers the notification directly to all Android phones running your app—even when the app is completely closed.
+
+---
+
+## Summary: Complete Ownership, Zero Confusion
+
+By supplying your own Firebase credentials and Package Name:
+- You retain complete ownership of your mobile app users and notification tokens.
+- Your app communicates directly with your own Google Cloud infrastructure.
+- GrowHaz handles 100% of the complex Android compilation, Gradle builds, manifest permissions, and native bridges automatically.`
   }
 ];

@@ -40,9 +40,20 @@ export default function Blog() {
     const fetchedPosts = (!error && data) ? (data as BlogPost[]) : [];
     const merged = [...fetchedPosts];
     
-    // Add fallback posts if not present in DB
+    // Add/override fallback posts so code updates take immediate precedence
     FALLBACK_BLOG_POSTS.forEach((fb) => {
-      if (!merged.some((p) => p.slug === fb.slug)) {
+      const existingIdx = merged.findIndex((p) => p.slug === fb.slug);
+      if (existingIdx !== -1) {
+        merged[existingIdx] = {
+          ...merged[existingIdx],
+          title: fb.title,
+          excerpt: fb.excerpt,
+          featured_image: fb.featured_image || merged[existingIdx].featured_image,
+          author_name: fb.author_name,
+          tags: fb.tags,
+          category: fb.category,
+        };
+      } else {
         merged.unshift({
           id: fb.id,
           title: fb.title,
