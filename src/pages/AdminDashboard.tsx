@@ -43,8 +43,10 @@ import {
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { ReportViewer } from "@/components/reports/ReportViewer";
 import { DnaGraphitiLab } from "@/components/admin/DnaGraphitiLab";
+import { BulkMessageModal } from "@/components/admin/BulkMessageModal";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -81,6 +83,8 @@ export default function AdminDashboard() {
   const [coinType, setCoinType] = useState<'earn' | 'spend'>('earn');
   const [coinNote, setCoinNote] = useState<string>("");
   const [coinSubmitting, setCoinSubmitting] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [bulkMessageModalOpen, setBulkMessageModalOpen] = useState(false);
 
   const handleCoinSubmit = async () => {
     if (!coinUser) return;
@@ -296,6 +300,27 @@ export default function AdminDashboard() {
     user.phone?.includes(searchTerm)
   );
 
+  const allFilteredSelected = filteredUsers.length > 0 && filteredUsers.every(u => selectedUserIds.includes(u.id));
+
+  const handleToggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelectedUserIds([]);
+    } else {
+      setSelectedUserIds(filteredUsers.map(u => u.id));
+    }
+  };
+
+  const handleToggleSelectUser = (userId: string) => {
+    setSelectedUserIds(prev => 
+      prev.includes(userId) ? prev.filter(id => id !== userId) : [...prev, userId]
+    );
+  };
+
+  const handleSelectMentorsOnly = () => {
+    const mentorUserIds = users.filter(u => u.is_available_as_mentor).map(u => u.id);
+    setSelectedUserIds(mentorUserIds);
+  };
+
   const pendingWithdrawals = withdrawalRequests.filter(r => r.status === 'pending');
 
   if (loading) {
@@ -498,25 +523,87 @@ export default function AdminDashboard() {
             <TabsContent value="users">
               <Card>
                 <CardHeader>
-                  <CardTitle>User Management</CardTitle>
-                  <CardDescription>View and manage all platform users</CardDescription>
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                      <CardTitle>User Management</CardTitle>
+                      <CardDescription>View and manage all platform users, select multiple recipients, and dispatch bulk messages</CardDescription>
+                    </div>
+                    {selectedUserIds.length > 0 && (
+                      <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg">
+                        <span className="text-xs font-semibold text-primary">
+                          {selectedUserIds.length} user{selectedUserIds.length > 1 ? "s" : ""} selected
+                        </span>
+                        <Button
+                          size="sm"
+                          className="h-7 text-xs flex items-center gap-1.5"
+                          onClick={() => setBulkMessageModalOpen(true)}
+                        >
+                          <Send className="w-3 h-3" /> Send Bulk Message
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs text-muted-foreground hover:text-foreground"
+                          onClick={() => setSelectedUserIds([])}
+                        >
+                          Clear
+                        </Button>
+                      </div>
+                    )}
+                  </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="mb-4">
-                    <div className="relative">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+                    <div className="relative flex-1 w-full">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search users..."
+                        placeholder="Search users by name or phone..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="pl-10"
                       />
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs w-full sm:w-auto">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs flex-1 sm:flex-initial"
+                        onClick={handleToggleSelectAll}
+                      >
+                        {allFilteredSelected ? "Deselect All" : `Select All (${filteredUsers.length})`}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-8 text-xs flex-1 sm:flex-initial"
+                        onClick={handleSelectMentorsOnly}
+                      >
+                        Select Mentors
+                      </Button>
+                      {selectedUserIds.length > 0 && (
+                        <Button
+                          size="sm"
+                          variant="default"
+                          className="h-8 text-xs flex items-center gap-1"
+                          onClick={() => setBulkMessageModalOpen(true)}
+                        >
+                          <Send className="w-3 h-3" />
+                          Message ({selectedUserIds.length})
+                        </Button>
+                      )}
                     </div>
                   </div>
 
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead className="w-12">
+                          <Checkbox
+                            checked={allFilteredSelected}
+                            onCheckedChange={handleToggleSelectAll}
+                            aria-label="Select all users"
+                          />
+                        </TableHead>
                         <TableHead>Name</TableHead>
                         <TableHead>Phone</TableHead>
                         <TableHead>Coins</TableHead>
@@ -528,7 +615,17 @@ export default function AdminDashboard() {
                     </TableHeader>
                     <TableBody>
                       {filteredUsers.map((user) => (
-                        <TableRow key={user.id}>
+                        <TableRow
+                          key={user.id}
+                          className={selectedUserIds.includes(user.id) ? "bg-primary/5" : ""}
+                        >
+                          <TableCell className="w-12">
+                            <Checkbox
+                              checked={selectedUserIds.includes(user.id)}
+                              onCheckedChange={() => handleToggleSelectUser(user.id)}
+                              aria-label={`Select ${user.full_name}`}
+                            />
+                          </TableCell>
                           <TableCell className="font-medium">{user.full_name}</TableCell>
                           <TableCell>{user.phone || 'N/A'}</TableCell>
                           <TableCell>
@@ -1013,6 +1110,14 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Bulk Message Modal with Reusable Templates */}
+      <BulkMessageModal
+        open={bulkMessageModalOpen}
+        onOpenChange={setBulkMessageModalOpen}
+        selectedUsers={users.filter(u => selectedUserIds.includes(u.id))}
+        onSuccess={() => setSelectedUserIds([])}
+      />
     </Layout>
   );
-        }
+}
