@@ -29,7 +29,8 @@ import {
   Globe,
   FileText,
   Send,
-  Link as LinkIcon
+  Link as LinkIcon,
+  Dna
 } from "lucide-react";
 import { format } from "date-fns";
 import {
@@ -43,6 +44,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { ReportViewer } from "@/components/reports/ReportViewer";
+import { DnaGraphitiLab } from "@/components/admin/DnaGraphitiLab";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -405,6 +407,10 @@ export default function AdminDashboard() {
                     {securityReports.filter(r => r.report_status === 'pending').length}
                   </Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="dna-lab" className="relative flex items-center gap-1.5 text-primary">
+                <Dna className="w-3.5 h-3.5 text-primary" />
+                DNA & Graphiti Lab
               </TabsTrigger>
             </TabsList>
 
@@ -899,6 +905,10 @@ export default function AdminDashboard() {
                   </div>
                 </CardContent>
               </Card>
+            </TabsContent>
+
+            <TabsContent value="dna-lab">
+              <DnaGraphitiLab />
             </TabsContent>
           </Tabs>
         </div>
