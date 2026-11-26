@@ -84,6 +84,11 @@ export default function Auth() {
   const [loginOtpTimer, setLoginOtpTimer] = useState(0);
   const [resetLoading, setResetLoading] = useState(false);
 
+  const getSafeRedirectTarget = () => {
+    const raw = new URLSearchParams(window.location.search).get("redirect") || "/";
+    return raw.startsWith("/") && !raw.startsWith("//") ? raw : "/";
+  };
+
   // --- Effects ---
   useEffect(() => {
     mounted.current = true;
@@ -100,8 +105,7 @@ export default function Auth() {
           // Clear the flag after redirect
           localStorage.removeItem("growhaz_wallet");
         } else if (window.location.pathname === "/auth") {
-          // Regular auth redirect to home
-          navigate("/");
+          navigate(getSafeRedirectTarget());
         }
       }
     };
@@ -117,7 +121,7 @@ export default function Auth() {
           navigate("/profile");
           localStorage.removeItem("growhaz_wallet");
         } else {
-          navigate("/");
+          navigate(getSafeRedirectTarget());
         }
       }
     });
@@ -178,7 +182,7 @@ export default function Auth() {
         if (error) throw error;
 
         toast({ title: "Welcome back!", description: "You have successfully logged in." });
-        navigate("/");
+        navigate(getSafeRedirectTarget());
       } catch (error: any) {
         authCompleted.current = false;
         if (!mounted.current) return;
@@ -278,7 +282,7 @@ export default function Auth() {
           title: "Account Created",
           description: "Your email is verified and account is ready.",
         });
-        navigate("/");
+        navigate(getSafeRedirectTarget());
       } catch (error: any) {
         if (!mounted.current) return;
         toast({
@@ -369,7 +373,7 @@ export default function Auth() {
 
       toast({ title: "Signed In", description: "OTP verification successful." });
       setLoginOtpOpen(false);
-      navigate("/");
+      navigate(getSafeRedirectTarget());
     } catch (error: any) {
       authCompleted.current = false;
       if (!mounted.current) return;

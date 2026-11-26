@@ -1,0 +1,1 @@
+import{n as e}from"./rolldown-runtime-C0FnF6B9.js";var t,n=e((()=>{t=(e,t)=>{if(t&&(typeof t==`object`&&Object.keys(t).length>0||typeof t==`string`&&t.trim().length>10))return!0;if(!e)return!1;let n=e.toLowerCase();return n.startsWith(`completed`)||n===`incomplete`||n===`done`||n===`success`}}));export{t as n,n as t};

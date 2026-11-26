@@ -1,0 +1,1 @@
+import{n as e,o as t}from"./rolldown-runtime-C0FnF6B9.js";import{Xi as n,ta as r}from"./preload-helper-Cf7p6RP9.js";function i(e){let t=a.useContext(o);return e||t||`ltr`}var a,o,s=e((()=>{a=t(r(),1),n(),o=a.createContext(void 0)}));export{i as n,s as t};

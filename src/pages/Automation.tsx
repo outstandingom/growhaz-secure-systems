@@ -13,11 +13,13 @@ import {
   ArrowRight,
   Bot,
   Shield,
+  MessageSquare,
   Download, // <-- added for meeting assistant
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { ConverterModal } from "@/components/ConverterModal";
 import { ForensicScannerModal } from "@/components/ForensicScannerModal";
+import { WhatsAppAutomationShowcase } from "@/components/WhatsAppAutomationShowcase";
 import { TitleMarquee } from "@/components/TitleMarquee";
 
 type Tool = {
@@ -33,6 +35,17 @@ type Tool = {
 };
 
 const tools: Tool[] = [
+  {
+    id: "whatsapp-ai-automation",
+    name: "WhatsApp Business AI & DNA CRM",
+    description:
+      "Automate customer WhatsApp replies, bulk personalized CSV campaigns, and Neo4j Knowledge Graph profiles. Includes 3 Free Demos & ₹1–₹2/conv pricing.",
+    icon: MessageSquare,
+    price: "₹1–₹2 / conv",
+    category: "automation",
+    internal: true,
+    status: "new",
+  },
   {
     id: "web-to-apk",
     name: "Website to App Converter",
@@ -97,6 +110,10 @@ export default function Automation() {
         setIsConverterOpen(true);
       } else if (tool.id === "forensic-scanner") {
         setIsForensicOpen(true);
+      } else if (tool.id === "whatsapp-ai-automation") {
+        document
+          .getElementById("whatsapp-ai-automation")
+          ?.scrollIntoView({ behavior: "smooth" });
       }
     } else if (tool.url && tool.url !== "#") {
       window.open(tool.url, "_blank");
@@ -205,6 +222,8 @@ export default function Automation() {
           </div>
         )}
       </section>
+
+      <WhatsAppAutomationShowcase />
 
       {/* CTA Section – mobile padding & full-width button */}
       <section className="section-container px-4 sm:px-6 bg-card/50">

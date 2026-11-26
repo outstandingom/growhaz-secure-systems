@@ -1,6 +1,7 @@
 import { Layout } from "@/components/layout/Layout";
 import { Seo } from "@/components/Seo";
 import { Button } from "@/components/ui/button";
+import { WhatsAppAutomationShowcase } from "@/components/WhatsAppAutomationShowcase";
 import { 
   CreditCard, 
   CheckCircle2, 
@@ -326,6 +327,8 @@ export default function Pricing() {
           </div>
         </div>
       </section>
+
+      <WhatsAppAutomationShowcase compactPricingOnly />
 
       {/* Other Services */}
       <section className="section-container bg-card/50">

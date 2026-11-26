@@ -34,7 +34,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { Headphones, Sparkles } from "lucide-react";
 import { useSpendCoins } from "@/hooks/useSpendCoins";
 import { useToast } from "@/hooks/use-toast";
 
@@ -69,6 +70,8 @@ const iconMap: Record<string, React.ElementType> = {
 };
 
 export default function Mentorship() {
+  const [searchParams] = useSearchParams();
+  const isMetaSetupTopic = searchParams.get("topic") === "meta-whatsapp-setup";
   const [topics, setTopics] = useState<MentorshipTopic[]>([]);
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
@@ -255,6 +258,46 @@ export default function Mentorship() {
       {/* Main Tabs Section */}
       <section className="section-container bg-muted/30">
         <div className="max-w-6xl mx-auto">
+          <div
+            className={cn(
+              "mb-8 rounded-2xl border p-5 sm:p-6 flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition-all",
+              isMetaSetupTopic
+                ? "border-emerald-500 bg-emerald-950/30 shadow-lg shadow-emerald-500/10 ring-2 ring-emerald-500/40"
+                : "border-indigo-500/30 bg-card/80"
+            )}
+          >
+            <div className="space-y-1.5 max-w-2xl">
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="bg-emerald-600 text-white">
+                  <Sparkles className="w-3.5 h-3.5 mr-1" />
+                  1-on-1 Live Guided Setup
+                </Badge>
+                <Badge variant="outline" className="border-indigo-500/40 text-indigo-300">
+                  Meta WhatsApp Cloud API
+                </Badge>
+              </div>
+              <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                <Headphones className="w-5 h-5 text-emerald-400 shrink-0" />
+                <span>Need a Mentor to Setup Meta WhatsApp Automation?</span>
+              </h2>
+              <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
+                Don&apos;t know how to create a Meta Developer App, get your Phone
+                Number ID, or connect your Webhook? Book a 1-on-1 Mentor call so
+                we configure your WhatsApp Cloud API live with you and unlock
+                50% half-price automation plans (₹1/conv &amp; ₹499/mo).
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-3 shrink-0">
+              <LearningRequestForm onSuccess={() => setRefreshKey((k) => k + 1)} />
+              <Button variant="outline" asChild>
+                <Link to="/contact?service=automation">Request Done-For-You</Link>
+              </Button>
+              <Button variant="secondary" asChild>
+                <Link to="/automation">Automation Pricing</Link>
+              </Button>
+            </div>
+          </div>
+
           <Tabs defaultValue="mentors" className="w-full">
             <TabsList className="mx-auto mb-8 grid h-auto w-full grid-cols-2 gap-2 rounded-xl bg-muted/60 p-2 sm:grid-cols-3 lg:max-w-2xl">
               <TabsTrigger value="mentors" className="gap-1 whitespace-normal px-3 py-2 text-xs leading-tight sm:text-sm">
