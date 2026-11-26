@@ -42,7 +42,7 @@ export function BlogCard({ post, featured = false }: BlogCardProps) {
         {/* Featured Image */}
         <div className={cn(
           "relative bg-gradient-to-br from-primary/20 to-accent/20",
-          featured ? "h-64" : "h-48"
+          featured ? "h-48 sm:h-64" : "h-44 sm:h-48"
         )}>
           {post.featured_image ? (
             <img
@@ -59,7 +59,7 @@ export function BlogCard({ post, featured = false }: BlogCardProps) {
           )}
           
           {/* Category & Tags overlay */}
-          <div className="absolute top-4 left-4 flex gap-2 flex-wrap">
+          <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-4 sm:right-4 flex gap-1.5 sm:gap-2 flex-wrap">
             {categoryInfo && (
               <span className={cn(
                 "px-2.5 py-1 text-xs font-semibold bg-background/95 backdrop-blur-sm rounded-full flex items-center gap-1.5",
@@ -81,31 +81,31 @@ export function BlogCard({ post, featured = false }: BlogCardProps) {
         </div>
 
         {/* Content */}
-        <div className="p-6">
-          <div className="flex items-center gap-4 text-sm text-muted-foreground mb-3">
+        <div className="p-4 sm:p-6">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-muted-foreground mb-2.5 sm:mb-3">
             <span className="flex items-center gap-1">
-              <Calendar className="w-4 h-4" />
+              <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               {format(new Date(post.published_at), "MMM d, yyyy")}
             </span>
             <span className="flex items-center gap-1">
-              <Clock className="w-4 h-4" />
+              <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               {getReadTime(post.excerpt)} min read
             </span>
           </div>
           <h2 className={cn(
-            "font-bold mb-2 group-hover:text-primary transition-colors",
-            featured ? "text-2xl" : "text-xl"
+            "font-bold mb-2 group-hover:text-primary transition-colors break-words",
+            featured ? "text-xl sm:text-2xl" : "text-lg sm:text-xl"
           )}>
             {post.title}
           </h2>
-          <p className="text-muted-foreground line-clamp-3 mb-4">
+          <p className="text-sm sm:text-base text-muted-foreground line-clamp-3 mb-4 break-words">
             {post.excerpt}
           </p>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-xs sm:text-sm text-muted-foreground">
               By {post.author_name}
             </span>
-            <span className="flex items-center gap-1 text-primary font-medium text-sm group-hover:gap-2 transition-all">
+            <span className="flex items-center gap-1 text-primary font-medium text-xs sm:text-sm group-hover:gap-2 transition-all">
               Read More <ArrowRight className="w-4 h-4" />
             </span>
           </div>

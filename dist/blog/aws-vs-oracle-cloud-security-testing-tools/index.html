@@ -133,33 +133,112 @@
     
     
     
-    <link rel="stylesheet" crossorigin href="/assets/index-CIx2RcGF.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-e3bk7Bl5.css">
   <meta property="article:published_time" content="2026-02-01T19:16:27.502564+00:00" />
     <meta property="article:modified_time" content="2026-02-01T19:30:48.560828+00:00" />
     <style>
-      body { background-color: #09090b; color: #f4f4f5; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
-      a { color: #38bdf8; text-decoration: none; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
+        background-color: #09090b;
+        color: #f4f4f5;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      a { color: #38bdf8; text-decoration: none; overflow-wrap: anywhere; }
       a:hover { text-decoration: underline; }
+      img { max-width: 100%; height: auto; display: block; }
       header a { color: #fafafa; text-decoration: none; }
-      .site-header { border-bottom: 1px solid #27272a; padding: 1.25rem 1.5rem; max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-      .site-logo { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em; color: #fff; text-decoration: none; }
-      .site-nav { display: flex; gap: 1.25rem; font-size: 0.875rem; }
+      .site-header {
+        border-bottom: 1px solid #27272a;
+        padding: 0.9rem 1rem;
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+      }
+      .site-logo { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.025em; color: #fff; text-decoration: none; flex-shrink: 0; }
+      .site-nav { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.875rem; }
       .site-nav a { color: #a1a1aa; text-decoration: none; transition: color 0.2s; }
       .site-nav a:hover { color: #fff; }
-      .article-container { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.25rem; }
-      h1 { font-size: 2.25rem; line-height: 1.25; font-weight: 800; color: #ffffff; margin-bottom: 1rem; }
-      h2 { font-size: 1.5rem; font-weight: 700; color: #ffffff; margin-top: 2.25rem; margin-bottom: 0.85rem; border-bottom: 1px solid #27272a; padding-bottom: 0.5rem; }
-      h3 { font-size: 1.2rem; font-weight: 600; color: #38bdf8; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-      p { line-height: 1.8; margin-bottom: 1.15rem; color: #d4d4d8; font-size: 1.05rem; }
-      ul { padding-left: 1.5rem; margin-bottom: 1.25rem; }
-      li { margin-bottom: 0.5rem; line-height: 1.7; color: #d4d4d8; }
+      .mobile-nav { display: none; }
+      .mobile-nav summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.5rem 0.85rem;
+        border-radius: 0.5rem;
+        border: 1px solid #27272a;
+        background: #18181b;
+        color: #fafafa;
+        font-size: 0.875rem;
+        font-weight: 600;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .mobile-nav summary::-webkit-details-marker { display: none; }
+      .mobile-nav-panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        background: #111114;
+        border-bottom: 1px solid #27272a;
+        padding: 0.5rem 1rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        z-index: 50;
+      }
+      .mobile-nav-panel a {
+        color: #e4e4e7;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #1f1f23;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+      .mobile-nav-panel a:last-child { border-bottom: none; }
+      .article-container { width: 100%; max-width: 820px; margin: 0 auto; padding: 2rem 1.25rem; }
+      .breadcrumb { font-size: 0.825rem; color: #a1a1aa; margin-bottom: 1.25rem; line-height: 1.6; overflow-wrap: anywhere; }
+      .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; font-size: 0.85rem; color: #a1a1aa; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #27272a; }
+      .article-excerpt { font-size: 1.075rem; color: #a1a1aa; line-height: 1.75; margin-bottom: 1.75rem; font-weight: 500; overflow-wrap: anywhere; }
+      h1 { font-size: clamp(1.55rem, 5vw, 2.35rem); line-height: 1.22; font-weight: 800; color: #ffffff; margin: 0 0 0.9rem; overflow-wrap: anywhere; word-break: break-word; }
+      h2 { font-size: clamp(1.2rem, 3.6vw, 1.55rem); line-height: 1.3; font-weight: 700; color: #ffffff; margin-top: 2rem; margin-bottom: 0.8rem; border-bottom: 1px solid #27272a; padding-bottom: 0.45rem; overflow-wrap: anywhere; }
+      h3 { font-size: clamp(1.05rem, 3vw, 1.25rem); line-height: 1.35; font-weight: 600; color: #38bdf8; margin-top: 1.4rem; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
+      p, li, blockquote { line-height: 1.75; margin-bottom: 1rem; color: #d4d4d8; font-size: 1rem; overflow-wrap: anywhere; word-break: break-word; }
+      ul, ol { padding-left: 1.35rem; margin-bottom: 1.15rem; }
+      li { margin-bottom: 0.45rem; }
+      blockquote { border-left: 3px solid #38bdf8; margin: 1.25rem 0; padding: 0.6rem 1rem; background: rgba(56, 189, 248, 0.06); border-radius: 0 0.5rem 0.5rem 0; }
+      hr { border: none; border-top: 1px solid #27272a; margin: 1.75rem 0; }
       strong { color: #ffffff; font-weight: 600; }
-      code { background: #18181b; border: 1px solid #27272a; padding: 0.15rem 0.35rem; border-radius: 4px; font-family: monospace; font-size: 0.88em; color: #38bdf8; }
-      .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-      .cta-card { margin-top: 3rem; padding: 2rem; border-radius: 1rem; background: #18181b; border: 1px solid #27272a; text-align: center; }
-      .cta-btn { display: inline-block; padding: 0.75rem 1.5rem; border-radius: 0.75rem; background: #38bdf8; color: #09090b; font-weight: 700; text-decoration: none; margin-top: 1rem; }
+      code { background: #18181b; border: 1px solid #27272a; padding: 0.12rem 0.35rem; border-radius: 4px; font-family: monospace; font-size: 0.86em; color: #38bdf8; overflow-wrap: anywhere; }
+      .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.25rem 0; border: 1px solid #27272a; border-radius: 0.5rem; }
+      table { width: 100%; border-collapse: collapse; min-width: 480px; font-size: 0.9rem; }
+      th, td { border-bottom: 1px solid #27272a; padding: 0.65rem 0.85rem; text-align: left; color: #d4d4d8; }
+      th { background: #18181b; color: #fafafa; font-weight: 600; }
+      .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
+      .cta-card { margin-top: 2.5rem; padding: 1.5rem 1.25rem; border-radius: 1rem; background: #18181b; border: 1px solid #27272a; text-align: center; }
+      .cta-card h3 { font-size: clamp(1.15rem, 4vw, 1.45rem); color: #fff; margin: 0 0 0.5rem; }
+      .cta-card p { color: #a1a1aa; margin: 0 0 1rem; font-size: 0.95rem; }
+      .cta-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 1.4rem; min-height: 44px; border-radius: 0.75rem; background: #38bdf8; color: #09090b; font-weight: 700; text-decoration: none; margin-top: 0.5rem; }
       .cta-btn:hover { background: #7dd3fc; text-decoration: none; }
-      footer { margin-top: 5rem; border-top: 1px solid #27272a; padding: 2.5rem 1rem; text-align: center; color: #71717a; font-size: 0.875rem; }
+      .article-footer-nav { margin-top: 2.25rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem 1rem; font-size: 0.9rem; }
+      footer { margin-top: 3.5rem; border-top: 1px solid #27272a; padding: 2rem 1rem; text-align: center; color: #71717a; font-size: 0.85rem; }
+      @media (max-width: 767px) {
+        .site-nav { display: none; }
+        .mobile-nav { display: block; }
+        .article-container { padding: 1.25rem 1rem 2rem; }
+        p, li { font-size: 0.96rem; line-height: 1.7; }
+        .cta-btn { width: 100%; }
+      }
     </style>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"AWS vs Oracle Cloud for Security Testing Tools: Why I Chose Oracle for My Startup","description":"A startup founder shares real decision-making on AWS vs Oracle Cloud for Python security testing tools. Learn why predictable pricing beats raw power for early-stage companies.","articleSection":"security","keywords":"AWS, Oracle Cloud, cloud hosting, security tools, Python scanner, startup infrastructure, cloud pricing, cybersecurity","datePublished":"2026-02-01T19:16:27.502564+00:00","dateModified":"2026-02-01T19:30:48.560828+00:00","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.growhaz.in/blog/aws-vs-oracle-cloud-security-testing-tools"},"author":{"@type":"Person","name":"GrowHaz Team"},"publisher":{"@id":"https://www.growhaz.in/#organization"}}</script>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.growhaz.in/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.growhaz.in/blog"},{"@type":"ListItem","position":3,"name":"AWS vs Oracle Cloud for Security Testing Tools: Why I Chose Oracle for My Startup","item":"https://www.growhaz.in/blog/aws-vs-oracle-cloud-security-testing-tools"}]}</script>
@@ -169,27 +248,37 @@
     <div id="root">
     <header class="site-header">
       <a href="/" class="site-logo">GROWHAZ</a>
-      <nav class="site-nav">
+      <nav class="site-nav" aria-label="Main navigation">
         <a href="/security-tools">Security Tools</a>
         <a href="/automation">Automation</a>
         <a href="/blockchain">Blockchain</a>
         <a href="/blog">Blog</a>
         <a href="/contact">Contact</a>
       </nav>
+      <details class="mobile-nav">
+        <summary aria-label="Toggle navigation menu">☰ Menu</summary>
+        <nav class="mobile-nav-panel" aria-label="Mobile navigation">
+          <a href="/security-tools">Security Tools</a>
+          <a href="/automation">Automation</a>
+          <a href="/blockchain">Blockchain</a>
+          <a href="/blog">Blog</a>
+          <a href="/contact">Contact</a>
+        </nav>
+      </details>
     </header>
     <main class="article-container">
       <article>
-        <nav aria-label="Breadcrumb" style="font-size: 0.875rem; color: #a1a1aa; margin-bottom: 1.5rem;">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
           <a href="/">Home</a> / <a href="/blog">Blog</a> / <span style="color: #fafafa;">AWS vs Oracle Cloud for Security Testing Tools: Why I Chose Oracle for My Startup</span>
         </nav>
         <h1>AWS vs Oracle Cloud for Security Testing Tools: Why I Chose Oracle for My Startup</h1>
-        <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #a1a1aa; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #27272a;">
+        <div class="article-meta">
           <span>By <strong style="color: #fff;">GrowHaz Team</strong></span>
           <span>•</span>
           <time datetime="2026-02-01T19:16:27.502564+00:00">2026-02-01</time>
           <span>•</span><span class="badge">security</span>
         </div>
-        <p style="font-size: 1.15rem; color: #a1a1aa; line-height: 1.8; margin-bottom: 2rem; font-weight: 500;">Real developer questions answered: What happens when security scans run long? What if 100 users come? Why predictable pricing matters more than power for startups building security tools.</p>
+        <p class="article-excerpt">Real developer questions answered: What happens when security scans run long? What if 100 users come? Why predictable pricing matters more than power for startups building security tools.</p>
         
         <div class="article-body">
           <h3>AWS vs Oracle Cloud for Security Testing Tools: Why I Chose Oracle for My Startup (Developer's Real Questions Answered)</h3>
@@ -204,7 +293,7 @@
 <li>As a startup, how do I avoid surprise bills and account bans?</li>
 </ul>
 <p>This blog is written exactly in the same way I questioned, explored, failed, and finally decided. Not theory. Not marketing. Real system-design thinking for security tools.</p>
-<p>---</p>
+<hr />
 <h3>First Question I Asked Myself: What Really Happens When I Run a Security Scan?</h3>
 <p>My security testing tool is written in Python. It performs:</p>
 <ul>
@@ -224,7 +313,7 @@
 </ul>
 <p>So the first realization was simple:</p>
 <p><strong>This is not a serverless workload. This is a VM workload.</strong></p>
-<p>---</p>
+<hr />
 <h3>Second Question: What If 10 Users Run Scans Together?</h3>
 <p>If I run everything on one machine:</p>
 <ul>
@@ -237,7 +326,7 @@
 <p>Yes — unless I multiply machines.</p>
 <p>This taught me a key lesson:</p>
 <p><strong>Speed at scale is not magic. It is parallel machines.</strong></p>
-<p>---</p>
+<hr />
 <h3>Third Question: What If 100 or 1000 Users Come?</h3>
 <p>At this point, I understood something very important:</p>
 <ul>
@@ -248,7 +337,7 @@
 <p>So the real question was no longer &quot;Which cloud is powerful?&quot;</p>
 <p>The real question became:</p>
 <p><strong>Which cloud lets me multiply machines safely, predictably, and without fear?</strong></p>
-<p>---</p>
+<hr />
 <h3>Why I Initially Looked at AWS (And Why Everyone Does)</h3>
 <p>AWS is powerful. That's true.</p>
 <p>AWS offers:</p>
@@ -268,7 +357,7 @@
 <li>What happens if my account gets flagged due to scanning behavior?</li>
 </ul>
 <p>That's when reality hit.</p>
-<p>---</p>
+<hr />
 <h3>What Happens If You Build Security Tools Blindly on AWS?</h3>
 <p>From a developer's perspective, here's what I learned:</p>
 <ul>
@@ -281,7 +370,7 @@
 <p>AWS is powerful — but for early-stage security tools, power comes with:</p>
 <p><strong>Complexity, risk, and billing anxiety</strong></p>
 <p>As a startup, this matters.</p>
-<p>---</p>
+<hr />
 <h3>The Startup Reality: Accounts, Cost, and Survival</h3>
 <p>Startups don't fail because of bad ideas. They fail because:</p>
 <ul>
@@ -292,7 +381,7 @@
 <p>I asked myself a hard question:</p>
 <p><strong>If my account gets banned or billing explodes, can my startup survive?</strong></p>
 <p>That question changed everything.</p>
-<p>---</p>
+<hr />
 <h3>Why I Chose Oracle Cloud for My Security Testing Tool</h3>
 <p>I didn't choose Oracle because it is more powerful than AWS.</p>
 <p>I chose Oracle because it fits my workload and my startup reality.</p>
@@ -307,7 +396,7 @@
 </ul>
 <p>Most importantly:</p>
 <p><strong>I can multiply machines when users increase, without fear of surprise bills or account bans.</strong></p>
-<p>---</p>
+<hr />
 <h3>Why Predictable Pricing Matters More Than Power for Startups</h3>
 <p>As a startup:</p>
 <ul>
@@ -323,7 +412,7 @@
 <li>I don't wake up fearing a huge cloud bill</li>
 </ul>
 <p>That peace of mind is underrated.</p>
-<p>---</p>
+<hr />
 <h3>But Is Oracle Better Than AWS?</h3>
 <p>No.</p>
 <p>And yes.</p>
@@ -334,17 +423,10 @@
 </ul>
 <p>But for Python-based security tools, AI scanners, and long-running jobs:</p>
 <p><strong>Oracle is a better fit at the startup stage.</strong></p>
-<p>---</p>
+<hr />
 <h3>Side-by-Side Comparison (From My Experience)</h3>
-<p>| Feature | AWS | Oracle Cloud |</p>
-<p>|---------|-----|--------------|</p>
-<p>| Long-running scans | Complex | Simple |</p>
-<p>| Billing predictability | Low | High |</p>
-<p>| Startup-friendly | ❌ | ✅ |</p>
-<p>| VM control | Medium | Full |</p>
-<p>| Account risk for scanners | Higher | Lower |</p>
-<p>| Scaling machines | Powerful but costly | Cheap and predictable |</p>
-<p>---</p>
+<div class="table-wrap"><table><thead><tr><th>Feature</th><th>AWS</th><th>Oracle Cloud</th></tr></thead><tbody><tr><td>Long-running scans</td><td>Complex</td><td>Simple</td></tr><tr><td>Billing predictability</td><td>Low</td><td>High</td></tr><tr><td>Startup-friendly</td><td>❌</td><td>✅</td></tr><tr><td>VM control</td><td>Medium</td><td>Full</td></tr><tr><td>Account risk for scanners</td><td>Higher</td><td>Lower</td></tr><tr><td>Scaling machines</td><td>Powerful but costly</td><td>Cheap and predictable</td></tr></tbody></table></div>
+<hr />
 <h3>What This Means for Other Founders and Developers</h3>
 <p>If you're building:</p>
 <ul>
@@ -357,7 +439,7 @@
 <p><strong>&quot;Which cloud is most powerful?&quot;</strong></p>
 <p>Ask instead:</p>
 <p><strong>&quot;Which cloud lets me survive, scale, and sleep peacefully?&quot;</strong></p>
-<p>---</p>
+<hr />
 <h3>Final Thought (The Lesson I Learned)</h3>
 <p>AWS is powerful. Oracle is practical.</p>
 <p>For my startup GrowHaz and my security testing tool:</p>
@@ -370,12 +452,12 @@
 </ul>
         </div>
         <div class="cta-card">
-          <h3 style="font-size: 1.5rem; color: #fff; margin-bottom: 0.5rem;">Ready to Automate Your Business?</h3>
-          <p style="color: #a1a1aa; margin-bottom: 1rem;">Let GROWHAZ assess and build practical AI & workflow automations tailored to your business operations.</p>
+          <h3>Ready to Automate Your Business?</h3>
+          <p>Let GROWHAZ assess and build practical AI &amp; workflow automations tailored to your business operations.</p>
           <a href="/contact" class="cta-btn">Discuss Your Automation Needs</a>
         </div>
       </article>
-      <div style="margin-top: 3rem; display: flex; justify-content: space-between; font-size: 0.9rem;">
+      <div class="article-footer-nav">
         <a href="/blog">← Back to all articles</a>
         <a href="/automation">Explore Automation Tools →</a>
       </div>

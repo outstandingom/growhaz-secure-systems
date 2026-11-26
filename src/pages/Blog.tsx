@@ -115,20 +115,20 @@ export default function Blog() {
       <section className="section-container">
         <div className="max-w-6xl mx-auto">
           {/* Header */}
-          <div className="text-center mb-12">
-            <span className="inline-block px-4 py-1.5 mb-4 text-xs font-medium uppercase tracking-wider text-primary bg-primary/10 rounded-full border border-primary/20">
-              Blog & Insights
+          <div className="text-center mb-8 sm:mb-12">
+            <span className="inline-block px-4 py-1.5 mb-3 sm:mb-4 text-xs font-medium uppercase tracking-wider text-primary bg-primary/10 rounded-full border border-primary/20">
+              Blog &amp; Insights
             </span>
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
-              Latest Articles & <span className="text-gradient">Resources</span>
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-3 sm:mb-4">
+              Latest Articles &amp; <span className="text-gradient">Resources</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto">
               Stay updated with the latest in cybersecurity, AI, web development, SEO strategies, and blockchain technology.
             </p>
           </div>
 
           {/* Category Filter */}
-          <div className="mb-6">
+          <div className="mb-5 sm:mb-6">
             <BlogCategories
               selectedCategory={selectedCategory}
               onCategoryChange={setSelectedCategory}
@@ -137,14 +137,14 @@ export default function Blog() {
           </div>
 
           {/* Search */}
-          <div className="mb-8">
-            <div className="relative max-w-md">
+          <div className="mb-6 sm:mb-8">
+            <div className="relative w-full sm:max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
               <Input
                 placeholder="Search articles..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-card/80 backdrop-blur-sm border-border"
+                className="pl-10 bg-card/80 backdrop-blur-sm border-border w-full"
               />
             </div>
           </div>
@@ -155,7 +155,7 @@ export default function Blog() {
               <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : filteredPosts.length === 0 ? (
-            <div className="text-center py-20 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
+            <div className="text-center py-16 sm:py-20 px-4 rounded-2xl bg-card/80 backdrop-blur-sm border border-border">
               <BookOpen className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-semibold mb-2">No articles found</h3>
               <p className="text-muted-foreground">
@@ -165,11 +165,11 @@ export default function Blog() {
               </p>
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredPosts.map((post, index) => (
                 <div
                   key={post.id}
-                  className={`animate-fade-in ${index === 0 ? "md:col-span-2 lg:col-span-2" : ""}`}
+                  className={`animate-fade-in min-w-0 ${index === 0 ? "md:col-span-2 lg:col-span-2" : ""}`}
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <BlogCard post={post} featured={index === 0} />

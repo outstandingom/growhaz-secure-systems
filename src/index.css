@@ -116,11 +116,13 @@
 
   html {
     scroll-behavior: smooth;
+    overflow-x: clip;
   }
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
     font-family: var(--font-sans);
+    overflow-x: clip;
   }
 
   code, pre, .font-mono {
@@ -175,7 +177,7 @@
   }
 */
   .section-container {
-    @apply container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24;
+    @apply container mx-auto px-4 sm:px-6 lg:px-8 py-10 sm:py-16 md:py-24;
   }
 
   .section-title {

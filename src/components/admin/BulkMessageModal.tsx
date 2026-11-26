@@ -287,14 +287,14 @@ export function BulkMessageModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1.25rem)] sm:w-full max-w-3xl max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
         <DialogHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-primary" />
-              <DialogTitle>Bulk Messaging & Template Manager</DialogTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2 pr-6">
+            <div className="flex items-center gap-2 min-w-0">
+              <MessageSquare className="w-5 h-5 text-primary shrink-0" />
+              <DialogTitle className="text-base sm:text-lg truncate">Bulk Messaging &amp; Template Manager</DialogTitle>
             </div>
-            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+            <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30 shrink-0">
               {selectedUsers.length} Users Selected
             </Badge>
           </div>
@@ -303,11 +303,11 @@ export function BulkMessageModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5 py-2">
+        <div className="space-y-4 sm:space-y-5 py-1 sm:py-2">
           {/* Step 1: Template Selection & Management */}
           <Card className="border-border/60">
-            <CardHeader className="pb-2">
-              <div className="flex items-center justify-between">
+            <CardHeader className="p-3.5 sm:p-6 pb-2">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                   <FileText className="w-4 h-4 text-primary" /> Step 1: Choose or Create Template
                 </CardTitle>
@@ -404,12 +404,12 @@ export function BulkMessageModal({
 
           {/* Step 2: Message Body & Placeholders */}
           <div className="space-y-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-amber-400" /> Step 2: Customize Message
+                <Sparkles className="w-4 h-4 text-amber-400 shrink-0" /> Step 2: Customize Message
               </Label>
-              <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-                Tags:
+              <div className="flex flex-wrap items-center gap-1 text-[11px] text-muted-foreground">
+                <span>Tags:</span>
                 <Badge variant="secondary" className="cursor-pointer text-[10px]" onClick={() => setMessageBody((prev) => prev + " {{name}}")}>
                   {"{{name}}"}
                 </Badge>
@@ -479,17 +479,17 @@ export function BulkMessageModal({
             </Card>
 
             {/* Live Personalized Sample Preview */}
-            <Card className="border-border/60 bg-muted/30">
+            <Card className="border-border/60 bg-muted/30 min-w-0">
               <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-1.5">
                   <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                    <Eye className="w-4 h-4 text-cyan-400" /> Sample Preview
+                    <Eye className="w-4 h-4 text-cyan-400 shrink-0" /> Sample Preview
                   </CardTitle>
-                  <span className="text-[10px] text-muted-foreground font-mono">Sample: {previewUser.full_name}</span>
+                  <span className="text-[10px] text-muted-foreground font-mono truncate">Sample: {previewUser.full_name}</span>
                 </div>
               </CardHeader>
               <CardContent>
-                <div className="p-3 rounded-md bg-background border border-border/60 text-xs leading-relaxed whitespace-pre-wrap">
+                <div className="p-3 rounded-md bg-background border border-border/60 text-xs leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                   {samplePreviewText || <span className="text-muted-foreground italic">Type a message to preview...</span>}
                 </div>
               </CardContent>
@@ -498,7 +498,7 @@ export function BulkMessageModal({
 
           {/* Recipients Pill List */}
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-muted-foreground">
               <span>Recipients ({selectedUsers.length}):</span>
               <span>All dynamic tags will be substituted automatically</span>
             </div>
@@ -512,8 +512,8 @@ export function BulkMessageModal({
           </div>
         </div>
 
-        <DialogFooter className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-2 border-t">
-          <div className="text-xs text-muted-foreground">
+        <DialogFooter className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2 pt-2 border-t">
+          <div className="text-xs text-muted-foreground text-center sm:text-left">
             {sendProgress ? (
               <span className="font-medium text-primary animate-pulse">
                 Sending {sendProgress.sent} of {sendProgress.total}...
@@ -522,13 +522,13 @@ export function BulkMessageModal({
               <span>Ready to send to {selectedUsers.length} users</span>
             )}
           </div>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => onOpenChange(false)} disabled={isSending}>
+          <div className="grid grid-cols-2 sm:flex gap-2">
+            <Button variant="outline" size="sm" className="w-full sm:w-auto" onClick={() => onOpenChange(false)} disabled={isSending}>
               Cancel
             </Button>
-            <Button size="sm" onClick={handleSendBulk} disabled={isSending || selectedUsers.length === 0}>
+            <Button size="sm" className="w-full sm:w-auto" onClick={handleSendBulk} disabled={isSending || selectedUsers.length === 0}>
               <Send className="w-3.5 h-3.5 mr-1.5" />
-              {isSending ? "Dispatching..." : `Send to ${selectedUsers.length} Users`}
+              {isSending ? "Dispatching..." : `Send to ${selectedUsers.length}`}
             </Button>
           </div>
         </DialogFooter>

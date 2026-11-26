@@ -56,10 +56,12 @@ const escapeHtml = (value = "") =>
 const escapeAttr = (value = "") => escapeHtml(value).replace(/'/g, "&#39;");
 
 /** Minimal markdown -> HTML for the crawler-visible snapshot. */
-function markdownToHtml(markdown = "") {
+function markdownToHtml(markdown = "", postTitle = "") {
   const lines = String(markdown).split("\n");
   const out = [];
-  let listOpen = false;
+  let listType = null;
+  const normalizedTitle = String(postTitle || "").trim().toLowerCase();
+
   const inline = (text) =>
     escapeHtml(text)
       .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
@@ -67,31 +69,83 @@ function markdownToHtml(markdown = "") {
       .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<a href="$2">$1</a>');
 
   const closeList = () => {
-    if (listOpen) {
-      out.push("</ul>");
-      listOpen = false;
-    }
+    if (listType === "ul") out.push("</ul>");
+    if (listType === "ol") out.push("</ol>");
+    listType = null;
   };
 
-  for (const raw of lines) {
-    const line = raw.trim();
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
     if (!line) {
       closeList();
+      continue;
+    }
+    if (line === "---") {
+      closeList();
+      out.push("<hr />");
       continue;
     }
     const heading = line.match(/^(#{1,4})\s+(.*)$/);
     if (heading) {
       closeList();
+      const text = heading[2].trim();
+      if (heading[1].length === 1 && normalizedTitle && text.toLowerCase() === normalizedTitle) {
+        continue;
+      }
       const level = Math.min(heading[1].length + 1, 6);
-      out.push(`<h${level}>${inline(heading[2])}</h${level}>`);
+      out.push(`<h${level}>${inline(text)}</h${level}>`);
+      continue;
+    }
+    if (line.startsWith("> ")) {
+      closeList();
+      out.push(`<blockquote>${inline(line.slice(2))}</blockquote>`);
+      continue;
+    }
+    if (line.startsWith("|") && line.includes("|")) {
+      closeList();
+      const rawTable = [];
+      while (i < lines.length && lines[i].trim().includes("|")) {
+        rawTable.push(lines[i].trim());
+        i++;
+      }
+      i--;
+      const parsed = rawTable
+        .filter((r) => !/^\|[\s-:|]+\|$/.test(r))
+        .map((r) =>
+          r
+            .split("|")
+            .filter((cell) => cell.trim() !== "")
+            .map((cell) => cell.trim()),
+        );
+      if (parsed.length > 0) {
+        const header = parsed[0];
+        const body = parsed.slice(1);
+        out.push(
+          `<div class="table-wrap"><table><thead><tr>${header
+            .map((c) => `<th>${inline(c)}</th>`)
+            .join("")}</tr></thead><tbody>${body
+            .map((row) => `<tr>${row.map((c) => `<td>${inline(c)}</td>`).join("")}</tr>`)
+            .join("")}</tbody></table></div>`,
+        );
+      }
       continue;
     }
     if (/^[-*]\s+/.test(line)) {
-      if (!listOpen) {
+      if (listType !== "ul") {
+        closeList();
         out.push("<ul>");
-        listOpen = true;
+        listType = "ul";
       }
       out.push(`<li>${inline(line.replace(/^[-*]\s+/, ""))}</li>`);
+      continue;
+    }
+    if (/^\d+\.\s+/.test(line)) {
+      if (listType !== "ol") {
+        closeList();
+        out.push("<ol>");
+        listType = "ol";
+      }
+      out.push(`<li>${inline(line.replace(/^\d+\.\s+/, ""))}</li>`);
       continue;
     }
     closeList();
@@ -240,7 +294,7 @@ function extractFaqSchema(content = "") {
 function postHtml(shell, post) {
   const canonical = `${SITE_URL}/blog/${post.slug}`;
   const description = post.meta_description || post.excerpt || "";
-  const articleBody = markdownToHtml(post.content);
+  const articleBody = markdownToHtml(post.content, post.title);
   const published = post.published_at;
   const modified = post.updated_at || post.published_at;
 
@@ -276,29 +330,108 @@ function postHtml(shell, post) {
       ? `<meta property="og:image" content="${escapeAttr(post.featured_image)}" />`
       : "",
     `<style>
-      body { background-color: #09090b; color: #f4f4f5; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
-      a { color: #38bdf8; text-decoration: none; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
+        background-color: #09090b;
+        color: #f4f4f5;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      a { color: #38bdf8; text-decoration: none; overflow-wrap: anywhere; }
       a:hover { text-decoration: underline; }
+      img { max-width: 100%; height: auto; display: block; }
       header a { color: #fafafa; text-decoration: none; }
-      .site-header { border-bottom: 1px solid #27272a; padding: 1.25rem 1.5rem; max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-      .site-logo { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em; color: #fff; text-decoration: none; }
-      .site-nav { display: flex; gap: 1.25rem; font-size: 0.875rem; }
+      .site-header {
+        border-bottom: 1px solid #27272a;
+        padding: 0.9rem 1rem;
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+      }
+      .site-logo { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.025em; color: #fff; text-decoration: none; flex-shrink: 0; }
+      .site-nav { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.875rem; }
       .site-nav a { color: #a1a1aa; text-decoration: none; transition: color 0.2s; }
       .site-nav a:hover { color: #fff; }
-      .article-container { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.25rem; }
-      h1 { font-size: 2.25rem; line-height: 1.25; font-weight: 800; color: #ffffff; margin-bottom: 1rem; }
-      h2 { font-size: 1.5rem; font-weight: 700; color: #ffffff; margin-top: 2.25rem; margin-bottom: 0.85rem; border-bottom: 1px solid #27272a; padding-bottom: 0.5rem; }
-      h3 { font-size: 1.2rem; font-weight: 600; color: #38bdf8; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-      p { line-height: 1.8; margin-bottom: 1.15rem; color: #d4d4d8; font-size: 1.05rem; }
-      ul { padding-left: 1.5rem; margin-bottom: 1.25rem; }
-      li { margin-bottom: 0.5rem; line-height: 1.7; color: #d4d4d8; }
+      .mobile-nav { display: none; }
+      .mobile-nav summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.5rem 0.85rem;
+        border-radius: 0.5rem;
+        border: 1px solid #27272a;
+        background: #18181b;
+        color: #fafafa;
+        font-size: 0.875rem;
+        font-weight: 600;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .mobile-nav summary::-webkit-details-marker { display: none; }
+      .mobile-nav-panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        background: #111114;
+        border-bottom: 1px solid #27272a;
+        padding: 0.5rem 1rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        z-index: 50;
+      }
+      .mobile-nav-panel a {
+        color: #e4e4e7;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #1f1f23;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+      .mobile-nav-panel a:last-child { border-bottom: none; }
+      .article-container { width: 100%; max-width: 820px; margin: 0 auto; padding: 2rem 1.25rem; }
+      .breadcrumb { font-size: 0.825rem; color: #a1a1aa; margin-bottom: 1.25rem; line-height: 1.6; overflow-wrap: anywhere; }
+      .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; font-size: 0.85rem; color: #a1a1aa; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #27272a; }
+      .article-excerpt { font-size: 1.075rem; color: #a1a1aa; line-height: 1.75; margin-bottom: 1.75rem; font-weight: 500; overflow-wrap: anywhere; }
+      h1 { font-size: clamp(1.55rem, 5vw, 2.35rem); line-height: 1.22; font-weight: 800; color: #ffffff; margin: 0 0 0.9rem; overflow-wrap: anywhere; word-break: break-word; }
+      h2 { font-size: clamp(1.2rem, 3.6vw, 1.55rem); line-height: 1.3; font-weight: 700; color: #ffffff; margin-top: 2rem; margin-bottom: 0.8rem; border-bottom: 1px solid #27272a; padding-bottom: 0.45rem; overflow-wrap: anywhere; }
+      h3 { font-size: clamp(1.05rem, 3vw, 1.25rem); line-height: 1.35; font-weight: 600; color: #38bdf8; margin-top: 1.4rem; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
+      p, li, blockquote { line-height: 1.75; margin-bottom: 1rem; color: #d4d4d8; font-size: 1rem; overflow-wrap: anywhere; word-break: break-word; }
+      ul, ol { padding-left: 1.35rem; margin-bottom: 1.15rem; }
+      li { margin-bottom: 0.45rem; }
+      blockquote { border-left: 3px solid #38bdf8; margin: 1.25rem 0; padding: 0.6rem 1rem; background: rgba(56, 189, 248, 0.06); border-radius: 0 0.5rem 0.5rem 0; }
+      hr { border: none; border-top: 1px solid #27272a; margin: 1.75rem 0; }
       strong { color: #ffffff; font-weight: 600; }
-      code { background: #18181b; border: 1px solid #27272a; padding: 0.15rem 0.35rem; border-radius: 4px; font-family: monospace; font-size: 0.88em; color: #38bdf8; }
-      .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-      .cta-card { margin-top: 3rem; padding: 2rem; border-radius: 1rem; background: #18181b; border: 1px solid #27272a; text-align: center; }
-      .cta-btn { display: inline-block; padding: 0.75rem 1.5rem; border-radius: 0.75rem; background: #38bdf8; color: #09090b; font-weight: 700; text-decoration: none; margin-top: 1rem; }
+      code { background: #18181b; border: 1px solid #27272a; padding: 0.12rem 0.35rem; border-radius: 4px; font-family: monospace; font-size: 0.86em; color: #38bdf8; overflow-wrap: anywhere; }
+      .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.25rem 0; border: 1px solid #27272a; border-radius: 0.5rem; }
+      table { width: 100%; border-collapse: collapse; min-width: 480px; font-size: 0.9rem; }
+      th, td { border-bottom: 1px solid #27272a; padding: 0.65rem 0.85rem; text-align: left; color: #d4d4d8; }
+      th { background: #18181b; color: #fafafa; font-weight: 600; }
+      .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
+      .cta-card { margin-top: 2.5rem; padding: 1.5rem 1.25rem; border-radius: 1rem; background: #18181b; border: 1px solid #27272a; text-align: center; }
+      .cta-card h3 { font-size: clamp(1.15rem, 4vw, 1.45rem); color: #fff; margin: 0 0 0.5rem; }
+      .cta-card p { color: #a1a1aa; margin: 0 0 1rem; font-size: 0.95rem; }
+      .cta-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 1.4rem; min-height: 44px; border-radius: 0.75rem; background: #38bdf8; color: #09090b; font-weight: 700; text-decoration: none; margin-top: 0.5rem; }
       .cta-btn:hover { background: #7dd3fc; text-decoration: none; }
-      footer { margin-top: 5rem; border-top: 1px solid #27272a; padding: 2.5rem 1rem; text-align: center; color: #71717a; font-size: 0.875rem; }
+      .article-footer-nav { margin-top: 2.25rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem 1rem; font-size: 0.9rem; }
+      footer { margin-top: 3.5rem; border-top: 1px solid #27272a; padding: 2rem 1rem; text-align: center; color: #71717a; font-size: 0.85rem; }
+      @media (max-width: 767px) {
+        .site-nav { display: none; }
+        .mobile-nav { display: block; }
+        .article-container { padding: 1.25rem 1rem 2rem; }
+        p, li { font-size: 0.96rem; line-height: 1.7; }
+        .cta-btn { width: 100%; }
+      }
     </style>`,
 
     `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`,
@@ -314,42 +447,52 @@ function postHtml(shell, post) {
   const bodyHtml = `
     <header class="site-header">
       <a href="/" class="site-logo">GROWHAZ</a>
-      <nav class="site-nav">
+      <nav class="site-nav" aria-label="Main navigation">
         <a href="/security-tools">Security Tools</a>
         <a href="/automation">Automation</a>
         <a href="/blockchain">Blockchain</a>
         <a href="/blog">Blog</a>
         <a href="/contact">Contact</a>
       </nav>
+      <details class="mobile-nav">
+        <summary aria-label="Toggle navigation menu">☰ Menu</summary>
+        <nav class="mobile-nav-panel" aria-label="Mobile navigation">
+          <a href="/security-tools">Security Tools</a>
+          <a href="/automation">Automation</a>
+          <a href="/blockchain">Blockchain</a>
+          <a href="/blog">Blog</a>
+          <a href="/contact">Contact</a>
+        </nav>
+      </details>
     </header>
     <main class="article-container">
       <article>
-        <nav aria-label="Breadcrumb" style="font-size: 0.875rem; color: #a1a1aa; margin-bottom: 1.5rem;">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
           <a href="/">Home</a> / <a href="/blog">Blog</a> / <span style="color: #fafafa;">${escapeHtml(post.title)}</span>
         </nav>
         <h1>${escapeHtml(post.title)}</h1>
-        <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #a1a1aa; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #27272a;">
+        <div class="article-meta">
           <span>By <strong style="color: #fff;">${escapeHtml(post.author_name || "GrowHaz")}</strong></span>
           <span>•</span>
           <time datetime="${escapeAttr(published)}">${escapeHtml(new Date(published).toISOString().slice(0, 10))}</time>
           ${post.category ? `<span>•</span><span class="badge">${escapeHtml(post.category)}</span>` : ""}
         </div>
-        ${post.excerpt ? `<p style="font-size: 1.15rem; color: #a1a1aa; line-height: 1.8; margin-bottom: 2rem; font-weight: 500;">${escapeHtml(post.excerpt)}</p>` : ""}
+        ${post.excerpt ? `<p class="article-excerpt">${escapeHtml(post.excerpt)}</p>` : ""}
         ${
           post.featured_image
-            ? `<div style="margin-bottom: 2rem; border-radius: 1rem; overflow: hidden; border: 1px solid #27272a;"><img src="${escapeAttr(post.featured_image)}" alt="${escapeAttr(post.title)}" style="width: 100%; height: auto; display: block;" loading="lazy" /></div>`
+            ? `<div style="margin-bottom: 1.75rem; border-radius: 1rem; overflow: hidden; border: 1px solid #27272a;"><img src="${escapeAttr(post.featured_image)}" alt="${escapeAttr(post.title)}" loading="lazy" /></div>`
             : ""
         }
         <div class="article-body">
           ${articleBody}
         </div>
         <div class="cta-card">
-          <h3 style="font-size: 1.5rem; color: #fff; margin-bottom: 0.5rem;">Ready to Automate Your Business?</h3>
-          <p style="color: #a1a1aa; margin-bottom: 1rem;">Let GROWHAZ assess and build practical AI & workflow automations tailored to your business operations.</p>
+          <h3>Ready to Automate Your Business?</h3>
+          <p>Let GROWHAZ assess and build practical AI &amp; workflow automations tailored to your business operations.</p>
           <a href="/contact" class="cta-btn">Discuss Your Automation Needs</a>
         </div>
       </article>
-      <div style="margin-top: 3rem; display: flex; justify-content: space-between; font-size: 0.9rem;">
+      <div class="article-footer-nav">
         <a href="/blog">← Back to all articles</a>
         <a href="/automation">Explore Automation Tools →</a>
       </div>
@@ -400,7 +543,7 @@ function blogIndexHtml(shell, posts) {
       "Guides and insights on website security, blockchain document verification, digital forensics and SEO from the GrowHaz team.",
     canonical: `${SITE_URL}/blog`,
     headExtra: `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script>`,
-    bodyHtml: `<main><h1>GrowHaz Blog</h1><ul>${items}</ul></main>`,
+    bodyHtml: `<main style="max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem;"><h1>GrowHaz Blog</h1><ul>${items}</ul></main>`,
   });
 }
 

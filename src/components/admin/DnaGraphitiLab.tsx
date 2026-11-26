@@ -195,28 +195,28 @@ export function DnaGraphitiLab() {
     <div className="space-y-6">
       {/* Top Banner & Backend Config */}
       <Card className="border-primary/20 bg-card/60 backdrop-blur-sm">
-        <CardHeader className="pb-3">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <CardTitle className="text-xl flex items-center gap-2">
-                <Dna className="w-6 h-6 text-primary" />
-                DNA Modal & Graphiti Temporal Lab
+        <CardHeader className="p-4 sm:p-6 pb-3 sm:pb-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+            <div className="min-w-0">
+              <CardTitle className="text-base sm:text-xl flex flex-wrap items-center gap-2">
+                <Dna className="w-5 h-5 sm:w-6 sm:h-6 text-primary shrink-0" />
+                <span>DNA Modal &amp; Graphiti Temporal Lab</span>
                 <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
                   Admin Testing Only
                 </Badge>
               </CardTitle>
-              <CardDescription className="text-sm mt-1">
-                Shadow testing, episodic Graphiti extraction, Neo4j AuraDB integration, and horizontal DNA sharding.
+              <CardDescription className="text-xs sm:text-sm mt-1">
+                Shadow testing, episodic Graphiti extraction, and horizontal DNA sharding.
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full md:w-auto">
               <Input
                 value={backendUrl}
                 onChange={(e) => setBackendUrl(e.target.value)}
                 placeholder="Backend URL (e.g. https://dna-modal.onrender.com)"
-                className="w-72 text-xs"
+                className="w-full sm:w-72 text-xs"
               />
-              <Button size="sm" variant="outline" onClick={fetchTelemetry} disabled={loadingStatus}>
+              <Button size="sm" variant="outline" className="w-full sm:w-auto" onClick={fetchTelemetry} disabled={loadingStatus}>
                 <RefreshCw className={`w-4 h-4 mr-1 ${loadingStatus ? "animate-spin" : ""}`} />
                 Refresh
               </Button>
@@ -226,11 +226,11 @@ export function DnaGraphitiLab() {
       </Card>
 
       {/* Overview Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Card 1: Graphiti & Neo4j Status */}
-        <Card className="border-border/60">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4">
+        {/* Card 1: Graphiti Status */}
+        <Card className="border-border/60 min-w-0">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Network className="w-4 h-4 text-emerald-500" />
                 Graphiti & Neo4j AuraDB
@@ -268,9 +268,9 @@ export function DnaGraphitiLab() {
         </Card>
 
         {/* Card 2: DNA Memory Sharding Status */}
-        <Card className="border-border/60">
+        <Card className="border-border/60 min-w-0">
           <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-sm font-medium flex items-center gap-2">
                 <Layers className="w-4 h-4 text-cyan-500" />
                 DNA Sharding Engine
@@ -358,14 +358,14 @@ export function DnaGraphitiLab() {
             </div>
             <div className="md:col-span-3">
               <label className="text-xs font-medium text-muted-foreground mb-1 block">Dialogue Message</label>
-              <div className="flex gap-2">
+              <div className="flex flex-col sm:flex-row gap-2">
                 <Input
                   value={testMessage}
                   onChange={(e) => setTestMessage(e.target.value)}
                   placeholder="Enter message to test..."
-                  className="text-xs"
+                  className="text-xs flex-1 w-full"
                 />
-                <Button size="sm" onClick={handleRunDualTest} disabled={testingRunning}>
+                <Button size="sm" className="w-full sm:w-auto shrink-0" onClick={handleRunDualTest} disabled={testingRunning}>
                   {testingRunning ? <RefreshCw className="w-4 h-4 animate-spin mr-1" /> : <Zap className="w-4 h-4 mr-1" />}
                   Run Dual Test
                 </Button>
@@ -377,9 +377,9 @@ export function DnaGraphitiLab() {
           {(dnaTestResult || graphitiTestResult) && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-3">
               {/* Left Column: DNA Modal Output */}
-              <Card className="border-cyan-500/30 bg-cyan-950/10">
+              <Card className="border-cyan-500/30 bg-cyan-950/10 min-w-0">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <CardTitle className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
                       <Dna className="w-4 h-4" /> DNA Modal (Sharded Tenant Shard)
                     </CardTitle>
@@ -413,9 +413,9 @@ export function DnaGraphitiLab() {
               </Card>
 
               {/* Right Column: Graphiti Temporal Output */}
-              <Card className="border-emerald-500/30 bg-emerald-950/10">
+              <Card className="border-emerald-500/30 bg-emerald-950/10 min-w-0">
                 <CardHeader className="pb-2">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <CardTitle className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
                       <Network className="w-4 h-4" /> Graphiti / Neo4j Temporal Extraction
                     </CardTitle>
@@ -465,8 +465,9 @@ export function DnaGraphitiLab() {
               Horizontal Shard Partitions
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <Table>
+          <CardContent className="p-3 sm:p-6 pt-0">
+            <div className="overflow-x-auto -mx-2 px-2 sm:mx-0 sm:px-0">
+              <Table className="min-w-[560px]">
               <TableHeader>
                 <TableRow className="text-xs">
                   <TableHead>Shard ID</TableHead>
@@ -494,6 +495,7 @@ export function DnaGraphitiLab() {
                 ))}
               </TableBody>
             </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -503,21 +505,21 @@ export function DnaGraphitiLab() {
         <CardHeader className="pb-2">
           <CardTitle className="text-sm font-medium flex items-center gap-2">
             <Search className="w-4 h-4 text-primary" />
-            Graphiti & Neo4j Temporal Search Explorer
+            Graphiti Temporal Search Explorer
           </CardTitle>
           <CardDescription className="text-xs">
-            Query the Neo4j graph for temporal entity-relationship paths.
+            Query temporal entity-relationship paths across cognitive memory.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex gap-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search concepts (e.g. Growhaz, Python, Arbitrum)..."
-              className="text-xs"
+              className="text-xs flex-1 w-full"
             />
-            <Button size="sm" variant="outline" onClick={handleSearchGraphiti} disabled={searchLoading}>
+            <Button size="sm" variant="outline" className="w-full sm:w-auto shrink-0" onClick={handleSearchGraphiti} disabled={searchLoading}>
               {searchLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin mr-1" /> : <Search className="w-3.5 h-3.5 mr-1" />}
               Search Graph
             </Button>

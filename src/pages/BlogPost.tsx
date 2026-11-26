@@ -192,11 +192,32 @@ export default function BlogPostPage() {
   };
 
   const renderInlineStyles = (text: string) => {
-    // Handle inline bold and other formatting
-    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    const tokenRegex = /(\*\*[^*]+\*\*|`[^`]+`|\[[^\]]+\]\([^)\s]+\))/g;
+    const parts = text.split(tokenRegex);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
         return <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>;
+      }
+      if (part.startsWith("`") && part.endsWith("`")) {
+        return (
+          <code key={i} className="px-1.5 py-0.5 rounded bg-muted text-primary font-mono text-[0.85em] break-all">
+            {part.slice(1, -1)}
+          </code>
+        );
+      }
+      const linkMatch = part.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/);
+      if (linkMatch) {
+        const [, label, href] = linkMatch;
+        const isInternal = href.startsWith("/");
+        return isInternal ? (
+          <Link key={i} to={href} className="text-primary hover:underline break-words">
+            {label}
+          </Link>
+        ) : (
+          <a key={i} href={href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline break-words">
+            {label}
+          </a>
+        );
       }
       return part;
     });
@@ -212,7 +233,13 @@ export default function BlogPostPage() {
 
       // Horizontal rule
       if (line.trim() === "---") {
-        elements.push(<hr key={i} className="my-8 border-border" />);
+        elements.push(<hr key={i} className="my-6 sm:my-8 border-border" />);
+        i++;
+        continue;
+      }
+
+      // Skip single-H1 if it duplicates post title
+      if (line.startsWith("# ") && post && line.replace("# ", "").trim().toLowerCase() === post.title.trim().toLowerCase()) {
         i++;
         continue;
       }
@@ -220,7 +247,7 @@ export default function BlogPostPage() {
       // H2 Headers
       if (line.startsWith("## ")) {
         elements.push(
-          <h2 key={i} className="text-2xl font-bold mt-8 mb-4 text-foreground">
+          <h2 key={i} className="text-xl sm:text-2xl font-bold mt-7 sm:mt-8 mb-3 sm:mb-4 text-foreground break-words">
             {line.replace("## ", "")}
           </h2>
         );
@@ -231,7 +258,7 @@ export default function BlogPostPage() {
       // H3 Headers
       if (line.startsWith("### ")) {
         elements.push(
-          <h3 key={i} className="text-xl font-semibold mt-6 mb-3 text-foreground">
+          <h3 key={i} className="text-lg sm:text-xl font-semibold mt-5 sm:mt-6 mb-2.5 sm:mb-3 text-foreground break-words">
             {line.replace("### ", "")}
           </h3>
         );
@@ -242,7 +269,7 @@ export default function BlogPostPage() {
       // Blockquotes
       if (line.startsWith("> ")) {
         elements.push(
-          <blockquote key={i} className="border-l-4 border-primary pl-4 py-2 my-4 bg-primary/5 rounded-r-lg italic text-foreground">
+          <blockquote key={i} className="border-l-4 border-primary pl-3.5 sm:pl-4 py-2 my-4 bg-primary/5 rounded-r-lg italic text-sm sm:text-base text-foreground break-words">
             {renderInlineStyles(line.replace("> ", ""))}
           </blockquote>
         );
@@ -272,12 +299,12 @@ export default function BlogPostPage() {
           const bodyRows = parsedRows.slice(1);
 
           elements.push(
-            <div key={`table-${i}`} className="my-6 overflow-x-auto">
-              <table className="w-full border-collapse border border-border rounded-lg">
+            <div key={`table-${i}`} className="my-6 -mx-2 px-2 sm:mx-0 sm:px-0 overflow-x-auto">
+              <table className="w-full min-w-[460px] border-collapse border border-border rounded-lg text-xs sm:text-sm">
                 <thead>
                   <tr className="bg-muted/50">
                     {headerRow.map((cell, cellIdx) => (
-                      <th key={cellIdx} className="border border-border px-4 py-2 text-left font-semibold text-foreground">
+                      <th key={cellIdx} className="border border-border px-3 sm:px-4 py-2 text-left font-semibold text-foreground">
                         {cell}
                       </th>
                     ))}
@@ -287,7 +314,7 @@ export default function BlogPostPage() {
                   {bodyRows.map((row, rowIdx) => (
                     <tr key={rowIdx} className="hover:bg-muted/30">
                       {row.map((cell, cellIdx) => (
-                        <td key={cellIdx} className="border border-border px-4 py-2 text-muted-foreground">
+                        <td key={cellIdx} className="border border-border px-3 sm:px-4 py-2 text-muted-foreground">
                           {cell}
                         </td>
                       ))}
@@ -304,7 +331,7 @@ export default function BlogPostPage() {
       // Numbered lists (1. 2. 3.)
       if (/^\d+\.\s/.test(line)) {
         elements.push(
-          <li key={i} className="ml-6 my-1 text-muted-foreground list-decimal">
+          <li key={i} className="ml-5 sm:ml-6 my-1 text-sm sm:text-base text-muted-foreground list-decimal break-words [overflow-wrap:anywhere]">
             {renderInlineStyles(line.replace(/^\d+\.\s/, ""))}
           </li>
         );
@@ -315,7 +342,7 @@ export default function BlogPostPage() {
       // Bullet points
       if (line.startsWith("- ")) {
         elements.push(
-          <li key={i} className="ml-6 my-1 text-muted-foreground list-disc">
+          <li key={i} className="ml-5 sm:ml-6 my-1 text-sm sm:text-base text-muted-foreground list-disc break-words [overflow-wrap:anywhere]">
             {renderInlineStyles(line.replace("- ", ""))}
           </li>
         );
@@ -332,7 +359,7 @@ export default function BlogPostPage() {
 
       // Regular paragraph with inline styles
       elements.push(
-        <p key={i} className="text-muted-foreground leading-relaxed my-2">
+        <p key={i} className="text-sm sm:text-base text-muted-foreground leading-relaxed my-2 break-words [overflow-wrap:anywhere]">
           {renderInlineStyles(line)}
         </p>
       );
@@ -406,51 +433,51 @@ export default function BlogPostPage() {
 
 
       <article className="section-container">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto min-w-0">
           {/* Back Link */}
           <Link
             to="/blog"
-            className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary transition-colors mb-8"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-6 sm:mb-8"
           >
             <ArrowLeft className="w-4 h-4" />
             Back to Blog
           </Link>
 
           {/* Header */}
-          <header className="mb-8">
+          <header className="mb-6 sm:mb-8">
             {/* Tags */}
-            <div className="flex gap-2 flex-wrap mb-4">
+            <div className="flex gap-1.5 sm:gap-2 flex-wrap mb-3 sm:mb-4">
               {(post.tags || []).map(tag => (
                 <Link
                   key={tag}
                   to={`/blog?tag=${tag}`}
-                  className="px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors"
+                  className="px-2.5 sm:px-3 py-1 text-xs font-medium bg-primary/10 text-primary rounded-full border border-primary/20 hover:bg-primary/20 transition-colors"
                 >
                   {tag}
                 </Link>
               ))}
             </div>
 
-            <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 leading-tight">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4 leading-tight break-words">
               {post.title}
             </h1>
 
-            <p className="text-xl text-muted-foreground mb-6">
+            <p className="text-base sm:text-xl text-muted-foreground mb-5 sm:mb-6 leading-relaxed break-words">
               {post.excerpt}
             </p>
 
             {/* Meta */}
-            <div className="flex flex-wrap items-center gap-6 pb-6 border-b border-border">
+            <div className="flex flex-wrap items-center gap-4 sm:gap-6 pb-5 sm:pb-6 border-b border-border">
               <div className="flex items-center gap-2">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <User className="w-5 h-5 text-primary" />
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                  <User className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
                 <div>
                   <p className="font-medium text-sm">{post.author_name}</p>
                   <p className="text-xs text-muted-foreground">Author</p>
                 </div>
               </div>
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-3 sm:gap-4 text-xs sm:text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Calendar className="w-4 h-4" />
                   {format(new Date(post.published_at), "MMMM d, yyyy")}
@@ -460,7 +487,7 @@ export default function BlogPostPage() {
                   {getReadTime(post.content)} min read
                 </span>
               </div>
-              <Button variant="outline" size="sm" onClick={handleShare} className="ml-auto">
+              <Button variant="outline" size="sm" onClick={handleShare} className="ml-0 sm:ml-auto w-full sm:w-auto">
                 <Share2 className="w-4 h-4 mr-2" />
                 Share
               </Button>
@@ -469,7 +496,7 @@ export default function BlogPostPage() {
 
           {/* Featured Image */}
           {post.featured_image && (
-            <div className="mb-8 rounded-2xl overflow-hidden">
+            <div className="mb-6 sm:mb-8 rounded-2xl overflow-hidden">
               <img
                 src={post.featured_image}
                 alt={post.title}
@@ -479,15 +506,15 @@ export default function BlogPostPage() {
           )}
 
           {/* Content */}
-          <div className="prose prose-invert max-w-none">
+          <div className="prose prose-invert max-w-none break-words [overflow-wrap:anywhere]">
             {renderContent(post.content)}
           </div>
 
           {/* Share CTA */}
-          <div className="mt-12 p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-center">
-            <h3 className="text-lg font-semibold mb-2">Found this article helpful?</h3>
-            <p className="text-muted-foreground mb-4">Share it with your network!</p>
-            <Button variant="hero" onClick={handleShare}>
+          <div className="mt-10 sm:mt-12 p-5 sm:p-6 rounded-2xl bg-card/80 backdrop-blur-sm border border-border text-center">
+            <h3 className="text-base sm:text-lg font-semibold mb-2">Found this article helpful?</h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-4">Share it with your network!</p>
+            <Button variant="hero" onClick={handleShare} className="w-full sm:w-auto">
               <Share2 className="w-4 h-4 mr-2" />
               Share Article
             </Button>
@@ -495,14 +522,14 @@ export default function BlogPostPage() {
 
           {/* Related Posts */}
           {relatedPosts.length > 0 && (
-            <div className="mt-16">
-              <h2 className="text-2xl font-bold mb-6">Related Articles</h2>
-              <div className="grid md:grid-cols-3 gap-6">
+            <div className="mt-12 sm:mt-16">
+              <h2 className="text-xl sm:text-2xl font-bold mb-5 sm:mb-6">Related Articles</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
                 {relatedPosts.map(related => (
                   <Link
                     key={related.id}
                     to={`/blog/${related.slug}`}
-                    className="group rounded-xl bg-card/80 backdrop-blur-sm border border-border p-4 card-hover"
+                    className="group rounded-xl bg-card/80 backdrop-blur-sm border border-border p-4 card-hover min-w-0"
                   >
                     <div className="flex gap-2 mb-2">
                       {(related.tags || []).slice(0, 1).map(tag => (

@@ -133,34 +133,113 @@
     
     
     
-    <link rel="stylesheet" crossorigin href="/assets/index-CIx2RcGF.css">
+    <link rel="stylesheet" crossorigin href="/assets/index-e3bk7Bl5.css">
   <meta property="article:published_time" content="2026-10-17T14:16:25.589628+00:00" />
     <meta property="article:modified_time" content="2026-10-17T14:16:25.589628+00:00" />
     <meta property="og:image" content="https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" />
     <style>
-      body { background-color: #09090b; color: #f4f4f5; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; }
-      a { color: #38bdf8; text-decoration: none; }
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body {
+        margin: 0;
+        padding: 0;
+        max-width: 100%;
+        overflow-x: hidden;
+        -webkit-text-size-adjust: 100%;
+        background-color: #09090b;
+        color: #f4f4f5;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      a { color: #38bdf8; text-decoration: none; overflow-wrap: anywhere; }
       a:hover { text-decoration: underline; }
+      img { max-width: 100%; height: auto; display: block; }
       header a { color: #fafafa; text-decoration: none; }
-      .site-header { border-bottom: 1px solid #27272a; padding: 1.25rem 1.5rem; max-width: 1100px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; }
-      .site-logo { font-size: 1.25rem; font-weight: 800; letter-spacing: -0.025em; color: #fff; text-decoration: none; }
-      .site-nav { display: flex; gap: 1.25rem; font-size: 0.875rem; }
+      .site-header {
+        border-bottom: 1px solid #27272a;
+        padding: 0.9rem 1rem;
+        max-width: 1100px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 1rem;
+        position: relative;
+      }
+      .site-logo { font-size: 1.15rem; font-weight: 800; letter-spacing: -0.025em; color: #fff; text-decoration: none; flex-shrink: 0; }
+      .site-nav { display: flex; flex-wrap: wrap; gap: 1.25rem; font-size: 0.875rem; }
       .site-nav a { color: #a1a1aa; text-decoration: none; transition: color 0.2s; }
       .site-nav a:hover { color: #fff; }
-      .article-container { max-width: 820px; margin: 0 auto; padding: 2.5rem 1.25rem; }
-      h1 { font-size: 2.25rem; line-height: 1.25; font-weight: 800; color: #ffffff; margin-bottom: 1rem; }
-      h2 { font-size: 1.5rem; font-weight: 700; color: #ffffff; margin-top: 2.25rem; margin-bottom: 0.85rem; border-bottom: 1px solid #27272a; padding-bottom: 0.5rem; }
-      h3 { font-size: 1.2rem; font-weight: 600; color: #38bdf8; margin-top: 1.5rem; margin-bottom: 0.5rem; }
-      p { line-height: 1.8; margin-bottom: 1.15rem; color: #d4d4d8; font-size: 1.05rem; }
-      ul { padding-left: 1.5rem; margin-bottom: 1.25rem; }
-      li { margin-bottom: 0.5rem; line-height: 1.7; color: #d4d4d8; }
+      .mobile-nav { display: none; }
+      .mobile-nav summary {
+        list-style: none;
+        cursor: pointer;
+        padding: 0.5rem 0.85rem;
+        border-radius: 0.5rem;
+        border: 1px solid #27272a;
+        background: #18181b;
+        color: #fafafa;
+        font-size: 0.875rem;
+        font-weight: 600;
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .mobile-nav summary::-webkit-details-marker { display: none; }
+      .mobile-nav-panel {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 100%;
+        background: #111114;
+        border-bottom: 1px solid #27272a;
+        padding: 0.5rem 1rem 0.9rem;
+        display: flex;
+        flex-direction: column;
+        z-index: 50;
+      }
+      .mobile-nav-panel a {
+        color: #e4e4e7;
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        border-bottom: 1px solid #1f1f23;
+        font-size: 0.95rem;
+        font-weight: 500;
+      }
+      .mobile-nav-panel a:last-child { border-bottom: none; }
+      .article-container { width: 100%; max-width: 820px; margin: 0 auto; padding: 2rem 1.25rem; }
+      .breadcrumb { font-size: 0.825rem; color: #a1a1aa; margin-bottom: 1.25rem; line-height: 1.6; overflow-wrap: anywhere; }
+      .article-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; font-size: 0.85rem; color: #a1a1aa; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid #27272a; }
+      .article-excerpt { font-size: 1.075rem; color: #a1a1aa; line-height: 1.75; margin-bottom: 1.75rem; font-weight: 500; overflow-wrap: anywhere; }
+      h1 { font-size: clamp(1.55rem, 5vw, 2.35rem); line-height: 1.22; font-weight: 800; color: #ffffff; margin: 0 0 0.9rem; overflow-wrap: anywhere; word-break: break-word; }
+      h2 { font-size: clamp(1.2rem, 3.6vw, 1.55rem); line-height: 1.3; font-weight: 700; color: #ffffff; margin-top: 2rem; margin-bottom: 0.8rem; border-bottom: 1px solid #27272a; padding-bottom: 0.45rem; overflow-wrap: anywhere; }
+      h3 { font-size: clamp(1.05rem, 3vw, 1.25rem); line-height: 1.35; font-weight: 600; color: #38bdf8; margin-top: 1.4rem; margin-bottom: 0.5rem; overflow-wrap: anywhere; }
+      p, li, blockquote { line-height: 1.75; margin-bottom: 1rem; color: #d4d4d8; font-size: 1rem; overflow-wrap: anywhere; word-break: break-word; }
+      ul, ol { padding-left: 1.35rem; margin-bottom: 1.15rem; }
+      li { margin-bottom: 0.45rem; }
+      blockquote { border-left: 3px solid #38bdf8; margin: 1.25rem 0; padding: 0.6rem 1rem; background: rgba(56, 189, 248, 0.06); border-radius: 0 0.5rem 0.5rem 0; }
+      hr { border: none; border-top: 1px solid #27272a; margin: 1.75rem 0; }
       strong { color: #ffffff; font-weight: 600; }
-      code { background: #18181b; border: 1px solid #27272a; padding: 0.15rem 0.35rem; border-radius: 4px; font-family: monospace; font-size: 0.88em; color: #38bdf8; }
-      .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.75rem; font-weight: 600; text-transform: uppercase; }
-      .cta-card { margin-top: 3rem; padding: 2rem; border-radius: 1rem; background: #18181b; border: 1px solid #27272a; text-align: center; }
-      .cta-btn { display: inline-block; padding: 0.75rem 1.5rem; border-radius: 0.75rem; background: #38bdf8; color: #09090b; font-weight: 700; text-decoration: none; margin-top: 1rem; }
+      code { background: #18181b; border: 1px solid #27272a; padding: 0.12rem 0.35rem; border-radius: 4px; font-family: monospace; font-size: 0.86em; color: #38bdf8; overflow-wrap: anywhere; }
+      .table-wrap { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 1.25rem 0; border: 1px solid #27272a; border-radius: 0.5rem; }
+      table { width: 100%; border-collapse: collapse; min-width: 480px; font-size: 0.9rem; }
+      th, td { border-bottom: 1px solid #27272a; padding: 0.65rem 0.85rem; text-align: left; color: #d4d4d8; }
+      th { background: #18181b; color: #fafafa; font-weight: 600; }
+      .badge { display: inline-block; padding: 0.2rem 0.6rem; border-radius: 9999px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; }
+      .cta-card { margin-top: 2.5rem; padding: 1.5rem 1.25rem; border-radius: 1rem; background: #18181b; border: 1px solid #27272a; text-align: center; }
+      .cta-card h3 { font-size: clamp(1.15rem, 4vw, 1.45rem); color: #fff; margin: 0 0 0.5rem; }
+      .cta-card p { color: #a1a1aa; margin: 0 0 1rem; font-size: 0.95rem; }
+      .cta-btn { display: inline-flex; align-items: center; justify-content: center; padding: 0.75rem 1.4rem; min-height: 44px; border-radius: 0.75rem; background: #38bdf8; color: #09090b; font-weight: 700; text-decoration: none; margin-top: 0.5rem; }
       .cta-btn:hover { background: #7dd3fc; text-decoration: none; }
-      footer { margin-top: 5rem; border-top: 1px solid #27272a; padding: 2.5rem 1rem; text-align: center; color: #71717a; font-size: 0.875rem; }
+      .article-footer-nav { margin-top: 2.25rem; display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 0.75rem 1rem; font-size: 0.9rem; }
+      footer { margin-top: 3.5rem; border-top: 1px solid #27272a; padding: 2rem 1rem; text-align: center; color: #71717a; font-size: 0.85rem; }
+      @media (max-width: 767px) {
+        .site-nav { display: none; }
+        .mobile-nav { display: block; }
+        .article-container { padding: 1.25rem 1rem 2rem; }
+        p, li { font-size: 0.96rem; line-height: 1.7; }
+        .cta-btn { width: 100%; }
+      }
     </style>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BlogPosting","headline":"How to Set Up Firebase Push Notifications for GrowHaz Web-to-App Converter","description":"Step-by-step guide to configure Firebase Cloud Messaging (FCM) and download google-services.json and private key for GrowHaz Web-to-App builder.","articleSection":"development","keywords":"Android, Firebase, FCM, Push Notifications, Web to App, Mobile Development","datePublished":"2026-10-17T14:16:25.589628+00:00","dateModified":"2026-10-17T14:16:25.589628+00:00","image":"https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?auto=format&fit=crop&w=1200&q=80","mainEntityOfPage":{"@type":"WebPage","@id":"https://www.growhaz.in/blog/how-to-setup-firebase-push-notifications-growhaz"},"author":{"@type":"Person","name":"GrowHaz Engineering Team"},"publisher":{"@id":"https://www.growhaz.in/#organization"}}</script>
     <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.growhaz.in/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.growhaz.in/blog"},{"@type":"ListItem","position":3,"name":"How to Set Up Firebase Push Notifications for GrowHaz Web-to-App Converter","item":"https://www.growhaz.in/blog/how-to-setup-firebase-push-notifications-growhaz"}]}</script>
@@ -170,28 +249,38 @@
     <div id="root">
     <header class="site-header">
       <a href="/" class="site-logo">GROWHAZ</a>
-      <nav class="site-nav">
+      <nav class="site-nav" aria-label="Main navigation">
         <a href="/security-tools">Security Tools</a>
         <a href="/automation">Automation</a>
         <a href="/blockchain">Blockchain</a>
         <a href="/blog">Blog</a>
         <a href="/contact">Contact</a>
       </nav>
+      <details class="mobile-nav">
+        <summary aria-label="Toggle navigation menu">☰ Menu</summary>
+        <nav class="mobile-nav-panel" aria-label="Mobile navigation">
+          <a href="/security-tools">Security Tools</a>
+          <a href="/automation">Automation</a>
+          <a href="/blockchain">Blockchain</a>
+          <a href="/blog">Blog</a>
+          <a href="/contact">Contact</a>
+        </nav>
+      </details>
     </header>
     <main class="article-container">
       <article>
-        <nav aria-label="Breadcrumb" style="font-size: 0.875rem; color: #a1a1aa; margin-bottom: 1.5rem;">
+        <nav class="breadcrumb" aria-label="Breadcrumb">
           <a href="/">Home</a> / <a href="/blog">Blog</a> / <span style="color: #fafafa;">How to Set Up Firebase Push Notifications for GrowHaz Web-to-App Converter</span>
         </nav>
         <h1>How to Set Up Firebase Push Notifications for GrowHaz Web-to-App Converter</h1>
-        <div style="display: flex; align-items: center; gap: 0.75rem; font-size: 0.875rem; color: #a1a1aa; margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid #27272a;">
+        <div class="article-meta">
           <span>By <strong style="color: #fff;">GrowHaz Engineering Team</strong></span>
           <span>•</span>
           <time datetime="2026-10-17T14:16:25.589628+00:00">2026-10-17</time>
           <span>•</span><span class="badge">development</span>
         </div>
-        <p style="font-size: 1.15rem; color: #a1a1aa; line-height: 1.8; margin-bottom: 2rem; font-weight: 500;">Learn how to get both google-services.json and Firebase Admin Service Account Key JSON to enable reliable background push notifications in your converted Android APK.</p>
-        <div style="margin-bottom: 2rem; border-radius: 1rem; overflow: hidden; border: 1px solid #27272a;"><img src="https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="How to Set Up Firebase Push Notifications for GrowHaz Web-to-App Converter" style="width: 100%; height: auto; display: block;" loading="lazy" /></div>
+        <p class="article-excerpt">Learn how to get both google-services.json and Firebase Admin Service Account Key JSON to enable reliable background push notifications in your converted Android APK.</p>
+        <div style="margin-bottom: 1.75rem; border-radius: 1rem; overflow: hidden; border: 1px solid #27272a;"><img src="https://images.unsplash.com/photo-1555774698-0b77e0d5fac6?auto=format&amp;fit=crop&amp;w=1200&amp;q=80" alt="How to Set Up Firebase Push Notifications for GrowHaz Web-to-App Converter" loading="lazy" /></div>
         <div class="article-body">
           <h3>Why Push Notifications Need Firebase on Android</h3>
 <p>When converting a website into a mobile application, one of the biggest benefits is the ability to send push notifications directly to user devices.</p>
@@ -202,63 +291,77 @@
 <li><strong>The result:</strong> Standard web notifications stop working the moment your app is in the background.</li>
 </ul>
 <p>To deliver push notifications when the app is closed or backgrounded, Android requires <strong>Firebase Cloud Messaging (FCM)</strong> running at the native OS level. Android's built-in Google Play Services maintains a constant low-power connection to Google servers and wakes up your app's notification handler (<code>MyFirebaseMessagingService</code>) whenever a notification arrives.</p>
-<p>---</p>
+<hr />
 <h3>The Two Files You Need</h3>
 <p>To enable native FCM push notifications in GrowHaz, you need to provide <strong>two JSON files</strong> from your free Firebase project:</p>
-<p>1. <strong><code>google-services.json</code> (Client Configuration)</strong></p>
+<ol>
+<li><strong><code>google-services.json</code> (Client Configuration)</strong></li>
+</ol>
 <ul>
 <li><strong>What it is:</strong> Contains your Firebase project identifiers, API keys, and client credentials.</li>
 <li><strong>Where it goes:</strong> Baked directly into the Android APK (<code>app/google-services.json</code>).</li>
 <li><strong>Why it is needed:</strong> The Android operating system uses this file on device startup to connect to Google Firebase servers and obtain a unique device push registration token.</li>
 </ul>
-<p>2. <strong>Firebase Admin Service Account Private Key JSON (Server Key)</strong></p>
+<ol>
+<li><strong>Firebase Admin Service Account Private Key JSON (Server Key)</strong></li>
+</ol>
 <ul>
 <li><strong>What it is:</strong> A secure private cryptographic key that authenticates your backend push server with Google Cloud.</li>
 <li><strong>Where it goes:</strong> Sent to the Push Notification Server. It is <strong>never</strong> embedded inside the APK for security reasons.</li>
 <li><strong>Why it is needed:</strong> When you want to send a notification to your users, the push server uses this private key to authorize requests to the Firebase Cloud Messaging HTTP v1 API.</li>
 </ul>
-<p>---</p>
+<hr />
 <h3>Step 1: Create a Free Firebase Project</h3>
-<p>1. Navigate to the <a href="https://console.firebase.google.com/">Google Firebase Console</a>.</p>
-<p>2. Sign in with your Google account.</p>
-<p>3. Click <strong>Add project</strong> (or select an existing project if you already have one).</p>
-<p>4. Enter a project name (for example, <code>My App Notifications</code>) and click <strong>Continue</strong>.</p>
-<p>5. You can disable or enable Google Analytics depending on your preference, then click <strong>Create project</strong>.</p>
-<p>6. Wait 10 seconds for Firebase to prepare your workspace, then click <strong>Continue</strong>.</p>
-<p>---</p>
+<ol>
+<li>Navigate to the <a href="https://console.firebase.google.com/">Google Firebase Console</a>.</li>
+<li>Sign in with your Google account.</li>
+<li>Click <strong>Add project</strong> (or select an existing project if you already have one).</li>
+<li>Enter a project name (for example, <code>My App Notifications</code>) and click <strong>Continue</strong>.</li>
+<li>You can disable or enable Google Analytics depending on your preference, then click <strong>Create project</strong>.</li>
+<li>Wait 10 seconds for Firebase to prepare your workspace, then click <strong>Continue</strong>.</li>
+</ol>
+<hr />
 <h3>Step 2: Register Android App &amp; Download <code>google-services.json</code></h3>
-<p>1. On your Firebase Project Overview dashboard, click the <strong>Android icon</strong> (or click <strong>Add app</strong> &gt; <strong>Android</strong>).</p>
-<p>2. <strong>Crucial Step — Android Package Name:</strong></p>
+<ol>
+<li>On your Firebase Project Overview dashboard, click the <strong>Android icon</strong> (or click <strong>Add app</strong> &gt; <strong>Android</strong>).</li>
+<li><strong>Crucial Step — Android Package Name:</strong></li>
+</ol>
 <ul>
 <li>In GrowHaz Web-to-App Converter, check the <strong>Package Name</strong> assigned to your app (for example: <code>com.growhaz.mybrand</code> or your custom package name).</li>
 <li>Copy this exact package name and paste it into the <strong>Android package name</strong> field in Firebase.</li>
 <li>*Note:* If the package name in Firebase does not match the package name of the APK, Firebase will reject device registration.</li>
 </ul>
-<p>3. (Optional) Enter an App nickname (e.g. <code>My Website App</code>).</p>
-<p>4. Click <strong>Register app</strong>.</p>
-<p>5. Click the blue <strong>Download google-services.json</strong> button.</p>
-<p>6. Keep this file safe on your computer. You will upload this in GrowHaz!</p>
-<p>7. You can skip the rest of the steps in the Firebase wizard since GrowHaz's automated builder configures the Gradle dependencies automatically.</p>
-<p>---</p>
+<ol>
+<li>(Optional) Enter an App nickname (e.g. <code>My Website App</code>).</li>
+<li>Click <strong>Register app</strong>.</li>
+<li>Click the blue <strong>Download google-services.json</strong> button.</li>
+<li>Keep this file safe on your computer. You will upload this in GrowHaz!</li>
+<li>You can skip the rest of the steps in the Firebase wizard since GrowHaz's automated builder configures the Gradle dependencies automatically.</li>
+</ol>
+<hr />
 <h3>Step 3: Generate Firebase Service Account Key JSON</h3>
 <p>Now, generate the server-side private key that allows the push server to dispatch messages:</p>
-<p>1. In the Firebase Console, click the <strong>Gear icon (Project settings)</strong> next to *Project Overview* in the left sidebar.</p>
-<p>2. In the top tabs, select <strong>Service accounts</strong>.</p>
-<p>3. Under the <strong>Firebase Admin SDK</strong> section, confirm the language is selected as Node.js.</p>
-<p>4. Click the blue button labeled <strong>Generate new private key</strong>.</p>
-<p>5. A confirmation modal will appear warning you to keep this key confidential. Click <strong>Generate key</strong>.</p>
-<p>6. A JSON file will download to your computer named <code>your-project-firebase-adminsdk-xxxxx.json</code>.</p>
-<p>7. This is your <strong>Firebase service account key</strong>.</p>
-<p>---</p>
+<ol>
+<li>In the Firebase Console, click the <strong>Gear icon (Project settings)</strong> next to *Project Overview* in the left sidebar.</li>
+<li>In the top tabs, select <strong>Service accounts</strong>.</li>
+<li>Under the <strong>Firebase Admin SDK</strong> section, confirm the language is selected as Node.js.</li>
+<li>Click the blue button labeled <strong>Generate new private key</strong>.</li>
+<li>A confirmation modal will appear warning you to keep this key confidential. Click <strong>Generate key</strong>.</li>
+<li>A JSON file will download to your computer named <code>your-project-firebase-adminsdk-xxxxx.json</code>.</li>
+<li>This is your <strong>Firebase service account key</strong>.</li>
+</ol>
+<hr />
 <h3>Step 4: Upload to GrowHaz &amp; Build Your APK</h3>
-<p>1. Go to GrowHaz Web-to-App Converter.</p>
-<p>2. Enter your Website URL and App Name.</p>
-<p>3. Select the <strong>Advanced</strong> or <strong>Pro</strong> plan.</p>
-<p>4. Toggle on <strong>Enable Push Notifications</strong>.</p>
-<p>5. Upload your downloaded <code>google-services.json</code> into the first upload field.</p>
-<p>6. Upload your <code>your-project-firebase-adminsdk-*.json</code> into the second upload field.</p>
-<p>7. Click <strong>Build APK</strong>. GrowHaz will compile your native Android project with FCM integrated, register your app with the push server, and generate your download link!</p>
-<p>---</p>
+<ol>
+<li>Go to GrowHaz Web-to-App Converter.</li>
+<li>Enter your Website URL and App Name.</li>
+<li>Select the <strong>Advanced</strong> or <strong>Pro</strong> plan.</li>
+<li>Toggle on <strong>Enable Push Notifications</strong>.</li>
+<li>Upload your downloaded <code>google-services.json</code> into the first upload field.</li>
+<li>Upload your <code>your-project-firebase-adminsdk-*.json</code> into the second upload field.</li>
+<li>Click <strong>Build APK</strong>. GrowHaz will compile your native Android project with FCM integrated, register your app with the push server, and generate your download link!</li>
+</ol>
+<hr />
 <h3>What If You Want Minimal Changes / Zero Config?</h3>
 <p>If you do <strong>not</strong> need push notifications right away, you do <strong>not</strong> need Firebase at all!</p>
 <ul>
@@ -267,20 +370,22 @@
 <li>Your APK will compile in under 2 minutes with <strong>zero configuration</strong>, no third-party accounts, and no files to download or upload.</li>
 <li>You can always upgrade and add push notifications later whenever you are ready!</li>
 </ul>
-<p>---</p>
+<hr />
 <h3>How Push Notifications Work After Build</h3>
-<p>1. When a user installs and opens your APK, Android generates an FCM device token.</p>
-<p>2. The APK automatically registers this token with the Push Notification Server.</p>
-<p>3. When you want to send a notification (promotional announcement, user alert, new post), you trigger the push server's <code>/api/push/broadcast</code> endpoint with your message title, body, and URL.</p>
-<p>4. Firebase delivers the notification immediately to all devices — whether the app is active, closed, or the user is using another app.</p>
+<ol>
+<li>When a user installs and opens your APK, Android generates an FCM device token.</li>
+<li>The APK automatically registers this token with the Push Notification Server.</li>
+<li>When you want to send a notification (promotional announcement, user alert, new post), you trigger the push server's <code>/api/push/broadcast</code> endpoint with your message title, body, and URL.</li>
+<li>Firebase delivers the notification immediately to all devices — whether the app is active, closed, or the user is using another app.</li>
+</ol>
         </div>
         <div class="cta-card">
-          <h3 style="font-size: 1.5rem; color: #fff; margin-bottom: 0.5rem;">Ready to Automate Your Business?</h3>
-          <p style="color: #a1a1aa; margin-bottom: 1rem;">Let GROWHAZ assess and build practical AI & workflow automations tailored to your business operations.</p>
+          <h3>Ready to Automate Your Business?</h3>
+          <p>Let GROWHAZ assess and build practical AI &amp; workflow automations tailored to your business operations.</p>
           <a href="/contact" class="cta-btn">Discuss Your Automation Needs</a>
         </div>
       </article>
-      <div style="margin-top: 3rem; display: flex; justify-content: space-between; font-size: 0.9rem;">
+      <div class="article-footer-nav">
         <a href="/blog">← Back to all articles</a>
         <a href="/automation">Explore Automation Tools →</a>
       </div>

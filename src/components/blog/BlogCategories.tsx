@@ -38,7 +38,7 @@ export function BlogCategories({
   postCounts = {}
 }: BlogCategoriesProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className="flex flex-wrap gap-1.5 sm:gap-2">
       {BLOG_CATEGORIES.map((category) => {
         const Icon = category.icon;
         const count = category.slug === "all" 
@@ -50,7 +50,7 @@ export function BlogCategories({
             key={category.id}
             onClick={() => onCategoryChange(category.slug)}
             className={cn(
-              "flex items-center gap-2 px-4 py-2.5 text-sm font-medium rounded-xl transition-all duration-200",
+              "flex items-center gap-1.5 sm:gap-2 px-3 py-2 sm:px-4 sm:py-2.5 text-xs sm:text-sm font-medium rounded-xl transition-all duration-200",
               selectedCategory === category.slug
                 ? "bg-primary text-primary-foreground shadow-lg shadow-primary/25"
                 : "bg-card/80 text-muted-foreground hover:bg-secondary hover:text-foreground border border-border"

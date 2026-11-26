@@ -339,182 +339,227 @@ export default function AdminDashboard() {
 
   return (
     <Layout>
-      <div className="min-h-screen pt-24 pb-16">
-        <div className="container mx-auto px-4 max-w-7xl">
-          <div className="mb-8 flex items-center gap-4">
-            <div className="p-3 rounded-lg bg-primary/10">
-              <ShieldCheck className="w-8 h-8 text-primary" />
+      <div className="min-h-screen pt-20 sm:pt-24 pb-12 sm:pb-16">
+        <div className="container mx-auto px-3 sm:px-4 max-w-7xl overflow-x-clip">
+          <div className="mb-6 sm:mb-8 flex items-center gap-3 sm:gap-4">
+            <div className="p-2.5 sm:p-3 rounded-lg bg-primary/10 shrink-0">
+              <ShieldCheck className="w-6 h-6 sm:w-8 sm:h-8 text-primary" />
             </div>
-            <div>
-              <h1 className="text-3xl font-bold">Admin Dashboard</h1>
-              <p className="text-muted-foreground">Manage users, withdrawals, and platform activity</p>
+            <div className="min-w-0">
+              <h1 className="text-2xl sm:text-3xl font-bold truncate">Admin Dashboard</h1>
+              <p className="text-xs sm:text-sm text-muted-foreground">Manage users, withdrawals, and platform activity</p>
             </div>
           </div>
 
           {/* Stats Cards */}
-          <div className="grid md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Users className="w-4 h-4" />
-                  Total Users
+              <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+                  <Users className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                  <span className="truncate">Total Users</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <span className="text-3xl font-bold">{users.length}</span>
+              <CardContent className="p-3 sm:p-6 pt-0">
+                <span className="text-2xl sm:text-3xl font-bold">{users.length}</span>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-orange-500" />
-                  Pending Withdrawals
+              <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+                  <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-500 shrink-0" />
+                  <span className="truncate">Pending Withdrawals</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <span className="text-3xl font-bold text-orange-500">{pendingWithdrawals.length}</span>
+              <CardContent className="p-3 sm:p-6 pt-0">
+                <span className="text-2xl sm:text-3xl font-bold text-orange-500">{pendingWithdrawals.length}</span>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <ArrowDownUp className="w-4 h-4" />
-                  Total Transactions
+              <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+                  <ArrowDownUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+                  <span className="truncate">Total Transactions</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <span className="text-3xl font-bold">{transactions.length}</span>
+              <CardContent className="p-3 sm:p-6 pt-0">
+                <span className="text-2xl sm:text-3xl font-bold">{transactions.length}</span>
               </CardContent>
             </Card>
 
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                  <Coins className="w-4 h-4 text-green-500" />
-                  Total Coins in Circulation
+              <CardHeader className="p-3 sm:p-6 pb-1 sm:pb-2">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground flex items-center gap-1.5 sm:gap-2">
+                  <Coins className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-500 shrink-0" />
+                  <span className="truncate">Total Coins</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent>
-                <span className="text-3xl font-bold text-green-500">
+              <CardContent className="p-3 sm:p-6 pt-0">
+                <span className="text-2xl sm:text-3xl font-bold text-green-500">
                   {users.reduce((sum, u) => sum + (u.coinBalance || 0), 0)}
                 </span>
               </CardContent>
             </Card>
           </div>
 
-          <Tabs defaultValue="withdrawals" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="withdrawals" className="relative">
-                Withdrawals
+          <Tabs defaultValue="withdrawals" className="space-y-4 sm:space-y-6">
+            <TabsList className="w-full h-auto grid grid-cols-2 sm:flex sm:flex-wrap justify-start gap-1.5 p-1.5 bg-muted/60 rounded-xl">
+              <TabsTrigger value="withdrawals" className="text-xs sm:text-sm py-2 px-2.5 sm:px-3 justify-center">
+                <span>Withdrawals</span>
                 {pendingWithdrawals.length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500">
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] flex items-center justify-center bg-red-500 text-white">
                     {pendingWithdrawals.length}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="users">Users</TabsTrigger>
-              <TabsTrigger value="mentors">Mentors</TabsTrigger>
-              <TabsTrigger value="transactions">Transactions</TabsTrigger>
-              <TabsTrigger value="partners" className="relative">
-                Partners
+              <TabsTrigger value="users" className="text-xs sm:text-sm py-2 px-2.5 sm:px-3">Users</TabsTrigger>
+              <TabsTrigger value="mentors" className="text-xs sm:text-sm py-2 px-2.5 sm:px-3">Mentors</TabsTrigger>
+              <TabsTrigger value="transactions" className="text-xs sm:text-sm py-2 px-2.5 sm:px-3">Transactions</TabsTrigger>
+              <TabsTrigger value="partners" className="text-xs sm:text-sm py-2 px-2.5 sm:px-3 justify-center">
+                <span>Partners</span>
                 {partners.filter(p => p.status === 'pending').length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500">
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] flex items-center justify-center bg-red-500 text-white">
                     {partners.filter(p => p.status === 'pending').length}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="security" className="relative">
-                Security
+              <TabsTrigger value="security" className="text-xs sm:text-sm py-2 px-2.5 sm:px-3 justify-center">
+                <span>Security</span>
                 {securityReports.filter(r => r.report_status === 'pending').length > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center bg-red-500">
+                  <Badge className="ml-1.5 h-5 min-w-5 px-1.5 text-[10px] flex items-center justify-center bg-red-500 text-white">
                     {securityReports.filter(r => r.report_status === 'pending').length}
                   </Badge>
                 )}
               </TabsTrigger>
-              <TabsTrigger value="dna-lab" className="relative flex items-center gap-1.5 text-primary">
-                <Dna className="w-3.5 h-3.5 text-primary" />
-                DNA & Graphiti Lab
+              <TabsTrigger value="dna-lab" className="col-span-2 sm:col-span-1 text-xs sm:text-sm py-2 px-2.5 sm:px-3 flex items-center justify-center gap-1.5 text-primary">
+                <Dna className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span>DNA &amp; Graphiti Lab</span>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value="withdrawals">
               <Card>
-                <CardHeader>
-                  <CardTitle>Withdrawal Requests</CardTitle>
-                  <CardDescription>Review and process user withdrawal requests</CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-lg sm:text-2xl">Withdrawal Requests</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Review and process user withdrawal requests</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-6 pt-0">
                   {withdrawalRequests.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <CheckCircle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No withdrawal requests</p>
                     </div>
                   ) : (
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>User</TableHead>
-                          <TableHead>Amount</TableHead>
-                          <TableHead>UPI ID</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Date</TableHead>
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
+                    <>
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>User</TableHead>
+                              <TableHead>Amount</TableHead>
+                              <TableHead>UPI ID</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Date</TableHead>
+                              <TableHead>Actions</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {withdrawalRequests.map((request) => (
+                              <TableRow key={request.id}>
+                                <TableCell className="font-medium">{request.userName}</TableCell>
+                                <TableCell>
+                                  <div className="flex items-center gap-1">
+                                    <Coins className="w-4 h-4 text-primary" />
+                                    {request.amount}
+                                  </div>
+                                </TableCell>
+                                <TableCell>{request.upi_id || 'N/A'}</TableCell>
+                                <TableCell>
+                                  {request.status === 'pending' && (
+                                    <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>
+                                  )}
+                                  {request.status === 'approved' && (
+                                    <Badge className="bg-blue-500"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>
+                                  )}
+                                  {request.status === 'completed' && (
+                                    <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>
+                                  )}
+                                  {request.status === 'rejected' && (
+                                    <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Rejected</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>{format(new Date(request.created_at), 'PP')}</TableCell>
+                                <TableCell>
+                                  {request.status === 'pending' && (
+                                    <Button 
+                                      size="sm" 
+                                      onClick={() => setSelectedRequest(request)}
+                                    >
+                                      Review
+                                    </Button>
+                                  )}
+                                  {request.status === 'approved' && (
+                                    <Button 
+                                      size="sm" 
+                                      variant="outline"
+                                      onClick={() => {
+                                        setSelectedRequest(request);
+                                        handleProcessWithdrawal('completed');
+                                      }}
+                                    >
+                                      Mark Complete
+                                    </Button>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      <div className="md:hidden space-y-3">
                         {withdrawalRequests.map((request) => (
-                          <TableRow key={request.id}>
-                            <TableCell className="font-medium">{request.userName}</TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-1">
-                                <Coins className="w-4 h-4 text-primary" />
-                                {request.amount}
+                          <div key={request.id} className="p-3.5 rounded-xl border border-border bg-card/50 space-y-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm truncate">{request.userName}</p>
+                                <p className="text-xs text-muted-foreground break-all">UPI: {request.upi_id || 'N/A'}</p>
                               </div>
-                            </TableCell>
-                            <TableCell>{request.upi_id || 'N/A'}</TableCell>
-                            <TableCell>
-                              {request.status === 'pending' && (
-                                <Badge variant="secondary"><Clock className="w-3 h-3 mr-1" /> Pending</Badge>
-                              )}
-                              {request.status === 'approved' && (
-                                <Badge className="bg-blue-500"><CheckCircle className="w-3 h-3 mr-1" /> Approved</Badge>
-                              )}
-                              {request.status === 'completed' && (
-                                <Badge className="bg-green-500"><CheckCircle className="w-3 h-3 mr-1" /> Completed</Badge>
-                              )}
-                              {request.status === 'rejected' && (
-                                <Badge variant="destructive"><XCircle className="w-3 h-3 mr-1" /> Rejected</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>{format(new Date(request.created_at), 'PP')}</TableCell>
-                            <TableCell>
-                              {request.status === 'pending' && (
-                                <Button 
-                                  size="sm" 
-                                  onClick={() => setSelectedRequest(request)}
-                                >
-                                  Review
-                                </Button>
-                              )}
-                              {request.status === 'approved' && (
-                                <Button 
-                                  size="sm" 
-                                  variant="outline"
-                                  onClick={() => {
-                                    setSelectedRequest(request);
-                                    handleProcessWithdrawal('completed');
-                                  }}
-                                >
-                                  Mark Complete
-                                </Button>
-                              )}
-                            </TableCell>
-                          </TableRow>
+                              {request.status === 'pending' && <Badge variant="secondary" className="shrink-0">Pending</Badge>}
+                              {request.status === 'approved' && <Badge className="bg-blue-500 shrink-0">Approved</Badge>}
+                              {request.status === 'completed' && <Badge className="bg-green-500 shrink-0">Completed</Badge>}
+                              {request.status === 'rejected' && <Badge variant="destructive" className="shrink-0">Rejected</Badge>}
+                            </div>
+                            <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t border-border/60">
+                              <span className="flex items-center gap-1 font-semibold text-foreground">
+                                <Coins className="w-3.5 h-3.5 text-primary" /> {request.amount} coins
+                              </span>
+                              <span>{format(new Date(request.created_at), 'PP')}</span>
+                            </div>
+                            {request.status === 'pending' && (
+                              <Button size="sm" className="w-full" onClick={() => setSelectedRequest(request)}>
+                                Review Request
+                              </Button>
+                            )}
+                            {request.status === 'approved' && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="w-full"
+                                onClick={() => {
+                                  setSelectedRequest(request);
+                                  handleProcessWithdrawal('completed');
+                                }}
+                              >
+                                Mark Complete
+                              </Button>
+                            )}
+                          </div>
                         ))}
-                      </TableBody>
-                    </Table>
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -522,14 +567,14 @@ export default function AdminDashboard() {
 
             <TabsContent value="users">
               <Card>
-                <CardHeader>
+                <CardHeader className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                     <div>
-                      <CardTitle>User Management</CardTitle>
-                      <CardDescription>View and manage all platform users, select multiple recipients, and dispatch bulk messages</CardDescription>
+                      <CardTitle className="text-lg sm:text-2xl">User Management</CardTitle>
+                      <CardDescription className="text-xs sm:text-sm">View and manage all platform users, select multiple recipients, and dispatch bulk messages</CardDescription>
                     </div>
                     {selectedUserIds.length > 0 && (
-                      <div className="flex items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-1.5 rounded-lg">
+                      <div className="flex flex-wrap items-center gap-2 bg-primary/10 border border-primary/20 px-3 py-2 rounded-lg">
                         <span className="text-xs font-semibold text-primary">
                           {selectedUserIds.length} user{selectedUserIds.length > 1 ? "s" : ""} selected
                         </span>
@@ -552,18 +597,18 @@ export default function AdminDashboard() {
                     )}
                   </div>
                 </CardHeader>
-                <CardContent>
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-3 mb-4">
+                <CardContent className="p-3 sm:p-6 pt-0">
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 sm:gap-3 mb-4">
                     <div className="relative flex-1 w-full">
                       <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                       <Input
                         placeholder="Search users by name or phone..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 w-full"
                       />
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs w-full sm:w-auto">
+                    <div className="flex flex-wrap items-center gap-1.5 text-xs w-full sm:w-auto">
                       <Button
                         size="sm"
                         variant="outline"
@@ -584,7 +629,7 @@ export default function AdminDashboard() {
                         <Button
                           size="sm"
                           variant="default"
-                          className="h-8 text-xs flex items-center gap-1"
+                          className="h-8 text-xs flex items-center gap-1 w-full sm:w-auto justify-center"
                           onClick={() => setBulkMessageModalOpen(true)}
                         >
                           <Send className="w-3 h-3" />
@@ -594,7 +639,8 @@ export default function AdminDashboard() {
                     </div>
                   </div>
 
-                  <Table>
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead className="w-12">
@@ -683,6 +729,73 @@ export default function AdminDashboard() {
                       ))}
                     </TableBody>
                   </Table>
+                  </div>
+
+                  <div className="md:hidden space-y-3">
+                    {filteredUsers.map((user) => (
+                      <div
+                        key={user.id}
+                        className={`p-3.5 rounded-xl border space-y-2.5 ${selectedUserIds.includes(user.id) ? "border-primary bg-primary/5" : "border-border bg-card/50"}`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <Checkbox
+                            className="mt-1"
+                            checked={selectedUserIds.includes(user.id)}
+                            onCheckedChange={() => handleToggleSelectUser(user.id)}
+                            aria-label={`Select ${user.full_name}`}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                              <span className="font-semibold text-sm break-words">{user.full_name}</span>
+                              <span className="flex items-center gap-1 text-xs font-semibold text-primary">
+                                <Coins className="w-3.5 h-3.5" /> {user.coinBalance}
+                              </span>
+                            </div>
+                            <p className="text-xs text-muted-foreground break-all">{user.phone || 'N/A'} • Joined {format(new Date(user.created_at), 'PP')}</p>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {user.is_available_as_mentor ? (
+                                user.mentor_approved ? (
+                                  <Badge className="bg-green-500 text-[10px]">Mentor ✓</Badge>
+                                ) : (
+                                  <Badge className="bg-yellow-500 text-[10px]">Mentor Pending</Badge>
+                                )
+                              ) : (
+                                <Badge variant="secondary" className="text-[10px]">Not a Mentor</Badge>
+                              )}
+                              {user.roles.map(role => (
+                                <Badge key={role} variant={role === 'admin' ? 'default' : 'outline'} className="text-[10px]">
+                                  {role}
+                                </Badge>
+                              ))}
+                              {user.roles.length === 0 && (
+                                <Badge variant="secondary" className="text-[10px]">user</Badge>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-2 pt-2 border-t border-border/60">
+                          <Button
+                            size="sm"
+                            variant={user.roles.includes('admin') ? 'destructive' : 'outline'}
+                            className="flex-1 text-xs h-8"
+                            onClick={() => handleToggleRole(user.user_id, 'admin', user.roles)}
+                          >
+                            <Shield className="w-3 h-3 mr-1" />
+                            {user.roles.includes('admin') ? 'Remove Admin' : 'Make Admin'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="flex-1 text-xs h-8"
+                            onClick={() => { setCoinUser(user); setCoinType('earn'); }}
+                          >
+                            <Coins className="w-3 h-3 mr-1" />
+                            Adjust Coins
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -690,95 +803,139 @@ export default function AdminDashboard() {
             {/* Mentors Tab - Updated */}
             <TabsContent value="mentors">
               <Card>
-                <CardHeader>
-                  <CardTitle>Mentor Profiles</CardTitle>
-                  <CardDescription>Users who have enabled "Available as Mentor" on their profile. Click approve to create them as official mentors.</CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-lg sm:text-2xl">Mentor Profiles</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Users who have enabled "Available as Mentor" on their profile. Click approve to create them as official mentors.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-6 pt-0">
                   {mentorProfiles.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <GraduationCap className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No mentor profiles yet. Users need to enable "Available as Mentor" in their profile first.</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead>Skills</TableHead>
-                            <TableHead>Rate (coins/hr)</TableHead>
-                            <TableHead>Experience</TableHead>
-                            <TableHead>Bio</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {mentorProfiles.map((profile: any) => (
-                            <TableRow key={profile.id}>
-                              <TableCell className="font-medium">{profile.full_name}</TableCell>
-                              <TableCell>
-                                <div className="flex flex-wrap gap-1 max-w-[200px]">
-                                  {(profile.skills || []).slice(0, 3).map((s: string) => (
-                                    <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
-                                  ))}
-                                  {(profile.skills || []).length > 3 && (
-                                    <Badge variant="secondary" className="text-xs">+{profile.skills.length - 3}</Badge>
-                                  )}
-                                  {(!profile.skills || profile.skills.length === 0) && (
-                                    <span className="text-xs text-muted-foreground">No skills listed</span>
-                                  )}
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                {profile.hourly_rate ? (
-                                  <span className="flex items-center gap-1">
-                                    <Coins className="w-3 h-3" />
-                                    {profile.hourly_rate}
-                                  </span>
-                                ) : (
-                                  <span className="text-muted-foreground text-sm">Not set</span>
-                                )}
-                              </TableCell>
-                              <TableCell>{profile.experience_years || 0} yrs</TableCell>
-                              <TableCell className="max-w-xs">
-                                <p className="text-sm truncate">{profile.bio || 'No bio provided'}</p>
-                              </TableCell>
-                              <TableCell>
-
-                                {profile.mentor_approved ? (
-                                  <Badge className="bg-green-500 text-white">Approved ✓</Badge>
-                                ) : (
-                                  <Badge variant="secondary" className="bg-yellow-500 text-white">Pending Review</Badge>
-                                )}
-                              </TableCell>
-                              <TableCell>
-                                {!profile.mentor_approved ? (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleApproveMentor(profile.id)}
-                                    disabled={processingId === profile.id}
-                                    className="gap-1"
-                                  >
-                                    {processingId === profile.id ? (
-                                      <Loader2 className="w-3 h-3 animate-spin" />
-                                    ) : (
-                                      <CheckCircle className="w-3 h-3" />
-                                    )}
-                                    Approve
-                                  </Button>
-                                ) : (
-                                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
-                                    Approved
-                                  </Badge>
-                                )}
-                              </TableCell>
+                    <>
+                      <div className="hidden md:block overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Name</TableHead>
+                              <TableHead>Skills</TableHead>
+                              <TableHead>Rate (coins/hr)</TableHead>
+                              <TableHead>Experience</TableHead>
+                              <TableHead>Bio</TableHead>
+                              <TableHead>Status</TableHead>
+                              <TableHead>Actions</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </div>
+                          </TableHeader>
+                          <TableBody>
+                            {mentorProfiles.map((profile: any) => (
+                              <TableRow key={profile.id}>
+                                <TableCell className="font-medium">{profile.full_name}</TableCell>
+                                <TableCell>
+                                  <div className="flex flex-wrap gap-1 max-w-[200px]">
+                                    {(profile.skills || []).slice(0, 3).map((s: string) => (
+                                      <Badge key={s} variant="outline" className="text-xs">{s}</Badge>
+                                    ))}
+                                    {(profile.skills || []).length > 3 && (
+                                      <Badge variant="secondary" className="text-xs">+{profile.skills.length - 3}</Badge>
+                                    )}
+                                    {(!profile.skills || profile.skills.length === 0) && (
+                                      <span className="text-xs text-muted-foreground">No skills listed</span>
+                                    )}
+                                  </div>
+                                </TableCell>
+                                <TableCell>
+                                  {profile.hourly_rate ? (
+                                    <span className="flex items-center gap-1">
+                                      <Coins className="w-3 h-3" />
+                                      {profile.hourly_rate}
+                                    </span>
+                                  ) : (
+                                    <span className="text-muted-foreground text-sm">Not set</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>{profile.experience_years || 0} yrs</TableCell>
+                                <TableCell className="max-w-xs">
+                                  <p className="text-sm truncate">{profile.bio || 'No bio provided'}</p>
+                                </TableCell>
+                                <TableCell>
+
+                                  {profile.mentor_approved ? (
+                                    <Badge className="bg-green-500 text-white">Approved ✓</Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="bg-yellow-500 text-white">Pending Review</Badge>
+                                  )}
+                                </TableCell>
+                                <TableCell>
+                                  {!profile.mentor_approved ? (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApproveMentor(profile.id)}
+                                      disabled={processingId === profile.id}
+                                      className="gap-1"
+                                    >
+                                      {processingId === profile.id ? (
+                                        <Loader2 className="w-3 h-3 animate-spin" />
+                                      ) : (
+                                        <CheckCircle className="w-3 h-3" />
+                                      )}
+                                      Approve
+                                    </Button>
+                                  ) : (
+                                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                                      Approved
+                                    </Badge>
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+
+                      <div className="md:hidden space-y-3">
+                        {mentorProfiles.map((profile: any) => (
+                          <div key={profile.id} className="p-3.5 rounded-xl border border-border bg-card/50 space-y-2.5">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm">{profile.full_name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {profile.experience_years || 0} yrs • {profile.hourly_rate ? `${profile.hourly_rate} coins/hr` : 'Rate not set'}
+                                </p>
+                              </div>
+                              {profile.mentor_approved ? (
+                                <Badge className="bg-green-500 text-white shrink-0">Approved ✓</Badge>
+                              ) : (
+                                <Badge variant="secondary" className="bg-yellow-500 text-white shrink-0">Pending</Badge>
+                              )}
+                            </div>
+                            <div className="flex flex-wrap gap-1">
+                              {(profile.skills || []).slice(0, 4).map((s: string) => (
+                                <Badge key={s} variant="outline" className="text-[10px]">{s}</Badge>
+                              ))}
+                              {(!profile.skills || profile.skills.length === 0) && (
+                                <span className="text-xs text-muted-foreground">No skills listed</span>
+                              )}
+                            </div>
+                            {profile.bio && (
+                              <p className="text-xs text-muted-foreground line-clamp-3 break-words">{profile.bio}</p>
+                            )}
+                            {!profile.mentor_approved && (
+                              <Button
+                                size="sm"
+                                className="w-full gap-1"
+                                onClick={() => handleApproveMentor(profile.id)}
+                                disabled={processingId === profile.id}
+                              >
+                                {processingId === profile.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle className="w-3 h-3" />}
+                                Approve Mentor
+                              </Button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </>
                   )}
                 </CardContent>
               </Card>
@@ -786,54 +943,77 @@ export default function AdminDashboard() {
 
             <TabsContent value="transactions">
               <Card>
-                <CardHeader>
-                  <CardTitle>Recent Transactions</CardTitle>
-                  <CardDescription>All coin transactions across the platform</CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-lg sm:text-2xl">Recent Transactions</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">All coin transactions across the platform</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Date</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {transactions.map((tx) => (
-                        <TableRow key={tx.id}>
-                          <TableCell>
-                            <Badge variant={
-                              ['purchase', 'earn', 'refund'].includes(tx.type) 
-                                ? 'default' 
-                                : 'secondary'
-                            }>
-                              {tx.type}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className={
-                            ['purchase', 'earn', 'refund'].includes(tx.type)
-                              ? 'text-green-500 font-medium'
-                              : 'text-red-500 font-medium'
-                          }>
-                            {['purchase', 'earn', 'refund'].includes(tx.type) ? '+' : '-'}
-                            {tx.amount}
-                          </TableCell>
-                          <TableCell className="max-w-xs truncate">
-                            {tx.description || '-'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={tx.status === 'completed' ? 'default' : 'secondary'}>
-                              {tx.status}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>{format(new Date(tx.created_at), 'PPp')}</TableCell>
+                <CardContent className="p-3 sm:p-6 pt-0">
+                  <div className="hidden md:block overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Amount</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Date</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {transactions.map((tx) => (
+                          <TableRow key={tx.id}>
+                            <TableCell>
+                              <Badge variant={
+                                ['purchase', 'earn', 'refund'].includes(tx.type) 
+                                  ? 'default' 
+                                  : 'secondary'
+                              }>
+                                {tx.type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className={
+                              ['purchase', 'earn', 'refund'].includes(tx.type)
+                                ? 'text-green-500 font-medium'
+                                : 'text-red-500 font-medium'
+                            }>
+                              {['purchase', 'earn', 'refund'].includes(tx.type) ? '+' : '-'}
+                              {tx.amount}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">
+                              {tx.description || '-'}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant={tx.status === 'completed' ? 'default' : 'secondary'}>
+                                {tx.status}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{format(new Date(tx.created_at), 'PPp')}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div className="md:hidden space-y-3">
+                    {transactions.map((tx) => {
+                      const isCredit = ['purchase', 'earn', 'refund'].includes(tx.type);
+                      return (
+                        <div key={tx.id} className="p-3.5 rounded-xl border border-border bg-card/50 space-y-1.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                              <Badge variant={isCredit ? 'default' : 'secondary'}>{tx.type}</Badge>
+                              <Badge variant={tx.status === 'completed' ? 'default' : 'secondary'}>{tx.status}</Badge>
+                            </div>
+                            <span className={isCredit ? 'text-green-500 font-bold text-sm' : 'text-red-500 font-bold text-sm'}>
+                              {isCredit ? '+' : '-'}{tx.amount}
+                            </span>
+                          </div>
+                          <p className="text-xs text-foreground break-words">{tx.description || '-'}</p>
+                          <p className="text-[11px] text-muted-foreground">{format(new Date(tx.created_at), 'PPp')}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -841,32 +1021,32 @@ export default function AdminDashboard() {
             {/* Security Reports Tab */}
             <TabsContent value="security">
               <Card>
-                <CardHeader>
-                  <CardTitle>Security Scan Requests</CardTitle>
-                  <CardDescription>Users who submitted URLs for security scanning. Send them the report via Google Drive link.</CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-lg sm:text-2xl">Security Scan Requests</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Users who submitted URLs for security scanning. Send them the report via Google Drive link.</CardDescription>
                 </CardHeader>
-                <CardContent>
+                <CardContent className="p-3 sm:p-6 pt-0">
                   {securityReports.length === 0 ? (
                     <div className="text-center py-8 text-muted-foreground">
                       <Globe className="w-12 h-12 mx-auto mb-4 opacity-50" />
                       <p>No security scan requests yet</p>
                     </div>
                   ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-3 sm:space-y-4">
                       {securityReports.map((report: any) => (
-                        <div key={report.id} className="p-4 rounded-xl border border-border bg-card/50 space-y-3">
+                        <div key={report.id} className="p-3 sm:p-4 rounded-xl border border-border bg-card/50 space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                            <div>
+                            <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
-                                <span className="font-semibold">{report.userName}</span>
-                                {report.userPhone && <span className="text-sm text-muted-foreground">({report.userPhone})</span>}
+                                <span className="font-semibold text-sm sm:text-base">{report.userName}</span>
+                                {report.userPhone && <span className="text-xs sm:text-sm text-muted-foreground">({report.userPhone})</span>}
                                 <Badge variant={isReportReady(report.report_status) ? 'default' : 'secondary'}>
                                   {isReportReady(report.report_status) ? 'Report Sent' : 'Pending'}
                                 </Badge>
                               </div>
-                              <div className="flex items-center gap-2 mt-1">
-                                <Globe className="w-3 h-3 text-muted-foreground" />
-                                <a href={report.website_url.startsWith('http') ? report.website_url : `https://${report.website_url}`} target="_blank" rel="noopener noreferrer" className="text-sm text-primary hover:underline break-all">
+                              <div className="flex items-center gap-2 mt-1 min-w-0">
+                                <Globe className="w-3 h-3 text-muted-foreground shrink-0" />
+                                <a href={report.website_url.startsWith('http') ? report.website_url : `https://${report.website_url}`} target="_blank" rel="noopener noreferrer" className="text-xs sm:text-sm text-primary hover:underline break-all">
                                   {report.website_url}
                                 </a>
                               </div>
@@ -874,7 +1054,7 @@ export default function AdminDashboard() {
                                 {report.scan_type?.toUpperCase()} • Submitted {format(new Date(report.created_at), 'PPp')}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex flex-wrap items-center gap-2 shrink-0">
                               {isReportReady(report.report_status) && report.report_url && (
                                 <a href={report.report_url} target="_blank" rel="noopener noreferrer">
                                   <Button size="sm" variant="outline" className="gap-1">
@@ -905,13 +1085,13 @@ export default function AdminDashboard() {
                                   setReportDriveLink(e.target.value);
                                 }}
                                 onFocus={() => setDriveLinkReport(report)}
-                                className="flex-1"
+                                className="flex-1 w-full"
                               />
                               <Button
                                 size="sm"
                                 onClick={() => handleSendReport(report.id)}
                                 disabled={processingId === report.id || !reportDriveLink.trim() || driveLinkReport?.id !== report.id}
-                                className="gap-1"
+                                className="gap-1 w-full sm:w-auto"
                               >
                                 {processingId === report.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                                 Send Report
@@ -928,12 +1108,12 @@ export default function AdminDashboard() {
 
             <TabsContent value="partners">
               <Card>
-                <CardHeader>
-                  <CardTitle>Partner Applications</CardTitle>
-                  <CardDescription>Approve or reject users applying to be partners</CardDescription>
+                <CardHeader className="p-4 sm:p-6">
+                  <CardTitle className="text-lg sm:text-2xl">Partner Applications</CardTitle>
+                  <CardDescription className="text-xs sm:text-sm">Approve or reject users applying to be partners</CardDescription>
                 </CardHeader>
-                <CardContent>
-                  <div className="rounded-md border">
+                <CardContent className="p-3 sm:p-6 pt-0">
+                  <div className="hidden md:block rounded-md border overflow-x-auto">
                     <Table>
                       <TableHeader>
                         <TableRow>
@@ -1000,6 +1180,56 @@ export default function AdminDashboard() {
                       </TableBody>
                     </Table>
                   </div>
+
+                  <div className="md:hidden space-y-3">
+                    {partners.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        No partner applications found
+                      </div>
+                    ) : (
+                      partners.map((partner) => (
+                        <div key={partner.user_id} className="p-3.5 rounded-xl border border-border bg-card/50 space-y-2.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="font-semibold text-sm">
+                                {users.find(u => u.user_id === partner.user_id)?.full_name || partner.profiles?.full_name || 'Unknown User'}
+                              </p>
+                              <p className="text-[11px] text-muted-foreground break-all">{partner.user_id}</p>
+                            </div>
+                            <Badge
+                              variant={partner.status === 'approved' ? 'default' : partner.status === 'rejected' ? 'destructive' : 'secondary'}
+                              className={partner.status === 'pending' ? 'bg-amber-500 shrink-0' : 'shrink-0'}
+                            >
+                              {partner.status}
+                            </Badge>
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                            <code className="bg-muted px-1.5 py-0.5 rounded">{partner.partner_code}</code>
+                            <span>{partner.wallet_balance} coins • {format(new Date(partner.created_at), 'dd MMM yyyy')}</span>
+                          </div>
+                          {partner.status === 'pending' && (
+                            <div className="flex gap-2 pt-1">
+                              <Button
+                                size="sm"
+                                className="flex-1 bg-green-600 hover:bg-green-700"
+                                onClick={() => updatePartnerStatus(partner.user_id, 'approved')}
+                              >
+                                Approve
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                className="flex-1"
+                                onClick={() => updatePartnerStatus(partner.user_id, 'rejected')}
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -1013,7 +1243,7 @@ export default function AdminDashboard() {
 
       {/* Withdrawal Review Dialog */}
       <Dialog open={!!selectedRequest && selectedRequest.status === 'pending'} onOpenChange={() => setSelectedRequest(null)}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-lg max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Review Withdrawal Request</DialogTitle>
             <DialogDescription>
@@ -1022,7 +1252,7 @@ export default function AdminDashboard() {
           </DialogHeader>
           
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
               <div>
                 <Label className="text-muted-foreground">Amount</Label>
                 <p className="text-2xl font-bold flex items-center gap-2">
@@ -1030,9 +1260,9 @@ export default function AdminDashboard() {
                   {selectedRequest?.amount}
                 </p>
               </div>
-              <div>
+              <div className="min-w-0">
                 <Label className="text-muted-foreground">UPI ID</Label>
-                <p className="font-medium">{selectedRequest?.upi_id || 'N/A'}</p>
+                <p className="font-medium break-all">{selectedRequest?.upi_id || 'N/A'}</p>
               </div>
             </div>
 
@@ -1046,9 +1276,10 @@ export default function AdminDashboard() {
             </div>
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button
               variant="destructive"
+              className="w-full sm:w-auto"
               onClick={() => handleProcessWithdrawal('rejected')}
               disabled={!!processingId}
             >
@@ -1056,6 +1287,7 @@ export default function AdminDashboard() {
               Reject
             </Button>
             <Button
+              className="w-full sm:w-auto"
               onClick={() => handleProcessWithdrawal('approved')}
               disabled={!!processingId}
             >
@@ -1068,7 +1300,7 @@ export default function AdminDashboard() {
 
       {/* Report Preview Modal */}
       <Dialog open={!!previewReport} onOpenChange={() => setPreviewReport(null)}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-1rem)] sm:w-full max-w-4xl max-h-[90dvh] overflow-y-auto p-3 sm:p-6">
           <DialogTitle className="sr-only">Security Report</DialogTitle>
           <ReportViewer report={previewReport} onClose={() => setPreviewReport(null)} />
         </DialogContent>
@@ -1076,7 +1308,7 @@ export default function AdminDashboard() {
 
       {/* Adjust Coins Modal */}
       <Dialog open={!!coinUser} onOpenChange={(o) => !o && setCoinUser(null)}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100vw-1.5rem)] sm:w-full max-w-md max-h-[90dvh] overflow-y-auto p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Adjust Coins</DialogTitle>
             <DialogDescription>
@@ -1084,7 +1316,7 @@ export default function AdminDashboard() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="flex gap-2">
+            <div className="grid grid-cols-2 sm:flex gap-2">
               <Button size="sm" variant={coinType === 'earn' ? 'default' : 'outline'} onClick={() => setCoinType('earn')}>
                 Add Coins
               </Button>
@@ -1101,9 +1333,9 @@ export default function AdminDashboard() {
               <Textarea placeholder="Reason for adjustment" value={coinNote} onChange={(e) => setCoinNote(e.target.value)} />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCoinUser(null)} disabled={coinSubmitting}>Cancel</Button>
-            <Button onClick={handleCoinSubmit} disabled={coinSubmitting}>
+          <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button variant="outline" className="w-full sm:w-auto" onClick={() => setCoinUser(null)} disabled={coinSubmitting}>Cancel</Button>
+            <Button className="w-full sm:w-auto" onClick={handleCoinSubmit} disabled={coinSubmitting}>
               {coinSubmitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Coins className="w-4 h-4 mr-2" />}
               {coinType === 'earn' ? 'Add Coins' : 'Deduct Coins'}
             </Button>
