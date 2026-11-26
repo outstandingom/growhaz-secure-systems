@@ -39,7 +39,7 @@ const tools: Tool[] = [
     id: "whatsapp-ai-automation",
     name: "WhatsApp Business AI & DNA CRM",
     description:
-      "Automate customer WhatsApp replies, bulk personalized CSV campaigns, and Neo4j Knowledge Graph profiles. Includes 3 Free Demos & ₹1–₹2/conv pricing.",
+      "Automate customer WhatsApp replies, bulk personalized CSV campaigns, and Supabase DNA Knowledge Graph profiles. Includes 3 Free Demos & ₹1–₹2/conv pricing.",
     icon: MessageSquare,
     price: "₹1–₹2 / conv",
     category: "automation",

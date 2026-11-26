@@ -34,7 +34,7 @@ const PLANS = [
     popular: false,
     features: [
       "600 customer 24h windows / month",
-      "Neo4j AuraDB persistent chat memory",
+      "Supabase Cloud persistent chat memory",
       "OpenRouter prompt-injection shield",
       "Bulk CSV AI personalized campaigns",
     ],
@@ -187,10 +187,10 @@ export function WhatsAppAutomationShowcase({
               <div className="rounded-xl bg-background/60 border border-border/60 p-3.5 space-y-1">
                 <div className="flex items-center gap-2 text-sm font-semibold text-purple-400">
                   <Network className="w-4 h-4" />
-                  <span>Neo4j DNA Knowledge Graph</span>
+                  <span>Supabase DNA Knowledge Graph</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Maps business entities, cities &amp; tools in AuraDB so chat history persists forever.
+                  Maps business entities, cities &amp; tools in Supabase Postgres so chat history persists forever.
                 </p>
               </div>
               <div className="rounded-xl bg-background/60 border border-border/60 p-3.5 space-y-1">
