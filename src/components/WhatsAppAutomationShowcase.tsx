@@ -22,7 +22,7 @@ interface WhatsAppAutomationShowcaseProps {
   compactPricingOnly?: boolean;
 }
 
-const WHATSAPP_DESK_URL = "https://whatsapp-bot-qtm1.onrender.com";
+const WHATSAPP_DESK_URL = "https://whatsapp-bot-tsof.onrender.com";
 
 const PLANS = [
   {
@@ -376,7 +376,7 @@ export function WhatsAppAutomationShowcase({
           </div>
           <div className="flex flex-wrap gap-3 shrink-0">
             <Button asChild className="bg-indigo-600 hover:bg-indigo-700 text-white">
-              <Link to="/mentorship?topic=meta-whatsapp-setup">
+              <Link to="/mentorship?service=whatsapp-automation">
                 <Headphones className="w-4 h-4 mr-2" />
                 Connect With Mentor (1-on-1)
               </Link>

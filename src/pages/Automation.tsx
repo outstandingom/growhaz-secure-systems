@@ -16,10 +16,9 @@ import {
   MessageSquare,
   Download, // <-- added for meeting assistant
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ConverterModal } from "@/components/ConverterModal";
 import { ForensicScannerModal } from "@/components/ForensicScannerModal";
-import { WhatsAppAutomationShowcase } from "@/components/WhatsAppAutomationShowcase";
 import { TitleMarquee } from "@/components/TitleMarquee";
 
 type Tool = {
@@ -94,6 +93,7 @@ const tools: Tool[] = [
 ];
 
 export default function Automation() {
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [isConverterOpen, setIsConverterOpen] = useState(false);
   const [isForensicOpen, setIsForensicOpen] = useState(false);
@@ -111,9 +111,7 @@ export default function Automation() {
       } else if (tool.id === "forensic-scanner") {
         setIsForensicOpen(true);
       } else if (tool.id === "whatsapp-ai-automation") {
-        document
-          .getElementById("whatsapp-ai-automation")
-          ?.scrollIntoView({ behavior: "smooth" });
+        navigate("/automation/whatsapp");
       }
     } else if (tool.url && tool.url !== "#") {
       window.open(tool.url, "_blank");
@@ -223,7 +221,37 @@ export default function Automation() {
         )}
       </section>
 
-      <WhatsAppAutomationShowcase />
+      {/* Featured Dedicated Automation Service Banner */}
+      <section className="section-container px-4 sm:px-6 pt-0">
+        <div className="max-w-5xl mx-auto rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-950/30 via-card to-indigo-950/20 p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-2 max-w-2xl">
+            <span className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-emerald-400">
+              <MessageSquare className="w-4 h-4" />
+              Flagship Automation Service
+            </span>
+            <h2 className="text-xl sm:text-2xl font-bold">
+              WhatsApp Business AI &amp; DNA Knowledge Graph
+            </h2>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Dedicated WhatsApp automation service with 3 free demos, ₹1–₹2/conversation pricing,
+              persistent Supabase memory, and OpenRouter prompt-injection protection.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-3 shrink-0">
+            <Link to="/automation/whatsapp">
+              <Button className="rounded-full gap-2">
+                Open WhatsApp Automation
+                <ArrowRight className="w-4 h-4" />
+              </Button>
+            </Link>
+            <Link to="/mentorship?service=whatsapp-automation">
+              <Button variant="outline" className="rounded-full">
+                Hire Setup Mentor
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </section>
 
       {/* CTA Section – mobile padding & full-width button */}
       <section className="section-container px-4 sm:px-6 bg-card/50">

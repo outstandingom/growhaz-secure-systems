@@ -69,12 +69,56 @@ const iconMap: Record<string, React.ElementType> = {
   Shield, Lock, Brain, TrendingUp, Code, Zap, Terminal
 };
 
+const SERVICE_FILTERS = [
+  {
+    id: "all",
+    label: "All Services",
+    subtitle: "Browse every verified mentor & consultant",
+    keywords: [] as string[],
+  },
+  {
+    id: "whatsapp-automation",
+    label: "WhatsApp & Meta Setup",
+    subtitle: "Cloud API, webhooks, DNA CRM & bot setup",
+    keywords: ["whatsapp", "meta", "automation", "bot", "crm", "webhook", "api"],
+  },
+  {
+    id: "ai-automation",
+    label: "AI & Workflow Automation",
+    subtitle: "AI agents, LLM workflows & custom scripts",
+    keywords: ["ai", "automation", "workflow", "agent", "llm", "python", "rag"],
+  },
+  {
+    id: "cybersecurity",
+    label: "Cybersecurity & Audits",
+    subtitle: "VAPT, pentesting, SQLi/XSS & app security",
+    keywords: ["security", "cyber", "pentest", "audit", "vapt", "hacking", "soc"],
+  },
+  {
+    id: "web-app-dev",
+    label: "Web & App Development",
+    subtitle: "React, Next.js, Android/iOS & backend APIs",
+    keywords: ["web", "react", "app", "mobile", "android", "ios", "fullstack", "node"],
+  },
+  {
+    id: "blockchain",
+    label: "Blockchain & Web3",
+    subtitle: "Smart contracts & document verification",
+    keywords: ["blockchain", "web3", "smart contract", "solidity", "ethereum"],
+  },
+];
+
 export default function Mentorship() {
   const [searchParams] = useSearchParams();
-  const isMetaSetupTopic = searchParams.get("topic") === "meta-whatsapp-setup";
+  const initialService =
+    searchParams.get("service") ||
+    (searchParams.get("topic") === "meta-whatsapp-setup" ? "whatsapp-automation" : "all");
+  const isMetaSetupTopic = initialService === "whatsapp-automation";
   const [topics, setTopics] = useState<MentorshipTopic[]>([]);
   const [mentors, setMentors] = useState<Mentor[]>([]);
   const [selectedTopic, setSelectedTopic] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState<string>(initialService);
+  const [assistanceMode, setAssistanceMode] = useState<"all" | "setup" | "learning">("all");
   const [loading, setLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -201,11 +245,19 @@ export default function Mentorship() {
       }))
   ];
 
-  const filteredMentors = selectedTopic
-    ? allMentors.filter(m => m.expertise.some((e: string) => 
-        e.toLowerCase().includes(selectedTopic.toLowerCase())
-      ))
-    : allMentors;
+  const activeServiceObj = SERVICE_FILTERS.find((s) => s.id === selectedService);
+
+  const filteredMentors = allMentors.filter((m) => {
+    const haystack = `${m.title || ""} ${m.bio || ""} ${(m.expertise || []).join(" ")}`.toLowerCase();
+    const matchesTopic = selectedTopic
+      ? (m.expertise || []).some((e: string) => e.toLowerCase().includes(selectedTopic.toLowerCase()))
+      : true;
+    const matchesService =
+      selectedService !== "all" && activeServiceObj && activeServiceObj.keywords.length > 0
+        ? activeServiceObj.keywords.some((kw) => haystack.includes(kw))
+        : true;
+    return matchesTopic && matchesService;
+  });
 
   return (
     <Layout>
@@ -270,30 +322,42 @@ export default function Mentorship() {
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="bg-emerald-600 text-white">
                   <Sparkles className="w-3.5 h-3.5 mr-1" />
-                  1-on-1 Live Guided Setup
+                  Hire a Mentor or Setup Consultant
                 </Badge>
                 <Badge variant="outline" className="border-indigo-500/40 text-indigo-300">
-                  Meta WhatsApp Cloud API
+                  1-on-1 Learning &amp; Live Setup Assistance
                 </Badge>
               </div>
               <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
                 <Headphones className="w-5 h-5 text-emerald-400 shrink-0" />
-                <span>Need a Mentor to Setup Meta WhatsApp Automation?</span>
+                <span>Choose a Mentor Based on Your Service or Learning Goal</span>
               </h2>
               <p className="text-xs sm:text-sm text-muted-foreground leading-relaxed">
-                Don&apos;t know how to create a Meta Developer App, get your Phone
-                Number ID, or connect your Webhook? Book a 1-on-1 Mentor call so
-                we configure your WhatsApp Cloud API live with you and unlock
-                50% half-price automation plans (₹1/conv &amp; ₹499/mo).
+                This section is dedicated exclusively to 1-on-1 mentorship, consulting, and
+                learning. Hire a specialist to assist you with setting up your automation live
+                (Meta Cloud API, webhooks, AI workflows) or book a personalized learning session.
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-3 shrink-0">
               <LearningRequestForm onSuccess={() => setRefreshKey((k) => k + 1)} />
-              <Button variant="outline" asChild>
-                <Link to="/contact?service=automation">Request Done-For-You</Link>
+              <Button
+                variant={assistanceMode === "setup" ? "default" : "outline"}
+                onClick={() => {
+                  setAssistanceMode(assistanceMode === "setup" ? "all" : "setup");
+                  setSelectedService("whatsapp-automation");
+                  document.getElementById("mentors-section")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Hire for Automation Setup
               </Button>
-              <Button variant="secondary" asChild>
-                <Link to="/automation">Automation Pricing</Link>
+              <Button
+                variant={assistanceMode === "learning" ? "default" : "secondary"}
+                onClick={() => {
+                  setAssistanceMode(assistanceMode === "learning" ? "all" : "learning");
+                  document.getElementById("mentors-section")?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                Book 1-on-1 Learning
               </Button>
             </div>
           </div>
@@ -316,6 +380,42 @@ export default function Mentorship() {
 
             {/* Mentors Tab */}
             <TabsContent value="mentors" id="mentors-section">
+              {/* Service-Based Mentor / Consultant Selector */}
+              <div className="mb-8">
+                <h3 className="text-lg font-semibold mb-1 text-center">Select Mentor by Service</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground text-center mb-4">
+                  Pick the service you need setup assistance or 1-on-1 learning for
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-6">
+                  {SERVICE_FILTERS.map((svc) => {
+                    const active = selectedService === svc.id;
+                    return (
+                      <button
+                        key={svc.id}
+                        type="button"
+                        onClick={() => setSelectedService(svc.id)}
+                        className={cn(
+                          "p-4 rounded-xl text-left transition-all border",
+                          active
+                            ? "bg-primary text-primary-foreground border-primary shadow-md shadow-primary/20"
+                            : "bg-card hover:bg-secondary border-border hover:border-primary/50"
+                        )}
+                      >
+                        <div className="font-semibold text-sm">{svc.label}</div>
+                        <div
+                          className={cn(
+                            "text-xs mt-1",
+                            active ? "text-primary-foreground/85" : "text-muted-foreground"
+                          )}
+                        >
+                          {svc.subtitle}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Topics Filter */}
               <div className="mb-8">
                 <h3 className="text-lg font-semibold mb-4 text-center">Filter by Learning Path</h3>
@@ -349,7 +449,11 @@ export default function Mentorship() {
               {/* Mentors Grid */}
             <div className="text-center mb-6">
                 <h2 className="text-2xl font-bold">
-                  {selectedTopic ? `${topics.find(t => t.slug === selectedTopic)?.name} Mentors` : "All Mentors"}
+                  {selectedService !== "all"
+                    ? `${activeServiceObj?.label} Mentors`
+                    : selectedTopic
+                    ? `${topics.find((t) => t.slug === selectedTopic)?.name} Mentors`
+                    : "All Mentors & Consultants"}
                 </h2>
                 <p className="text-muted-foreground text-sm mt-1">
                   Verified professionals with real-world industry experience
@@ -369,8 +473,14 @@ export default function Mentorship() {
                       We're onboarding verified professionals. Check back soon or post a learning request!
                     </p>
                     <div className="flex gap-3 justify-center">
-                      <Button variant="outline" onClick={() => setSelectedTopic(null)}>
-                        View All Topics
+                      <Button
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedTopic(null);
+                          setSelectedService("all");
+                        }}
+                      >
+                        View All Mentors &amp; Services
                       </Button>
                       <LearningRequestForm onSuccess={() => setRefreshKey((k) => k + 1)} />
                     </div>

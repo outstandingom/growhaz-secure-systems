@@ -11,6 +11,7 @@ const SecurityTools = lazy(() => import("./pages/SecurityTools"));
 const Development = lazy(() => import("./pages/Development"));
 const SEO = lazy(() => import("./pages/SEO"));
 const Automation = lazy(() => import("./pages/Automation"));
+const WhatsAppAutomation = lazy(() => import("./pages/WhatsAppAutomation"));
 const Marketing = lazy(() => import("./pages/Marketing"));
 const Projects = lazy(() => import("./pages/Projects"));
 const Pricing = lazy(() => import("./pages/Pricing"));
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/development" element={<Development />} />
               <Route path="/seo" element={<SEO />} />
               <Route path="/automation" element={<Automation />} />
+              <Route path="/automation/whatsapp" element={<WhatsAppAutomation />} />
               <Route path="/marketing" element={<Marketing />} />
               <Route path="/projects" element={<Projects />} />
               <Route path="/pricing" element={<Pricing />} />
